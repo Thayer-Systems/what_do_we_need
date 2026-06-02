@@ -5,6 +5,9 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const CATEGORIES = ["Fridge","Freezer","Pantry","Lazy Susan","Kids","Dogs","Cleaning","Bathroom","Other","Need Reorder"];
 const CAT_EMOJI = { Fridge:"🧊", Freezer:"❄️", Pantry:"🥫", "Lazy Susan":"🫙", Kids:"🧸", Dogs:"🐾", Cleaning:"🧹", Bathroom:"🪥", Other:"📦", "Need Reorder":"🔄" };
+const RECIPE_TAGS = ["Quick","Dinner","Lunch","Breakfast","Crockpot","Dump & Go"];
+const RECIPE_TAG_EMOJI = { Quick:"⚡", Dinner:"🌙", Lunch:"☀️", Breakfast:"🍳", Crockpot:"🫕", "Dump & Go":"🪣" };
+const EST_TIMES = ["5 min","10 min","15 min","30 min","45 min","1 hr","2 hr","3 hr","4 hr","5 hr","6 hr"];
 
 const C = {
   bg:"#faf9f7", surface:"#ffffff", border:"#ebe7e1", borderLight:"#f2efe9",
@@ -37,29 +40,51 @@ const pillStyle = (color,bg,border) => ({ display:"inline-flex", alignItems:"cen
 const btnStyle = (sm) => ({ width:sm?28:32, height:sm?28:32, borderRadius:8, border:`1px solid ${C.btnBorder}`, background:C.btnBg, color:C.textMid, fontSize:sm?15:17, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Nunito',sans-serif", fontWeight:700, flexShrink:0 });
 const inputStyle = { background:C.surface, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 14px", color:C.text, fontSize:15, fontFamily:"'Nunito',sans-serif", width:"100%", boxSizing:"border-box", outline:"none" };
 
+// ---- ITEM DRILL-DOWN MODAL ----
+function ItemListModal({ title, items, onUpdate, onDelete, onClose }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(44,40,37,0.4)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={(e)=>e.target===e.currentTarget&&onClose()}>
+      <div style={{ background:C.bg, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:480, maxHeight:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 -4px 30px rgba(0,0,0,0.1)" }}>
+        <div style={{ padding:"20px 20px 12px", borderBottom:`1px solid ${C.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:800, fontSize:18, color:C.text }}>{title}</div>
+          <button onClick={onClose} style={{ ...btnStyle(true), background:"transparent", border:"none" }}>✕</button>
+        </div>
+        <div style={{ overflowY:"auto", padding:"12px 16px 24px", display:"flex", flexDirection:"column", gap:7 }}>
+          {items.length===0
+            ? <div style={{ color:C.textLight, textAlign:"center", paddingTop:30, fontFamily:"'Nunito',sans-serif" }}>Nothing here!</div>
+            : items.map(item=><ItemCard key={item.id} item={item} onUpdate={onUpdate} onDelete={onDelete}/>)
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- HOME DASHBOARD ----
-function Dashboard({ items, onNavigate }) {
+function Dashboard({ items, onNavigate, onUpdate, onDelete }) {
+  const [drillDown, setDrillDown] = useState(null); // {title, items}
   const total = items.length;
-  const outOfStock = items.filter(i => !i.has_half && i.full_count===0).length;
-  const expired = items.filter(i => isExpired(i.expires_at)).length;
-  const needReorder = items.filter(i => itemNeedsReorder(i)).length;
+  const outOfStock = items.filter(i => !i.has_half && i.full_count===0);
+  const expired = items.filter(i => isExpired(i.expires_at));
+
+  const statCards = [
+    { label:"Total Items", value:total, color:C.text, bg:C.surface, border:C.border, drill:{ title:"All Items", items } },
+    { label:"Out of Stock", value:outOfStock.length, color:outOfStock.length>0?C.red:C.textMid, bg:outOfStock.length>0?C.redBg:C.surface, border:outOfStock.length>0?C.redBorder:C.border, drill:{ title:"Out of Stock", items:outOfStock } },
+    { label:"Expired", value:expired.length, color:expired.length>0?C.orange:C.textMid, bg:expired.length>0?C.orangeBg:C.surface, border:expired.length>0?C.orangeBorder:C.border, drill:{ title:"Expired Items", items:expired } },
+  ];
 
   const catData = CATEGORIES.map(cat => ({
     cat,
     count: items.filter(i => i.category===cat).length,
     out: items.filter(i => i.category===cat && itemNeedsReorder(i)).length,
-  })).filter(c => c.count > 0);
+  }));
 
   return (
     <div>
       <div style={{ fontSize:11, fontWeight:700, color:C.textLight, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10, fontFamily:"'Nunito',sans-serif" }}>Overview</div>
       <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-        {[
-          { label:"Total Items", value:total, color:C.text, bg:C.surface, border:C.border },
-          { label:"Out of Stock", value:outOfStock, color:outOfStock>0?C.red:C.textMid, bg:outOfStock>0?C.redBg:C.surface, border:outOfStock>0?C.redBorder:C.border },
-          { label:"Expired", value:expired, color:expired>0?C.orange:C.textMid, bg:expired>0?C.orangeBg:C.surface, border:expired>0?C.orangeBorder:C.border },
-        ].map(({label,value,color,bg,border}) => (
-          <div key={label} style={{ background:bg, border:`1px solid ${border}`, borderRadius:12, padding:"12px 14px", flex:1, minWidth:0 }}>
+        {statCards.map(({label,value,color,bg,border,drill})=>(
+          <div key={label} onClick={()=>setDrillDown(drill)} style={{ background:bg, border:`1px solid ${border}`, borderRadius:12, padding:"12px 14px", flex:1, minWidth:0, cursor:"pointer" }}>
             <div style={{ fontSize:22, fontWeight:800, color, fontFamily:"'Nunito',sans-serif" }}>{value}</div>
             <div style={{ fontSize:11, color:C.textLight, marginTop:2, fontFamily:"'Nunito',sans-serif" }}>{label}</div>
           </div>
@@ -69,18 +94,16 @@ function Dashboard({ items, onNavigate }) {
       <div style={{ fontSize:11, fontWeight:700, color:C.textLight, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10, fontFamily:"'Nunito',sans-serif" }}>By Category</div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:8, marginBottom:16 }}>
         {catData.map(({ cat, count, out }) => (
-          <div
-            key={cat}
-            onClick={() => onNavigate("pantry", cat)}
-            style={{ background:out>0?C.redBg:C.surface, border:`1px solid ${out>0?C.redBorder:C.border}`, borderRadius:12, padding:"12px 10px", display:"flex", flexDirection:"column", alignItems:"center", gap:4, cursor:"pointer" }}
-          >
+          <div key={cat} onClick={()=>onNavigate("pantry", cat)} style={{ background:out>0?C.redBg:C.surface, border:`1px solid ${out>0?C.redBorder:C.border}`, borderRadius:12, padding:"12px 10px", display:"flex", flexDirection:"column", alignItems:"center", gap:4, cursor:"pointer" }}>
             <span style={{ fontSize:22 }}>{CAT_EMOJI[cat]}</span>
             <span style={{ fontSize:11, fontWeight:800, color:C.text, fontFamily:"'Nunito',sans-serif", textAlign:"center", lineHeight:1.2 }}>{cat}</span>
-            <span style={{ fontSize:12, fontWeight:700, color:C.textMid, fontFamily:"'Nunito',sans-serif" }}>{count}</span>
+            <span style={{ fontSize:12, fontWeight:700, color:count>0?C.textMid:C.textLight, fontFamily:"'Nunito',sans-serif" }}>{count}</span>
             {out>0 && <span style={{ fontSize:10, fontWeight:800, color:C.red, fontFamily:"'Nunito',sans-serif" }}>{out} low</span>}
           </div>
         ))}
       </div>
+
+      {drillDown && <ItemListModal title={drillDown.title} items={drillDown.items} onUpdate={onUpdate} onDelete={onDelete} onClose={()=>setDrillDown(null)}/>}
     </div>
   );
 }
@@ -92,43 +115,29 @@ function ItemCard({ item, onUpdate, onDelete }) {
   const expiringSoon = isExpiringSoon(expires_at);
   const outOfStock = !has_half && full_count===0;
   const runningLow = !has_half && full_count===1 && !expired;
-
-  const summary = (() => {
-    if(expired) return "Expired";
-    const parts=[];
-    if(has_half) parts.push("½ open");
-    if(full_count>0) parts.push(`${full_count} new`);
-    return parts.length ? parts.join(" + ") : "Out of stock";
-  })();
-
+  const summary = (() => { if(expired) return "Expired"; const p=[]; if(has_half) p.push("½ open"); if(full_count>0) p.push(`${full_count} new`); return p.length?p.join(" + "):"Out of stock"; })();
   const badgeColor = expired?C.orange:outOfStock?C.red:runningLow?C.yellow:C.green;
   const badgeBg = expired?C.orangeBg:outOfStock?C.redBg:runningLow?C.yellowBg:C.greenBg;
   const badgeBorder = expired?C.orangeBorder:outOfStock?C.redBorder:runningLow?C.yellowBorder:C.greenBorder;
-
   const formatDate = (d) => { if(!d) return null; const [y,m,day]=d.split("-"); return `${m}/${day}/${y.slice(2)}`; };
-
   return (
     <div style={{ background:expired?C.orangeBg:outOfStock?C.redBg:C.surface, border:`1px solid ${expired?C.orangeBorder:outOfStock?C.redBorder:runningLow?C.yellowBorder:C.border}`, borderRadius:12, padding:"12px 14px", display:"flex", flexDirection:"column", gap:9 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
         <div style={{ minWidth:0 }}>
-          <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:700, fontSize:15, color:expired?C.orange:outOfStock?C.red:C.text }}>
-            {name}
-          </div>
-          <div style={{ fontSize:11, color:C.textLight, marginTop:2, fontFamily:"'Nunito',sans-serif", display:"flex", gap:6 }}>
-            {expires_at && <span style={{ color:expired?C.orange:expiringSoon?C.yellow:C.textLight, fontWeight:expired||expiringSoon?700:400 }}>{expired?"⚠️ Exp ":expiringSoon?"⏰ Exp ":"Exp "}{formatDate(expires_at)}</span>}
-          </div>
+          <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:700, fontSize:15, color:expired?C.orange:outOfStock?C.red:C.text }}>{name}</div>
+          {expires_at && <div style={{ fontSize:11, color:expired?C.orange:expiringSoon?C.yellow:C.textLight, fontWeight:expired||expiringSoon?700:400, marginTop:2, fontFamily:"'Nunito',sans-serif" }}>{expired?"⚠️ Exp ":expiringSoon?"⏰ Exp ":"Exp "}{formatDate(expires_at)}</div>}
         </div>
         <div style={pillStyle(badgeColor,badgeBg,badgeBorder)}>{summary}</div>
       </div>
       <div style={{ display:"flex", gap:7, alignItems:"center", flexWrap:"wrap" }}>
-        <button onClick={() => onUpdate(item.id,{has_half:!has_half})} style={{ padding:"4px 11px", borderRadius:8, border:`1px solid ${has_half?C.greenBorder:C.btnBorder}`, background:has_half?C.greenBg:C.btnBg, color:has_half?C.green:C.textMid, fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:has_half?700:500 }}>Opened</button>
+        <button onClick={()=>onUpdate(item.id,{has_half:!has_half})} style={{ padding:"4px 11px", borderRadius:8, border:`1px solid ${has_half?C.greenBorder:C.btnBorder}`, background:has_half?C.greenBg:C.btnBg, color:has_half?C.green:C.textMid, fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:has_half?700:500 }}>Opened</button>
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          <button onClick={() => onUpdate(item.id,{full_count:Math.max(0,full_count-1)})} style={btnStyle(true)}>−</button>
+          <button onClick={()=>onUpdate(item.id,{full_count:Math.max(0,full_count-1)})} style={btnStyle(true)}>−</button>
           <span style={{ fontSize:15, fontWeight:800, color:C.text, minWidth:18, textAlign:"center", fontFamily:"'Nunito',sans-serif" }}>{full_count}</span>
-          <button onClick={() => onUpdate(item.id,{full_count:full_count+1})} style={btnStyle(true)}>+</button>
+          <button onClick={()=>onUpdate(item.id,{full_count:full_count+1})} style={btnStyle(true)}>+</button>
           <span style={{ fontSize:11, color:C.textLight, fontFamily:"'Nunito',sans-serif" }}>new</span>
         </div>
-        <button onClick={() => onDelete(item.id)} style={{ ...btnStyle(true), color:C.textLight, marginLeft:"auto" }}>✕</button>
+        <button onClick={()=>onDelete(item.id)} style={{ ...btnStyle(true), color:C.textLight, marginLeft:"auto" }}>✕</button>
       </div>
     </div>
   );
@@ -136,32 +145,19 @@ function ItemCard({ item, onUpdate, onDelete }) {
 
 // ---- ADD ITEM MODAL ----
 function AddItemModal({ onAdd, onClose, defaultCategory }) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState(defaultCategory || CATEGORIES[0]);
-  const [hasOpened, setHasOpened] = useState(false);
-  const [newCount, setNewCount] = useState(1);
-  const [expiresAt, setExpiresAt] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const submit = async () => {
-    if(!name.trim()) return;
-    setSaving(true);
-    await onAdd({ name:name.trim(), category, has_half:hasOpened, full_count:newCount, expires_at:expiresAt||null });
-    onClose();
-  };
-
+  const [name,setName]=useState(""); const [category,setCategory]=useState(defaultCategory||CATEGORIES[0]);
+  const [hasOpened,setHasOpened]=useState(false); const [newCount,setNewCount]=useState(1);
+  const [expiresAt,setExpiresAt]=useState(""); const [saving,setSaving]=useState(false);
+  const submit = async () => { if(!name.trim()) return; setSaving(true); await onAdd({name:name.trim(),category,has_half:hasOpened,full_count:newCount,expires_at:expiresAt||null}); onClose(); };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(44,40,37,0.4)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={(e)=>e.target===e.currentTarget&&onClose()}>
       <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:"20px 20px 0 0", padding:"24px 20px", width:"100%", maxWidth:480, display:"flex", flexDirection:"column", gap:14, boxShadow:"0 -4px 30px rgba(0,0,0,0.1)" }}>
         <div style={{ fontFamily:"'Nunito',sans-serif", fontSize:20, fontWeight:800, color:C.text }}>Add Item</div>
-        <input autoFocus value={name} onChange={(e)=>setName(e.target.value)} onKeyDown={(e)=>e.key==="Enter"&&submit()} placeholder="Item name..." style={inputStyle} />
-        <select value={category} onChange={(e)=>setCategory(e.target.value)} style={inputStyle}>
-          {CATEGORIES.map(c=><option key={c}>{c}</option>)}
-        </select>
+        <input autoFocus value={name} onChange={(e)=>setName(e.target.value)} onKeyDown={(e)=>e.key==="Enter"&&submit()} placeholder="Item name..." style={inputStyle}/>
+        <select value={category} onChange={(e)=>setCategory(e.target.value)} style={inputStyle}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select>
         <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
           <label style={{ display:"flex", alignItems:"center", gap:8, color:C.textMid, fontSize:14, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
-            <input type="checkbox" checked={hasOpened} onChange={(e)=>setHasOpened(e.target.checked)} style={{ width:16, height:16 }} />
-            Opened
+            <input type="checkbox" checked={hasOpened} onChange={(e)=>setHasOpened(e.target.checked)} style={{ width:16, height:16 }}/>Opened
           </label>
           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
             <span style={{ color:C.textMid, fontSize:13, fontFamily:"'Nunito',sans-serif" }}>New:</span>
@@ -172,11 +168,9 @@ function AddItemModal({ onAdd, onClose, defaultCategory }) {
         </div>
         <div>
           <div style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:6, fontFamily:"'Nunito',sans-serif" }}>Expiration date (optional)</div>
-          <input type="date" value={expiresAt} onChange={(e)=>setExpiresAt(e.target.value)} style={inputStyle} />
+          <input type="date" value={expiresAt} onChange={(e)=>setExpiresAt(e.target.value)} style={inputStyle}/>
         </div>
-        <button onClick={submit} disabled={saving} style={{ background:C.green, color:"#fff", border:"none", borderRadius:12, padding:"14px", fontSize:15, fontWeight:800, cursor:saving?"wait":"pointer", fontFamily:"'Nunito',sans-serif", opacity:saving?0.7:1 }}>
-          {saving?"Adding...":"Add to List"}
-        </button>
+        <button onClick={submit} disabled={saving} style={{ background:C.green, color:"#fff", border:"none", borderRadius:12, padding:"14px", fontSize:15, fontWeight:800, cursor:saving?"wait":"pointer", fontFamily:"'Nunito',sans-serif", opacity:saving?0.7:1 }}>{saving?"Adding...":"Add to List"}</button>
       </div>
     </div>
   );
@@ -184,29 +178,23 @@ function AddItemModal({ onAdd, onClose, defaultCategory }) {
 
 // ---- RECIPE CARD ----
 function RecipeCard({ recipe, items, onDelete, onEdit }) {
-  const [expanded, setExpanded] = useState(false);
-  const ingredients = recipe.ingredients || [];
-
-  const getItemStatus = (ing) => {
-    const match = items.find(i => i.name.toLowerCase()===ing.toLowerCase());
-    if(!match) return "unknown";
-    return itemNeedsReorder(match) ? "out" : "in";
-  };
-
-  const statuses = ingredients.map(ing => getItemStatus(ing));
-  const allIn = statuses.every(s=>s==="in");
-  const someOut = statuses.some(s=>s==="out");
-  const statusLabel = allIn?"Ready to make!":someOut?"Missing items":"Some items untracked";
-  const sc = allIn?C.green:someOut?C.red:C.yellow;
-  const sb = allIn?C.greenBg:someOut?C.redBg:C.yellowBg;
-  const sbr = allIn?C.greenBorder:someOut?C.redBorder:C.yellowBorder;
-
+  const [expanded,setExpanded]=useState(false);
+  const ingredients = recipe.ingredients||[];
+  const tags = recipe.tags||[];
+  const getItemStatus = (ing) => { const m=items.find(i=>i.name.toLowerCase()===ing.toLowerCase()); if(!m) return "unknown"; return itemNeedsReorder(m)?"out":"in"; };
+  const statuses = ingredients.map(ing=>getItemStatus(ing));
+  const allIn=statuses.every(s=>s==="in"); const someOut=statuses.some(s=>s==="out");
+  const statusLabel=allIn?"Ready to make!":someOut?"Missing items":"Some untracked";
+  const sc=allIn?C.green:someOut?C.red:C.yellow; const sb=allIn?C.greenBg:someOut?C.redBg:C.yellowBg; const sbr=allIn?C.greenBorder:someOut?C.redBorder:C.yellowBorder;
   return (
     <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden" }}>
       <div style={{ padding:"13px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, cursor:"pointer" }} onClick={()=>setExpanded(!expanded)}>
         <div style={{ minWidth:0 }}>
           <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:700, fontSize:15, color:C.text }}>🍽️ {recipe.name}</div>
-          <div style={{ fontSize:11, color:C.textLight, marginTop:2, fontFamily:"'Nunito',sans-serif" }}>{ingredients.length} ingredient{ingredients.length!==1?"s":""}</div>
+          <div style={{ display:"flex", gap:5, marginTop:4, flexWrap:"wrap", alignItems:"center" }}>
+            {recipe.est_time && <span style={{ fontSize:11, color:C.textMid, fontFamily:"'Nunito',sans-serif" }}>⏱ {recipe.est_time}</span>}
+            {tags.map(tag=><span key={tag} style={{ fontSize:10, fontWeight:700, color:C.purple, background:C.purpleBg, border:`1px solid ${C.purpleBorder}`, padding:"1px 7px", borderRadius:20, fontFamily:"'Nunito',sans-serif" }}>{RECIPE_TAG_EMOJI[tag]} {tag}</span>)}
+          </div>
         </div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
           <span style={pillStyle(sc,sb,sbr)}>{statusLabel}</span>
@@ -215,19 +203,13 @@ function RecipeCard({ recipe, items, onDelete, onEdit }) {
       </div>
       {expanded && (
         <div style={{ borderTop:`1px solid ${C.borderLight}`, padding:"12px 14px", display:"flex", flexDirection:"column", gap:6 }}>
-          {recipe.notes && <div style={{ fontSize:13, color:C.textMid, fontFamily:"'Nunito',sans-serif", marginBottom:4, fontStyle:"italic" }}>{recipe.notes}</div>}
-          {ingredients.map((ing,i) => {
-            const s=getItemStatus(ing);
-            const ic=s==="in"?C.green:s==="out"?C.red:C.yellow;
-            const ib=s==="in"?C.greenBg:s==="out"?C.redBg:C.yellowBg;
-            const ibr=s==="in"?C.greenBorder:s==="out"?C.redBorder:C.yellowBorder;
-            return (
-              <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-                <span style={{ fontSize:14, fontFamily:"'Nunito',sans-serif", color:C.text }}>{ing}</span>
-                <span style={pillStyle(ic,ib,ibr)}>{s==="in"?"✓ In stock":s==="out"?"✗ Need to order":"? Not tracked"}</span>
-              </div>
-            );
-          })}
+          {recipe.notes && <div style={{ fontSize:13, color:C.textMid, fontStyle:"italic", fontFamily:"'Nunito',sans-serif", marginBottom:4 }}>{recipe.notes}</div>}
+          {ingredients.map((ing,i)=>{ const s=getItemStatus(ing); const ic=s==="in"?C.green:s==="out"?C.red:C.yellow; const ib=s==="in"?C.greenBg:s==="out"?C.redBg:C.yellowBg; const ibr=s==="in"?C.greenBorder:s==="out"?C.redBorder:C.yellowBorder; return (
+            <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+              <span style={{ fontSize:14, fontFamily:"'Nunito',sans-serif", color:C.text }}>{ing}</span>
+              <span style={pillStyle(ic,ib,ibr)}>{s==="in"?"✓ In stock":s==="out"?"✗ Need to order":"? Not tracked"}</span>
+            </div>
+          );})}
           <div style={{ display:"flex", gap:8, marginTop:4, justifyContent:"flex-end" }}>
             <button onClick={()=>onEdit(recipe)} style={{ background:C.accentBg, border:`1px solid ${C.accentBorder}`, color:C.accent, borderRadius:8, padding:"4px 12px", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>Edit</button>
             <button onClick={()=>onDelete(recipe.id)} style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.textLight, borderRadius:8, padding:"4px 12px", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>Delete</button>
@@ -238,59 +220,60 @@ function RecipeCard({ recipe, items, onDelete, onEdit }) {
   );
 }
 
-// ---- ADD/EDIT RECIPE MODAL ----
+// ---- RECIPE MODAL ----
 function RecipeModal({ recipe, onSave, onClose, existingItems }) {
-  const [name, setName] = useState(recipe?.name||"");
-  const [notes, setNotes] = useState(recipe?.notes||"");
-  const [ingredients, setIngredients] = useState(recipe?.ingredients?.length ? recipe.ingredients : [""]);
-  const [saving, setSaving] = useState(false);
-  const isEdit = !!recipe?.id;
-
-  const updateIng=(i,val)=>setIngredients(prev=>prev.map((v,idx)=>idx===i?val:v));
-  const addIng=()=>setIngredients(prev=>[...prev,""]);
-  const removeIng=(i)=>setIngredients(prev=>prev.filter((_,idx)=>idx!==i));
-
-  const submit = async () => {
-    if(!name.trim()) return;
-    const cleaned = ingredients.map(s=>s.trim()).filter(Boolean);
-    if(!cleaned.length) return;
-    setSaving(true);
-    await onSave({ id:recipe?.id, name:name.trim(), notes:notes.trim()||null, ingredients:cleaned });
-    onClose();
-  };
-
+  const [name,setName]=useState(recipe?.name||""); const [notes,setNotes]=useState(recipe?.notes||"");
+  const [ingredients,setIngredients]=useState(recipe?.ingredients?.length?recipe.ingredients:[""]);
+  const [tags,setTags]=useState(recipe?.tags||[]); const [estTime,setEstTime]=useState(recipe?.est_time||"");
+  const [saving,setSaving]=useState(false); const isEdit=!!recipe?.id;
+  const updateIng=(i,v)=>setIngredients(p=>p.map((x,idx)=>idx===i?v:x));
+  const toggleTag=(tag)=>setTags(p=>p.includes(tag)?p.filter(t=>t!==tag):[...p,tag]);
+  const submit = async () => { if(!name.trim()) return; const cleaned=ingredients.map(s=>s.trim()).filter(Boolean); if(!cleaned.length) return; setSaving(true); await onSave({id:recipe?.id,name:name.trim(),notes:notes.trim()||null,ingredients:cleaned,tags,est_time:estTime||null}); onClose(); };
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(44,40,37,0.4)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={(e)=>e.target===e.currentTarget&&onClose()}>
       <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:"20px 20px 0 0", padding:"24px 20px", width:"100%", maxWidth:480, display:"flex", flexDirection:"column", gap:14, boxShadow:"0 -4px 30px rgba(0,0,0,0.1)", maxHeight:"90vh", overflowY:"auto" }}>
         <div style={{ fontFamily:"'Nunito',sans-serif", fontSize:20, fontWeight:800, color:C.text }}>{isEdit?"Edit Recipe":"Add Recipe"}</div>
-        <input autoFocus value={name} onChange={(e)=>setName(e.target.value)} placeholder="Recipe name..." style={inputStyle} />
-        <input value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Notes (optional)..." style={inputStyle} />
+        <input autoFocus value={name} onChange={(e)=>setName(e.target.value)} placeholder="Recipe name..." style={inputStyle}/>
+        <input value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Notes (optional)..." style={inputStyle}/>
         <div>
-          <div style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>
-            Ingredients <span style={{ fontWeight:400, color:C.textLight }}>(match pantry item names to check stock)</span>
+          <div style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>Est. Time</div>
+          <select value={estTime} onChange={(e)=>setEstTime(e.target.value)} style={inputStyle}>
+            <option value="">Select time...</option>
+            {EST_TIMES.map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>Tags (select all that apply)</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+            {RECIPE_TAGS.map(tag=>(
+              <button key={tag} onClick={()=>toggleTag(tag)} style={{ padding:"6px 12px", borderRadius:20, border:`1px solid ${tags.includes(tag)?C.purpleBorder:C.border}`, background:tags.includes(tag)?C.purpleBg:"transparent", color:tags.includes(tag)?C.purple:C.textMid, fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:tags.includes(tag)?800:600 }}>
+                {RECIPE_TAG_EMOJI[tag]} {tag}
+              </button>
+            ))}
           </div>
+        </div>
+        <div>
+          <div style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>Ingredients <span style={{ fontWeight:400, color:C.textLight }}>(match pantry names to check stock)</span></div>
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {ingredients.map((ing,i) => (
+            {ingredients.map((ing,i)=>(
               <div key={i} style={{ display:"flex", gap:8 }}>
-                <input value={ing} onChange={(e)=>updateIng(i,e.target.value)} placeholder={`Ingredient ${i+1}...`} style={{ ...inputStyle, flex:1 }} list="item-suggestions" />
-                {ingredients.length>1 && <button onClick={()=>removeIng(i)} style={{ ...btnStyle(), flexShrink:0 }}>✕</button>}
+                <input value={ing} onChange={(e)=>updateIng(i,e.target.value)} placeholder={`Ingredient ${i+1}...`} style={{ ...inputStyle, flex:1 }} list="item-suggestions"/>
+                {ingredients.length>1 && <button onClick={()=>setIngredients(p=>p.filter((_,idx)=>idx!==i))} style={{ ...btnStyle(), flexShrink:0 }}>✕</button>}
               </div>
             ))}
             <datalist id="item-suggestions">{existingItems.map(item=><option key={item.id} value={item.name}/>)}</datalist>
           </div>
-          <button onClick={addIng} style={{ marginTop:8, background:C.accentBg, border:`1px solid ${C.accentBorder}`, color:C.accent, borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>+ Add ingredient</button>
+          <button onClick={()=>setIngredients(p=>[...p,""])} style={{ marginTop:8, background:C.accentBg, border:`1px solid ${C.accentBorder}`, color:C.accent, borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>+ Add ingredient</button>
         </div>
-        <button onClick={submit} disabled={saving} style={{ background:C.purple, color:"#fff", border:"none", borderRadius:12, padding:"14px", fontSize:15, fontWeight:800, cursor:saving?"wait":"pointer", fontFamily:"'Nunito',sans-serif", opacity:saving?0.7:1 }}>
-          {saving?"Saving...":(isEdit?"Save Changes":"Save Recipe")}
-        </button>
+        <button onClick={submit} disabled={saving} style={{ background:C.purple, color:"#fff", border:"none", borderRadius:12, padding:"14px", fontSize:15, fontWeight:800, cursor:saving?"wait":"pointer", fontFamily:"'Nunito',sans-serif", opacity:saving?0.7:1 }}>{saving?"Saving...":(isEdit?"Save Changes":"Save Recipe")}</button>
       </div>
     </div>
   );
 }
 
-// ---- SHOPPING LIST ORDER MODAL ----
+// ---- ORDER MODAL ----
 function OrderModal({ item, onConfirm, onClose }) {
-  const [qty, setQty] = useState(1);
+  const [qty,setQty]=useState(1);
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(44,40,37,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"0 20px" }} onClick={(e)=>e.target===e.currentTarget&&onClose()}>
       <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:16, padding:"24px 20px", width:"100%", maxWidth:360, display:"flex", flexDirection:"column", gap:16 }}>
@@ -310,250 +293,133 @@ function OrderModal({ item, onConfirm, onClose }) {
 
 // ---- MAIN APP ----
 export default function App() {
-  const [items, setItems] = useState([]);
-  const [recipes, setRecipes] = useState([]);
-  const [shopping, setShopping] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [filterCat, setFilterCat] = useState("All");
-  const [filterStock, setFilterStock] = useState("all");
-  const [showAdd, setShowAdd] = useState(false);
-  const [showAddRecipe, setShowAddRecipe] = useState(false);
-  const [editingRecipe, setEditingRecipe] = useState(null);
-  const [orderItem, setOrderItem] = useState(null);
-  const [activeTab, setActiveTab] = useState("home");
-  const [lastSynced, setLastSynced] = useState(null);
-  const [showAddShoppingItem, setShowAddShoppingItem] = useState(false);
-  const [newShoppingName, setNewShoppingName] = useState("");
-  const [newShoppingCat, setNewShoppingCat] = useState(CATEGORIES[0]);
+  const [items,setItems]=useState([]); const [recipes,setRecipes]=useState([]); const [shopping,setShopping]=useState([]);
+  const [loading,setLoading]=useState(true); const [error,setError]=useState(null);
+  const [search,setSearch]=useState(""); const [filterCat,setFilterCat]=useState("All"); const [filterStock,setFilterStock]=useState("all");
+  const [showAdd,setShowAdd]=useState(false); const [showAddRecipe,setShowAddRecipe]=useState(false); const [editingRecipe,setEditingRecipe]=useState(null);
+  const [orderItem,setOrderItem]=useState(null); const [activeTab,setActiveTab]=useState("home"); const [lastSynced,setLastSynced]=useState(null);
+  const [showAddShoppingItem,setShowAddShoppingItem]=useState(false); const [newShoppingName,setNewShoppingName]=useState(""); const [newShoppingCat,setNewShoppingCat]=useState(CATEGORIES[0]);
+  const [recipeTagFilter,setRecipeTagFilter]=useState("All");
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [itemData, recipeData, shoppingData] = await Promise.all([
-        apiFetch("wdwn_items?order=name.asc"),
-        apiFetch("wdwn_recipes?order=name.asc"),
-        apiFetch("wdwn_shopping?status=eq.pending&order=name.asc"),
-      ]);
-      setItems(itemData||[]);
-      setRecipes(recipeData||[]);
-      setShopping(shoppingData||[]);
+      const [itemData,recipeData,shoppingData] = await Promise.all([apiFetch("wdwn_items?order=name.asc"),apiFetch("wdwn_recipes?order=name.asc"),apiFetch("wdwn_shopping?status=eq.pending&order=name.asc")]);
+      setItems(itemData||[]); setRecipes(recipeData||[]); setShopping(shoppingData||[]);
       setLastSynced(new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}));
     } catch(e) { setError("Couldn't load. Check connection."); }
     finally { setLoading(false); }
-  }, []);
+  },[]);
 
   useEffect(()=>{load();},[load]);
 
-  const addItem = async (newItem) => {
-    const data = await apiFetch("wdwn_items",{method:"POST",body:JSON.stringify(newItem)});
-    if(data&&data[0]) setItems(prev=>[...prev,data[0]].sort((a,b)=>a.name.localeCompare(b.name)));
-  };
-
-  const updateItem = async (id, changes) => {
-    setItems(prev=>prev.map(i=>i.id===id?{...i,...changes}:i));
-    await apiFetch(`wdwn_items?id=eq.${id}`,{method:"PATCH",body:JSON.stringify(changes),prefer:"return=minimal"});
-  };
-
-  const deleteItem = async (id) => {
-    setItems(prev=>prev.filter(i=>i.id!==id));
-    await apiFetch(`wdwn_items?id=eq.${id}`,{method:"DELETE",prefer:"return=minimal"});
-  };
+  const addItem = async (newItem) => { const data=await apiFetch("wdwn_items",{method:"POST",body:JSON.stringify(newItem)}); if(data&&data[0]) setItems(prev=>[...prev,data[0]].sort((a,b)=>a.name.localeCompare(b.name))); };
+  const updateItem = async (id,changes) => { setItems(prev=>prev.map(i=>i.id===id?{...i,...changes}:i)); await apiFetch(`wdwn_items?id=eq.${id}`,{method:"PATCH",body:JSON.stringify(changes),prefer:"return=minimal"}); };
+  const deleteItem = async (id) => { setItems(prev=>prev.filter(i=>i.id!==id)); await apiFetch(`wdwn_items?id=eq.${id}`,{method:"DELETE",prefer:"return=minimal"}); };
 
   const saveRecipe = async (recipe) => {
-    if(recipe.id) {
-      const data = await apiFetch(`wdwn_recipes?id=eq.${recipe.id}`,{method:"PATCH",body:JSON.stringify({name:recipe.name,notes:recipe.notes,ingredients:recipe.ingredients})});
-      setRecipes(prev=>prev.map(r=>r.id===recipe.id?{...r,...recipe}:r));
-    } else {
-      const data = await apiFetch("wdwn_recipes",{method:"POST",body:JSON.stringify(recipe)});
-      if(data&&data[0]) setRecipes(prev=>[...prev,data[0]].sort((a,b)=>a.name.localeCompare(b.name)));
-    }
+    const payload={name:recipe.name,notes:recipe.notes,ingredients:recipe.ingredients,tags:recipe.tags,est_time:recipe.est_time};
+    if(recipe.id) { await apiFetch(`wdwn_recipes?id=eq.${recipe.id}`,{method:"PATCH",body:JSON.stringify(payload)}); setRecipes(prev=>prev.map(r=>r.id===recipe.id?{...r,...payload}:r)); }
+    else { const data=await apiFetch("wdwn_recipes",{method:"POST",body:JSON.stringify(payload)}); if(data&&data[0]) setRecipes(prev=>[...prev,data[0]].sort((a,b)=>a.name.localeCompare(b.name))); }
   };
+  const deleteRecipe = async (id) => { setRecipes(prev=>prev.filter(r=>r.id!==id)); await apiFetch(`wdwn_recipes?id=eq.${id}`,{method:"DELETE",prefer:"return=minimal"}); };
 
-  const deleteRecipe = async (id) => {
-    setRecipes(prev=>prev.filter(r=>r.id!==id));
-    await apiFetch(`wdwn_recipes?id=eq.${id}`,{method:"DELETE",prefer:"return=minimal"});
-  };
-
-  // Shopping list
-  const addShoppingItem = async () => {
-    if(!newShoppingName.trim()) return;
-    const data = await apiFetch("wdwn_shopping",{method:"POST",body:JSON.stringify({name:newShoppingName.trim(),category:newShoppingCat,status:"pending"})});
-    if(data&&data[0]) setShopping(prev=>[...prev,data[0]]);
-    setNewShoppingName("");
-    setShowAddShoppingItem(false);
-  };
-
-  const handleOrdered = async (shopItem, qty) => {
-    // Mark shopping item as ordered
-    await apiFetch(`wdwn_shopping?id=eq.${shopItem.id}`,{method:"PATCH",body:JSON.stringify({status:"ordered",quantity_ordered:qty}),prefer:"return=minimal"});
-    setShopping(prev=>prev.filter(s=>s.id!==shopItem.id));
-    // Update or create pantry item
-    const existing = items.find(i=>i.name.toLowerCase()===shopItem.name.toLowerCase());
-    if(existing) {
-      await updateItem(existing.id,{full_count:existing.full_count+qty, expires_at:null});
-    } else {
-      await addItem({name:shopItem.name,category:shopItem.category,has_half:false,full_count:qty,expires_at:null});
-    }
-    setOrderItem(null);
-  };
-
-  const handleSkipped = async (id) => {
-    await apiFetch(`wdwn_shopping?id=eq.${id}`,{method:"PATCH",body:JSON.stringify({status:"skipped"}),prefer:"return=minimal"});
-    setShopping(prev=>prev.filter(s=>s.id!==id));
-  };
-
-  const handleOutOfStock = async (id) => {
-    await apiFetch(`wdwn_shopping?id=eq.${id}`,{method:"PATCH",body:JSON.stringify({status:"out_of_stock"}),prefer:"return=minimal"});
-    setShopping(prev=>prev.filter(s=>s.id!==id));
-  };
-
-  const removeShoppingItem = async (id) => {
-    setShopping(prev=>prev.filter(s=>s.id!==id));
-    await apiFetch(`wdwn_shopping?id=eq.${id}`,{method:"DELETE",prefer:"return=minimal"});
-  };
+  const addShoppingItem = async () => { if(!newShoppingName.trim()) return; const data=await apiFetch("wdwn_shopping",{method:"POST",body:JSON.stringify({name:newShoppingName.trim(),category:newShoppingCat,status:"pending"})}); if(data&&data[0]) setShopping(prev=>[...prev,data[0]]); setNewShoppingName(""); setShowAddShoppingItem(false); };
+  const handleOrdered = async (shopItem,qty) => { await apiFetch(`wdwn_shopping?id=eq.${shopItem.id}`,{method:"PATCH",body:JSON.stringify({status:"ordered",quantity_ordered:qty}),prefer:"return=minimal"}); setShopping(prev=>prev.filter(s=>s.id!==shopItem.id)); const existing=items.find(i=>i.name.toLowerCase()===shopItem.name.toLowerCase()); if(existing) { await updateItem(existing.id,{full_count:existing.full_count+qty,expires_at:null}); } else { await addItem({name:shopItem.name,category:shopItem.category,has_half:false,full_count:qty,expires_at:null}); } setOrderItem(null); };
+  const handleSkipped = async (id) => { await apiFetch(`wdwn_shopping?id=eq.${id}`,{method:"PATCH",body:JSON.stringify({status:"skipped"}),prefer:"return=minimal"}); setShopping(prev=>prev.filter(s=>s.id!==id)); };
+  const handleOutOfStock = async (id) => { await apiFetch(`wdwn_shopping?id=eq.${id}`,{method:"PATCH",body:JSON.stringify({status:"out_of_stock"}),prefer:"return=minimal"}); setShopping(prev=>prev.filter(s=>s.id!==id)); };
+  const removeShoppingItem = async (id) => { setShopping(prev=>prev.filter(s=>s.id!==id)); await apiFetch(`wdwn_shopping?id=eq.${id}`,{method:"DELETE",prefer:"return=minimal"}); };
 
   const needReorder = items.filter(i=>itemNeedsReorder(i));
   const outCount = needReorder.length + shopping.length;
+  const filtered = items.filter(item=>{ const ms=item.name.toLowerCase().includes(search.toLowerCase()); const mc=filterCat==="All"||item.category===filterCat; const mst=filterStock==="all"||(filterStock==="out"&&itemNeedsReorder(item))||(filterStock==="in"&&!itemNeedsReorder(item)); return ms&&mc&&mst; });
+  const grouped = CATEGORIES.reduce((acc,cat)=>{ const ci=filtered.filter(i=>i.category===cat); if(ci.length) acc[cat]=ci; return acc; },{});
+  const fabDefaultCat = filterCat!=="All"?filterCat:CATEGORIES[0];
 
-  const filtered = items.filter(item => {
-    const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
-    const matchCat = filterCat==="All" || item.category===filterCat;
-    const matchStock = filterStock==="all" || (filterStock==="out"&&itemNeedsReorder(item)) || (filterStock==="in"&&!itemNeedsReorder(item));
-    return matchSearch && matchCat && matchStock;
-  });
+  const filteredRecipes = recipeTagFilter==="All" ? recipes : recipes.filter(r=>(r.tags||[]).includes(recipeTagFilter));
 
-  const grouped = CATEGORIES.reduce((acc,cat)=>{
-    const catItems=filtered.filter(i=>i.category===cat);
-    if(catItems.length) acc[cat]=catItems;
-    return acc;
-  },{});
-
-  // Current category context for FAB default
-  const fabDefaultCat = filterCat!=="All" ? filterCat : CATEGORIES[0];
-
-  const tabStyle = (tab) => ({
-    flex:1, padding:"10px 0", border:"none", background:"transparent",
-    color:activeTab===tab?C.green:C.textLight,
-    fontSize:10, fontWeight:activeTab===tab?800:600, cursor:"pointer",
-    fontFamily:"'Nunito',sans-serif", display:"flex", flexDirection:"column",
-    alignItems:"center", gap:2,
-    borderTop:`2px solid ${activeTab===tab?C.green:"transparent"}`,
-  });
+  const tabStyle = (tab) => ({ flex:1, padding:"10px 0", border:"none", background:"transparent", color:activeTab===tab?C.green:C.textLight, fontSize:10, fontWeight:activeTab===tab?800:600, cursor:"pointer", fontFamily:"'Nunito',sans-serif", display:"flex", flexDirection:"column", alignItems:"center", gap:2, borderTop:`2px solid ${activeTab===tab?C.green:"transparent"}` });
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Nunito',sans-serif", color:C.text, paddingBottom:80 }}>
-      <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-
-      {/* Header */}
+      <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
       <div style={{ padding:"18px 16px 12px", borderBottom:`1px solid ${C.borderLight}`, position:"sticky", top:0, background:C.bg, zIndex:10 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:22, color:C.text, letterSpacing:"-0.3px" }}>What Do We Need? 🛒</div>
-            <div style={{ fontSize:11, color:C.textLight, marginTop:1 }}>
-              {lastSynced?`Last synced ${lastSynced}`:"Syncing..."}
-              {outCount>0 && <span style={{ color:C.red, marginLeft:8, fontWeight:700 }}>{outCount} need reorder</span>}
-            </div>
+            <div style={{ fontSize:11, color:C.textLight, marginTop:1 }}>{lastSynced?`Last synced ${lastSynced}`:"Syncing..."}{outCount>0&&<span style={{ color:C.red, marginLeft:8, fontWeight:700 }}>{outCount} need reorder</span>}</div>
           </div>
           <button onClick={load} style={{ background:C.surface, border:`1px solid ${C.border}`, color:C.textMid, borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>↻</button>
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ padding:"16px 16px 0" }}>
-        {error && <div style={{ color:C.red, background:C.redBg, border:`1px solid ${C.redBorder}`, borderRadius:10, padding:"10px 14px", marginBottom:12, fontSize:13 }}>{error}</div>}
+        {error&&<div style={{ color:C.red, background:C.redBg, border:`1px solid ${C.redBorder}`, borderRadius:10, padding:"10px 14px", marginBottom:12, fontSize:13 }}>{error}</div>}
 
-        {/* HOME TAB */}
         {activeTab==="home" && (
-          <>
-            {loading
-              ? <div style={{ color:C.textLight, textAlign:"center", paddingTop:40 }}>Loading...</div>
-              : <Dashboard items={items} onNavigate={(tab,cat)=>{ setActiveTab(tab); setFilterCat(cat); }} />
-            }
-          </>
+          loading ? <div style={{ color:C.textLight, textAlign:"center", paddingTop:40 }}>Loading...</div>
+          : <Dashboard items={items} onNavigate={(tab,cat)=>{setActiveTab(tab);setFilterCat(cat);}} onUpdate={updateItem} onDelete={deleteItem}/>
         )}
 
-        {/* PANTRY TAB */}
         {activeTab==="pantry" && (
           <>
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="🔍  Search items..." style={{ ...inputStyle, marginBottom:10 }} />
+            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="🔍  Search items..." style={{ ...inputStyle, marginBottom:10 }}/>
             <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:6, marginBottom:12 }}>
               {["All",...CATEGORIES].map(c=>(
                 <button key={c} onClick={()=>setFilterCat(c)} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${filterCat===c?C.accentBorder:C.border}`, background:filterCat===c?C.accentBg:"transparent", color:filterCat===c?C.accent:C.textMid, fontSize:12, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'Nunito',sans-serif", fontWeight:filterCat===c?800:600 }}>
                   {c==="All"?"All":`${CAT_EMOJI[c]} ${c}`}
                 </button>
               ))}
-              <button onClick={()=>setFilterStock(filterStock==="out"?"all":"out")} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${filterStock==="out"?C.redBorder:C.border}`, background:filterStock==="out"?C.redBg:"transparent", color:filterStock==="out"?C.red:C.textMid, fontSize:12, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'Nunito',sans-serif", fontWeight:filterStock==="out"?800:600 }}>
-                🚨 Need reorder
-              </button>
+              <button onClick={()=>setFilterStock(filterStock==="out"?"all":"out")} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${filterStock==="out"?C.redBorder:C.border}`, background:filterStock==="out"?C.redBg:"transparent", color:filterStock==="out"?C.red:C.textMid, fontSize:12, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'Nunito',sans-serif", fontWeight:filterStock==="out"?800:600 }}>🚨 Need reorder</button>
             </div>
-            {loading ? (
-              <div style={{ color:C.textLight, textAlign:"center", paddingTop:40 }}>Loading...</div>
-            ) : filtered.length===0 ? (
-              <div style={{ color:C.textLight, textAlign:"center", paddingTop:40 }}>{search?`Nothing found for "${search}"`:"No items yet — tap + to add one!"}</div>
-            ) : (
-              Object.entries(grouped).map(([cat,catItems])=>(
-                <div key={cat} style={{ marginBottom:22 }}>
-                  <div style={{ fontSize:12, fontWeight:800, color:C.textMid, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>{CAT_EMOJI[cat]} {cat}</div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-                    {catItems.map(item=><ItemCard key={item.id} item={item} onUpdate={updateItem} onDelete={deleteItem}/>)}
-                  </div>
-                </div>
-              ))
-            )}
+            {loading ? <div style={{ color:C.textLight, textAlign:"center", paddingTop:40 }}>Loading...</div>
+            : filtered.length===0 ? <div style={{ color:C.textLight, textAlign:"center", paddingTop:40 }}>{search?`Nothing found for "${search}"`:"No items yet — tap + to add one!"}</div>
+            : Object.entries(grouped).map(([cat,catItems])=>(
+              <div key={cat} style={{ marginBottom:22 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:C.textMid, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>{CAT_EMOJI[cat]} {cat}</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:7 }}>{catItems.map(item=><ItemCard key={item.id} item={item} onUpdate={updateItem} onDelete={deleteItem}/>)}</div>
+              </div>
+            ))}
           </>
         )}
 
-        {/* SHOPPING LIST TAB */}
         {activeTab==="need" && (
           <>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:800, fontSize:17, color:C.text }}>Shopping List 🛒</div>
               <button onClick={()=>setShowAddShoppingItem(true)} style={{ background:C.accentBg, border:`1px solid ${C.accentBorder}`, color:C.accent, borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:800 }}>+ Add</button>
             </div>
-
-            {/* Add manual item inline */}
             {showAddShoppingItem && (
               <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:"14px", marginBottom:14, display:"flex", flexDirection:"column", gap:10 }}>
-                <input autoFocus value={newShoppingName} onChange={(e)=>setNewShoppingName(e.target.value)} onKeyDown={(e)=>e.key==="Enter"&&addShoppingItem()} placeholder="Item name..." style={inputStyle} list="pantry-suggestions" />
+                <input autoFocus value={newShoppingName} onChange={(e)=>setNewShoppingName(e.target.value)} onKeyDown={(e)=>e.key==="Enter"&&addShoppingItem()} placeholder="Item name..." style={inputStyle} list="pantry-suggestions"/>
                 <datalist id="pantry-suggestions">{items.map(i=><option key={i.id} value={i.name}/>)}</datalist>
-                <select value={newShoppingCat} onChange={(e)=>setNewShoppingCat(e.target.value)} style={inputStyle}>
-                  {CATEGORIES.map(c=><option key={c}>{c}</option>)}
-                </select>
+                <select value={newShoppingCat} onChange={(e)=>setNewShoppingCat(e.target.value)} style={inputStyle}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select>
                 <div style={{ display:"flex", gap:8 }}>
                   <button onClick={addShoppingItem} style={{ flex:1, background:C.green, color:"#fff", border:"none", borderRadius:10, padding:"10px", fontSize:14, fontWeight:800, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>Add to List</button>
                   <button onClick={()=>{setShowAddShoppingItem(false);setNewShoppingName("");}} style={{ background:C.btnBg, border:`1px solid ${C.btnBorder}`, color:C.textMid, borderRadius:10, padding:"10px 14px", fontSize:14, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>Cancel</button>
                 </div>
               </div>
             )}
-
-            {/* Auto-generated from out-of-stock */}
             {needReorder.length>0 && (
               <div style={{ marginBottom:20 }}>
                 <div style={{ fontSize:11, fontWeight:700, color:C.textLight, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>Out of Stock / Expired</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-                  {needReorder.map(item=>{
-                    const expired=isExpired(item.expires_at);
-                    return (
-                      <div key={item.id} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px" }}>
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:8 }}>
-                          <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:700, fontSize:15, color:C.text }}>{item.name}</span>
-                          <span style={pillStyle(expired?C.orange:C.red, expired?C.orangeBg:C.redBg, expired?C.orangeBorder:C.redBorder)}>{expired?"Expired":"Out of stock"}</span>
-                        </div>
-                        <div style={{ display:"flex", gap:6 }}>
-                          <button onClick={()=>setOrderItem(item)} style={{ flex:1, background:C.greenBg, border:`1px solid ${C.greenBorder}`, color:C.green, borderRadius:8, padding:"6px 0", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:800 }}>✓ Ordered</button>
-                          <button onClick={()=>handleSkipped(item.id)} style={{ flex:1, background:C.btnBg, border:`1px solid ${C.btnBorder}`, color:C.textMid, borderRadius:8, padding:"6px 0", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>Skip</button>
-                          <button onClick={()=>handleOutOfStock(item.id)} style={{ flex:1, background:C.redBg, border:`1px solid ${C.redBorder}`, color:C.red, borderRadius:8, padding:"6px 0", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>Store OOS</button>
-                        </div>
+                  {needReorder.map(item=>{ const exp=isExpired(item.expires_at); return (
+                    <div key={item.id} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:8 }}>
+                        <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:700, fontSize:15, color:C.text }}>{item.name}</span>
+                        <span style={pillStyle(exp?C.orange:C.red,exp?C.orangeBg:C.redBg,exp?C.orangeBorder:C.redBorder)}>{exp?"Expired":"Out of stock"}</span>
                       </div>
-                    );
-                  })}
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button onClick={()=>setOrderItem(item)} style={{ flex:1, background:C.greenBg, border:`1px solid ${C.greenBorder}`, color:C.green, borderRadius:8, padding:"6px 0", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:800 }}>✓ Ordered</button>
+                        <button onClick={()=>handleSkipped(item.id)} style={{ flex:1, background:C.btnBg, border:`1px solid ${C.btnBorder}`, color:C.textMid, borderRadius:8, padding:"6px 0", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>Skip</button>
+                        <button onClick={()=>handleOutOfStock(item.id)} style={{ flex:1, background:C.redBg, border:`1px solid ${C.redBorder}`, color:C.red, borderRadius:8, padding:"6px 0", fontSize:12, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:700 }}>Store OOS</button>
+                      </div>
+                    </div>
+                  );})}
                 </div>
               </div>
             )}
-
-            {/* Manually added items */}
             {shopping.length>0 && (
               <div style={{ marginBottom:20 }}>
                 <div style={{ fontSize:11, fontWeight:700, color:C.textLight, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>Added to List</div>
@@ -577,54 +443,67 @@ export default function App() {
                 </div>
               </div>
             )}
-
-            {needReorder.length===0 && shopping.length===0 && (
-              <div style={{ color:C.textLight, textAlign:"center", paddingTop:40, fontFamily:"'Nunito',sans-serif" }}>You're all stocked up! 🎉</div>
-            )}
+            {needReorder.length===0&&shopping.length===0&&<div style={{ color:C.textLight, textAlign:"center", paddingTop:40, fontFamily:"'Nunito',sans-serif" }}>You're all stocked up! 🎉</div>}
           </>
         )}
 
-        {/* RECIPES TAB */}
         {activeTab==="recipes" && (
           <>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:800, fontSize:17, color:C.text }}>Recipes 🍽️</div>
-              <button onClick={()=>setShowAddRecipe(true)} style={{ background:C.purpleBg, border:`1px solid ${C.purpleBorder}`, color:C.purple, borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:800 }}>+ Add Recipe</button>
+              <button onClick={()=>setShowAddRecipe(true)} style={{ background:C.purpleBg, border:`1px solid ${C.purpleBorder}`, color:C.purple, borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontWeight:800 }}>+ Add</button>
             </div>
-            {recipes.length===0
-              ? <div style={{ color:C.textLight, textAlign:"center", paddingTop:40 }}>No recipes yet!</div>
-              : <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {recipes.map(r=><RecipeCard key={r.id} recipe={r} items={items} onDelete={deleteRecipe} onEdit={(r)=>setEditingRecipe(r)}/>)}
-                </div>
-            }
+            {/* Tag filter bar */}
+            <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:6, marginBottom:14 }}>
+              {["All",...RECIPE_TAGS].map(tag=>(
+                <button key={tag} onClick={()=>setRecipeTagFilter(tag)} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${recipeTagFilter===tag?C.purpleBorder:C.border}`, background:recipeTagFilter===tag?C.purpleBg:"transparent", color:recipeTagFilter===tag?C.purple:C.textMid, fontSize:12, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'Nunito',sans-serif", fontWeight:recipeTagFilter===tag?800:600 }}>
+                  {tag==="All"?"All Recipes":`${RECIPE_TAG_EMOJI[tag]} ${tag}`}
+                </button>
+              ))}
+            </div>
+            {/* Categories */}
+            {recipeTagFilter==="All" ? (
+              RECIPE_TAGS.map(tag=>{
+                const tagRecipes=recipes.filter(r=>(r.tags||[]).includes(tag));
+                if(!tagRecipes.length) return null;
+                return (
+                  <div key={tag} style={{ marginBottom:22 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:C.textMid, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>{RECIPE_TAG_EMOJI[tag]} {tag}</div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>{tagRecipes.map(r=><RecipeCard key={r.id} recipe={r} items={items} onDelete={deleteRecipe} onEdit={r=>setEditingRecipe(r)}/>)}</div>
+                  </div>
+                );
+              }).concat(
+                recipes.filter(r=>!(r.tags||[]).length).length > 0 ? [
+                  <div key="untagged" style={{ marginBottom:22 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:C.textMid, letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:8, fontFamily:"'Nunito',sans-serif" }}>📋 Uncategorized</div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>{recipes.filter(r=>!(r.tags||[]).length).map(r=><RecipeCard key={r.id} recipe={r} items={items} onDelete={deleteRecipe} onEdit={r=>setEditingRecipe(r)}/>)}</div>
+                  </div>
+                ] : []
+              )
+            ) : (
+              filteredRecipes.length===0
+                ? <div style={{ color:C.textLight, textAlign:"center", paddingTop:30, fontFamily:"'Nunito',sans-serif" }}>No {recipeTagFilter} recipes yet.</div>
+                : <div style={{ display:"flex", flexDirection:"column", gap:8 }}>{filteredRecipes.map(r=><RecipeCard key={r.id} recipe={r} items={items} onDelete={deleteRecipe} onEdit={r=>setEditingRecipe(r)}/>)}</div>
+            )}
+            {recipes.length===0&&<div style={{ color:C.textLight, textAlign:"center", paddingTop:40, fontFamily:"'Nunito',sans-serif" }}>No recipes yet!</div>}
           </>
         )}
       </div>
 
-      {/* FAB */}
       {activeTab==="pantry" && (
         <button onClick={()=>setShowAdd(true)} style={{ position:"fixed", bottom:72, right:18, width:52, height:52, borderRadius:"50%", background:C.green, border:"none", color:"#fff", fontSize:26, fontWeight:300, cursor:"pointer", boxShadow:"0 4px 16px rgba(90,158,117,0.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50 }}>+</button>
       )}
 
-      {/* Bottom nav */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:C.surface, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:20 }}>
-        <button style={tabStyle("home")} onClick={()=>setActiveTab("home")}>
-          <span style={{ fontSize:18 }}>🏠</span><span>Home</span>
-        </button>
-        <button style={tabStyle("pantry")} onClick={()=>setActiveTab("pantry")}>
-          <span style={{ fontSize:18 }}>🍏</span><span>Pantry</span>
-        </button>
-        <button style={tabStyle("need")} onClick={()=>setActiveTab("need")}>
-          <span style={{ fontSize:18 }}>🛒</span><span>Need {outCount>0?`(${outCount})`:""}</span>
-        </button>
-        <button style={tabStyle("recipes")} onClick={()=>setActiveTab("recipes")}>
-          <span style={{ fontSize:18 }}>🍽️</span><span>Recipes</span>
-        </button>
+        <button style={tabStyle("home")} onClick={()=>setActiveTab("home")}><span style={{ fontSize:18 }}>🏠</span><span>Home</span></button>
+        <button style={tabStyle("pantry")} onClick={()=>setActiveTab("pantry")}><span style={{ fontSize:18 }}>🍏</span><span>Pantry</span></button>
+        <button style={tabStyle("need")} onClick={()=>setActiveTab("need")}><span style={{ fontSize:18 }}>🛒</span><span>Need {outCount>0?`(${outCount})`:""}</span></button>
+        <button style={tabStyle("recipes")} onClick={()=>setActiveTab("recipes")}><span style={{ fontSize:18 }}>🍽️</span><span>Recipes</span></button>
       </div>
 
-      {showAdd && <AddItemModal onAdd={addItem} onClose={()=>setShowAdd(false)} defaultCategory={fabDefaultCat} />}
-      {(showAddRecipe||editingRecipe) && <RecipeModal recipe={editingRecipe} onSave={saveRecipe} onClose={()=>{setShowAddRecipe(false);setEditingRecipe(null);}} existingItems={items}/>}
-      {orderItem && <OrderModal item={orderItem} onConfirm={(qty)=>handleOrdered(orderItem,qty)} onClose={()=>setOrderItem(null)}/>}
+      {showAdd&&<AddItemModal onAdd={addItem} onClose={()=>setShowAdd(false)} defaultCategory={fabDefaultCat}/>}
+      {(showAddRecipe||editingRecipe)&&<RecipeModal recipe={editingRecipe} onSave={saveRecipe} onClose={()=>{setShowAddRecipe(false);setEditingRecipe(null);}} existingItems={items}/>}
+      {orderItem&&<OrderModal item={orderItem} onConfirm={(qty)=>handleOrdered(orderItem,qty)} onClose={()=>setOrderItem(null)}/>}
     </div>
   );
 }
