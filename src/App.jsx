@@ -217,6 +217,67 @@ function EmptyState({ icon, text, sub, action, onAction }) {
 }
 
 // ─── HOME DASHBOARD ──────────────────────────────────────────
+// ─── INSPIRATION CARDS ───────────────────────────────────────
+const CARDS = [
+  // ESV Bible verses — provision, food, gratitude
+  { type:"verse", text:"He who supplies seed to the sower and bread for food will supply and multiply your seed for sowing and increase the harvest of your righteousness.", ref:"2 Corinthians 9:10" },
+  { type:"verse", text:"And my God will supply every need of yours according to his riches in glory in Christ Jesus.", ref:"Philippians 4:19" },
+  { type:"verse", text:"The LORD is my shepherd; I shall not want.", ref:"Psalm 23:1" },
+  { type:"verse", text:"Therefore do not be anxious, saying, 'What shall we eat?' or 'What shall we drink?' or 'What shall we wear?' For your heavenly Father knows that you need them all.", ref:"Matthew 6:31–32" },
+  { type:"verse", text:"You cause the grass to grow for the livestock and plants for man to cultivate, that he may bring forth food from the earth and wine to gladden the heart of man.", ref:"Psalm 104:14–15" },
+  { type:"verse", text:"Better is a dinner of herbs where love is than a fattened ox and hatred with it.", ref:"Proverbs 15:17" },
+  { type:"verse", text:"Oh, taste and see that the LORD is good! Blessed is the man who takes refuge in him!", ref:"Psalm 34:8" },
+  { type:"verse", text:"He gives food to every living thing, for his faithful love endures forever.", ref:"Psalm 136:25" },
+  { type:"verse", text:"So, whether you eat or drink, or whatever you do, do all to the glory of God.", ref:"1 Corinthians 10:31" },
+  { type:"verse", text:"Cast all your anxieties on him, because he cares for you.", ref:"1 Peter 5:7" },
+  { type:"verse", text:"Give us this day our daily bread.", ref:"Matthew 6:11" },
+  { type:"verse", text:"The eyes of all look to you, and you give them their food in due season.", ref:"Psalm 145:15" },
+  { type:"verse", text:"A joyful heart is good medicine, but a crushed spirit dries up the bones.", ref:"Proverbs 17:22" },
+  { type:"verse", text:"Man does not live by bread alone, but man lives by every word that comes from the mouth of the LORD.", ref:"Deuteronomy 8:3" },
+  { type:"verse", text:"Behold, I stand at the door and knock. If anyone hears my voice and opens the door, I will come in to him and eat with him, and he with me.", ref:"Revelation 3:20" },
+
+  // Funny / silly food quotes
+  { type:"quote", text:"I cook with wine. Sometimes I even add it to the food.", ref:"W.C. Fields" },
+  { type:"quote", text:"The secret ingredient is always cheese.", ref:"Every home cook ever" },
+  { type:"quote", text:"Life is uncertain. Eat dessert first.", ref:"Ernestine Ulmer" },
+  { type:"quote", text:"I followed my heart and it led me to the fridge.", ref:"Anonymous" },
+  { type:"quote", text:"Age and glasses of wine should never be counted.", ref:"Italian proverb" },
+  { type:"quote", text:"There is no sincerer love than the love of food.", ref:"George Bernard Shaw" },
+  { type:"quote", text:"My doctor told me to watch my drinking. Now I do it in front of a mirror.", ref:"Rodney Dangerfield" },
+  { type:"quote", text:"I am not a glutton — I am an explorer of food.", ref:"Erma Bombeck" },
+  { type:"quote", text:"Cooking is love made visible.", ref:"Anonymous" },
+  { type:"quote", text:"The first time you make a recipe it's science. The second time it's art.", ref:"Anonymous" },
+  { type:"quote", text:"A well-stocked pantry is a form of optimism.", ref:"Anonymous" },
+  { type:"quote", text:"You can't think or believe or be kind with an empty stomach.", ref:"Wendell Berry" },
+  { type:"quote", text:"People who love to eat are always the best people.", ref:"Julia Child" },
+  { type:"quote", text:"One cannot think well, love well, sleep well, if one has not dined well.", ref:"Virginia Woolf" },
+  { type:"quote", text:"Laughter is brightest where food is best.", ref:"Irish proverb" },
+  { type:"quote", text:"Ask not what you can do for your country. Ask what's for lunch.", ref:"Orson Welles" },
+  { type:"quote", text:"I make no secret of the fact that I would rather lie on a sofa than sweep beneath it.", ref:"Shirley Conran" },
+  { type:"quote", text:"Happiness is a warm kitchen.", ref:"Anonymous" },
+  { type:"quote", text:"The most remarkable thing about my mother is that for thirty years she served the family nothing but leftovers. The original meal has never been found.", ref:"Calvin Trillin" },
+];
+
+function InspirationCard() {
+  const [card] = useState(() => CARDS[Math.floor(Math.random() * CARDS.length)]);
+  const isVerse = card.type === "verse";
+  return (
+    <div style={{
+      marginTop:28, background:C.surface, border:`1px solid ${C.border}`,
+      borderRadius:16, padding:"18px 20px", boxShadow:C.sm,
+      borderLeft:`3px solid ${isVerse ? C.brand : C.warn}`,
+    }}>
+      <div style={{ fontSize:10,fontWeight:700,color:isVerse?C.brandText:C.warn,letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:F.ui,marginBottom:10 }}>
+        {isVerse ? "✦ Scripture" : "✦ Quote"}
+      </div>
+      <p style={{ fontFamily:F.display,fontSize:16,fontWeight:400,color:C.t1,margin:"0 0 10px",lineHeight:1.6,fontStyle:"italic" }}>
+        "{card.text}"
+      </p>
+      <div style={{ fontSize:12,fontWeight:600,color:C.t3,fontFamily:F.ui }}>{card.ref}</div>
+    </div>
+  );
+}
+
 function Dashboard({ items, onNavigate, onUpdate, onDelete }) {
   const [drill,setDrill]=useState(null);
   const oos=items.filter(i=>!i.has_half&&i.full_count===0);
@@ -261,6 +322,7 @@ function Dashboard({ items, onNavigate, onUpdate, onDelete }) {
       </div>
 
       {drill && <ItemListModal title={drill.title} items={drill.items} onUpdate={onUpdate} onDelete={onDelete} onClose={()=>setDrill(null)}/>}
+      <InspirationCard/>
     </div>
   );
 }
