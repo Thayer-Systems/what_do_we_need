@@ -4,7 +4,7 @@ const SUPABASE_URL = "https://dzqciagcyekqxborbats.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6cWNpYWdjeWVrcXhib3JiYXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjUzNTIsImV4cCI6MjA5MjAwMTM1Mn0.MfOw6ci5lRgzMhXGLavztjrQHgP3GCLieYuvsuNDHoM";
 
 const CATEGORIES = ["Fridge","Freezer","Pantry","Lazy Susan","Kids","Dogs","Cleaning","Bathroom","Medicine","Coffee","Other","Need Reorder"];
-const CAT_EMOJI = { Fridge:"🧊", Freezer:"❄️", Pantry:"🥫", "Lazy Susan":"🫙", Kids:"🧸", Dogs:"🐾", Cleaning:"🧹", Bathroom:"🪥", Medicine:"💊", Coffee:"☕", Other:"📦", "Need Reorder":"🔄" };
+const CAT_EMOJI = { Fridge:"🍇", Freezer:"❄️", Pantry:"🥖", "Lazy Susan":"🫙", Kids:"🧃", Dogs:"🐕", Cleaning:"🫧", Bathroom:"🚽", Medicine:"💊", Coffee:"☕", Other:"🍩", "Need Reorder":"🔄" };
 const RECIPE_TAGS = ["Quick","Dinner","Lunch","Breakfast","Crockpot","Dump & Go"];
 const RECIPE_TAG_EMOJI = { Quick:"⚡", Dinner:"🌙", Lunch:"☀️", Breakfast:"🍳", Crockpot:"🫕", "Dump & Go":"🪣" };
 const EST_TIMES = ["5 min","10 min","15 min","30 min","45 min","1 hr","2 hr","3 hr","4 hr","5 hr","6 hr"];
