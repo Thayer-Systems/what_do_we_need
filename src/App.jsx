@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 
 const SUPABASE_URL = "https://dzqciagcyekqxborbats.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6cWNpYWdjeWVrcXhib3JiYXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjUzNTIsImV4cCI6MjA5MjAwMTM1Mn0.MfOw6ci5lRgzMhXGLavztjrQHgP3GCLieYuvsuNDHoM";
+const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_KEY;
 
 const CATEGORIES = ["Fridge","Freezer","Pantry","Lazy Susan","Kids","Dogs","Cleaning","Bathroom","Medicine","Coffee","Other","Need Reorder"];
 const CAT_EMOJI = { Fridge:"🍇", Freezer:"❄️", Pantry:"🥖", "Lazy Susan":"🫙", Kids:"🧃", Dogs:"🐕", Cleaning:"🫧", Bathroom:"🚽", Medicine:"💊", Coffee:"☕", Other:"🍩", "Need Reorder":"🔄" };
@@ -45,6 +46,112 @@ async function apiFetch(path, options={}) {
   if(!res.ok) throw new Error(await res.text());
   const text = await res.text();
   return text ? JSON.parse(text) : null;
+}
+
+async function scanShelf(base64Image, mediaType) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": ANTHROPIC_KEY,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } },
+          { type: "text", text: `Analyze this image of a fridge, freezer, or pantry shelf. List every food or household item you can identify.
+
+For each item return:
+- name: common grocery name (e.g. "Milk", "Chicken Broth", "Ketchup")
+- level: one of "full", "half", or "low" based on how much is left
+- category: one of exactly these: Fridge, Freezer, Pantry, Lazy Susan, Kids, Dogs, Cleaning, Bathroom, Medicine, Coffee, Other
+
+Return ONLY a JSON array, no explanation, no markdown. Example:
+[{"name":"Milk","level":"half","category":"Fridge"},{"name":"Orange Juice","level":"full","category":"Fridge"}]
+
+If you cannot identify any items, return an empty array: []` }
+        ]
+      }]
+    })
+  });
+  if (!res.ok) throw new Error("Vision API error");
+  const data = await res.json();
+  const clean = data.content[0].text.trim().replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+}
+
+// ---- SCAN CONFIRM MODAL ----
+function ScanConfirmModal({ detectedItems, existingItems, onConfirm, onClose }) {
+  const [items, setItems] = useState(() =>
+    detectedItems.map((d, i) => ({
+      ...d,
+      id: i,
+      selected: true,
+      has_half: d.level === "half",
+      full_count: d.level === "full" ? 1 : d.level === "low" ? 0 : 0,
+      exists: !!existingItems.find(e => e.name.toLowerCase() === d.name.toLowerCase()),
+    }))
+  );
+
+  const toggle = (id) => setItems(prev => prev.map(i => i.id === id ? { ...i, selected: !i.selected } : i));
+  const updateField = (id, field, val) => setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: val } : i));
+
+  const selected = items.filter(i => i.selected);
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(44,40,37,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:200 }}>
+      <div style={{ background:C.bg, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:480, maxHeight:"88vh", display:"flex", flexDirection:"column", boxShadow:"0 -4px 30px rgba(0,0,0,0.15)" }}>
+        <div style={{ padding:"20px 20px 12px", borderBottom:`1px solid ${C.border}`, background:C.surface, borderRadius:"20px 20px 0 0" }}>
+          <div style={{ fontFamily:"'Nunito',sans-serif", fontWeight:900, fontSize:18, color:C.text, marginBottom:4 }}>📸 Scan Results</div>
+          <div style={{ fontSize:12, color:C.textMid, fontFamily:"'Nunito',sans-serif" }}>Found {detectedItems.length} item{detectedItems.length!==1?"s":""}. Uncheck anything that looks wrong, then tap Save.</div>
+        </div>
+        <div style={{ overflowY:"auto", flex:1, padding:"12px 16px" }}>
+          {items.length === 0 && <div style={{ color:C.textLight, textAlign:"center", paddingTop:30, fontFamily:"'Nunito',sans-serif" }}>No items detected. Try a clearer photo.</div>}
+          {items.map(item => (
+            <div key={item.id} style={{ background:item.selected?C.surface:"#f7f5f2", border:`1px solid ${item.selected?C.border:C.borderLight}`, borderRadius:12, padding:"12px 14px", marginBottom:8, opacity:item.selected?1:0.5 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:item.selected?10:0 }}>
+                <input type="checkbox" checked={item.selected} onChange={()=>toggle(item.id)} style={{ width:18, height:18, cursor:"pointer", flexShrink:0 }}/>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontFamily:"'Nunito',sans-serif", fontWeight:700, fontSize:14, color:C.text }}>{item.name}</span>
+                    {item.exists && <span style={{ fontSize:10, fontWeight:700, color:C.accent, background:C.accentBg, border:`1px solid ${C.accentBorder}`, padding:"1px 7px", borderRadius:20, fontFamily:"'Nunito',sans-serif" }}>already tracked</span>}
+                  </div>
+                  <div style={{ fontSize:11, color:C.textLight, fontFamily:"'Nunito',sans-serif" }}>{item.category} · {item.level}</div>
+                </div>
+              </div>
+              {item.selected && (
+                <div style={{ display:"flex", gap:8, alignItems:"center", paddingLeft:28 }}>
+                  <select value={item.category} onChange={(e)=>updateField(item.id,"category",e.target.value)} style={{ ...inputStyle, fontSize:12, padding:"5px 10px", flex:1 }}>
+                    {CATEGORIES.map(c=><option key={c}>{c}</option>)}
+                  </select>
+                  <select value={item.has_half?"half":item.full_count>0?"full":"low"} onChange={(e)=>{
+                    const v=e.target.value;
+                    updateField(item.id,"has_half",v==="half");
+                    updateField(item.id,"full_count",v==="full"?1:0);
+                  }} style={{ ...inputStyle, fontSize:12, padding:"5px 10px", flex:1 }}>
+                    <option value="full">Full</option>
+                    <option value="half">Half open</option>
+                    <option value="low">Out/Low</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ padding:"12px 16px 28px", borderTop:`1px solid ${C.border}`, background:C.surface, display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, background:C.btnBg, border:`1px solid ${C.btnBorder}`, color:C.textMid, borderRadius:12, padding:"13px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>Cancel</button>
+          <button onClick={()=>onConfirm(selected)} disabled={selected.length===0} style={{ flex:2, background:C.green, color:"#fff", border:"none", borderRadius:12, padding:"13px", fontSize:14, fontWeight:800, cursor:selected.length===0?"not-allowed":"pointer", fontFamily:"'Nunito',sans-serif", opacity:selected.length===0?0.5:1 }}>
+            Save {selected.length} Item{selected.length!==1?"s":""}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const pillStyle = (color,bg,border) => ({ display:"inline-flex", alignItems:"center", fontSize:11, fontWeight:700, color, background:bg, border:`1px solid ${border}`, padding:"2px 9px", borderRadius:20, whiteSpace:"nowrap", fontFamily:"'Nunito',sans-serif" });
@@ -430,7 +537,43 @@ export default function App() {
   const [recipeTagFilter,setRecipeTagFilter]=useState("All");
   const [mealsSubTab,setMealsSubTab]=useState("schedule"); // "schedule" | "recipes"
   const [openSlot,setOpenSlot]=useState(null); // {day, meal}
+  const [scanning,setScanning]=useState(false);
+  const [scanResults,setScanResults]=useState(null);
   const weekStart = getWeekStart();
+
+  const handleScanPhoto = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target.result;
+      const base64 = dataUrl.split(",")[1];
+      const mediaType = file.type || "image/jpeg";
+      setScanning(true);
+      try {
+        const detected = await scanShelf(base64, mediaType);
+        setScanResults(detected);
+      } catch(err) {
+        alert("Scan failed: " + err.message);
+      } finally {
+        setScanning(false);
+        e.target.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleScanConfirm = async (confirmedItems) => {
+    for (const item of confirmedItems) {
+      const existing = items.find(i => i.name.toLowerCase() === item.name.toLowerCase());
+      if (existing) {
+        await updateItem(existing.id, { has_half: item.has_half, full_count: item.full_count });
+      } else {
+        await addItem({ name: item.name, category: item.category, has_half: item.has_half, full_count: item.full_count, expires_at: null });
+      }
+    }
+    setScanResults(null);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -512,7 +655,14 @@ export default function App() {
 
         {activeTab==="pantry"&&(
           <>
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="🔍  Search items..." style={{ ...inputStyle, marginBottom:10 }}/>
+            {/* Scan banner */}
+            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+              <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="🔍  Search items..." style={{ ...inputStyle, flex:1, marginBottom:0 }}/>
+              <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, background:scanning?C.btnBg:C.accentBg, border:`1px solid ${C.accentBorder}`, color:C.accent, borderRadius:10, padding:"0 14px", fontSize:13, fontWeight:800, cursor:scanning?"wait":"pointer", fontFamily:"'Nunito',sans-serif", whiteSpace:"nowrap", flexShrink:0 }}>
+                {scanning ? "⏳ Scanning..." : "📸 Scan"}
+                {!scanning && <input type="file" accept="image/*" capture="environment" onChange={handleScanPhoto} style={{ display:"none" }}/>}
+              </label>
+            </div>
             <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:6, marginBottom:12 }}>
               {["All",...CATEGORIES].map(c=>(
                 <button key={c} onClick={()=>setFilterCat(c)} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${filterCat===c?C.accentBorder:C.border}`, background:filterCat===c?C.accentBg:"transparent", color:filterCat===c?C.accent:C.textMid, fontSize:12, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'Nunito',sans-serif", fontWeight:filterCat===c?800:600 }}>
@@ -664,6 +814,7 @@ export default function App() {
       {(showAddRecipe||editingRecipe)&&<RecipeModal recipe={editingRecipe} onSave={saveRecipe} onClose={()=>{setShowAddRecipe(false);setEditingRecipe(null);}} existingItems={items}/>}
       {orderItem&&<OrderModal item={orderItem} onConfirm={(qty)=>handleOrdered(orderItem,qty)} onClose={()=>setOrderItem(null)}/>}
       {openSlot&&<MealSlotModal day={openSlot.day} meal={openSlot.meal} recipes={recipes} onScheduleRecipe={(r)=>scheduleRecipe(openSlot.day,openSlot.meal,r)} onEatOut={(rest)=>scheduleEatOut(openSlot.day,openSlot.meal,rest)} onClose={()=>setOpenSlot(null)}/>}
+      {scanResults&&<ScanConfirmModal detectedItems={scanResults} existingItems={items} onConfirm={handleScanConfirm} onClose={()=>setScanResults(null)}/>}
     </div>
   );
 }
