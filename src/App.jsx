@@ -86,9 +86,9 @@ function AppInner() {
       get("sprinkles_chore_completions"),
       get("sprinkles_events?order=start_at.asc"),
       get("sprinkles_settings?id=eq.1"),
-      get("wdwn_recipes?order=name.asc"),
-      get(`wdwn_meal_plan?week_start=eq.${weekStart}`),
-      get("wdwn_shopping?status=eq.pending&order=name.asc"),
+      get("recipes?order=name.asc"),
+      get(`meal_plan?week_start=eq.${weekStart}`),
+      get("shopping_list?status=eq.pending&order=name.asc"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -152,45 +152,64 @@ function AppInner() {
   };
 
   // ── Calendar ──
-  const onAddEvent = (body) => onAdd("sprinkles_events", body);
+  const onAddEvent = async (body) => {
+    const saved = await onAdd("sprinkles_events", body);
+    if (saved) {
+      // Best-effort push to Google Calendar; silently no-ops if not connected.
+      fetch("/api/calendar/create-event", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(saved),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.ok && d.googleEventId) {
+            setEvents((p) => p.map((e) => (e.id === saved.id ? { ...e, google_event_id: d.googleEventId } : e)));
+            patch("sprinkles_events", saved.id, { google_event_id: d.googleEventId });
+          }
+        })
+        .catch(() => {});
+    }
+    return saved;
+  };
   const onDeleteEvent = (id) => onDelete("sprinkles_events", id);
 
   // ── Meals ──
   const onSaveRecipe = async (r) => {
     const body = { name: r.name, ingredients: r.ingredients, tags: r.tags, notes: r.notes };
     if (r.id) {
-      await patch("wdwn_recipes", r.id, body);
+      await patch("recipes", r.id, body);
       setRecipes((p) => p.map((x) => (x.id === r.id ? { ...x, ...body } : x)));
     } else {
-      const d = await post("wdwn_recipes", body);
+      const d = await post("recipes", body);
       if (d?.[0]) setRecipes((p) => [...p, d[0]].sort((a, b) => a.name.localeCompare(b.name)));
     }
   };
   const onDeleteRecipe = async (id) => {
     setRecipes((p) => p.filter((r) => r.id !== id));
-    await del("wdwn_recipes", id);
+    await del("recipes", id);
   };
   const onScheduleRecipe = async (day, meal, recipe) => {
-    const d = await post("wdwn_meal_plan", { day, meal, recipe_id: recipe.id, recipe_name: recipe.name, week_start: weekStart, eat_out: false });
+    const d = await post("meal_plan", { day, meal, recipe_id: recipe.id, recipe_name: recipe.name, week_start: weekStart, eat_out: false });
     if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
   };
   const onMoveSlot = async (id, day, meal) => {
     setMealPlan((p) => p.map((s) => (s.id === id ? { ...s, day, meal } : s)));
-    await patch("wdwn_meal_plan", id, { day, meal });
+    await patch("meal_plan", id, { day, meal });
   };
   const onRemoveSlot = async (id) => {
     setMealPlan((p) => p.filter((s) => s.id !== id));
-    await del("wdwn_meal_plan", id);
+    await del("meal_plan", id);
   };
 
   // ── Grocery ──
   const onAddGrocery = async (name) => {
-    const d = await post("wdwn_shopping", { name, category: "Other", status: "pending" });
+    const d = await post("shopping_list", { name, category: "Other", status: "pending" });
     if (d?.[0]) setShopping((p) => [...p, d[0]]);
   };
   const onRemoveGrocery = async (id) => {
     setShopping((p) => p.filter((s) => s.id !== id));
-    await del("wdwn_shopping", id);
+    await del("shopping_list", id);
   };
 
   // ── Assistant ──
@@ -219,7 +238,7 @@ function AppInner() {
       return `Added "${result.title}" to the calendar.`;
     }
     if (result.type === "meal") {
-      const d = await post("wdwn_meal_plan", { day: result.day, meal: result.meal, recipe_id: null, recipe_name: result.name, week_start: weekStart, eat_out: false });
+      const d = await post("meal_plan", { day: result.day, meal: result.meal, recipe_id: null, recipe_name: result.name, week_start: weekStart, eat_out: false });
       if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
       return `Scheduled "${result.name}" for ${result.day} ${result.meal}.`;
     }

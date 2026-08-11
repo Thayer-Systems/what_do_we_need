@@ -1,5 +1,14 @@
-const SUPABASE_URL = "https://dzqciagcyekqxborbats.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6cWNpYWdjeWVrcXhib3JiYXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjUzNTIsImV4cCI6MjA5MjAwMTM1Mn0.MfOw6ci5lRgzMhXGLavztjrQHgP3GCLieYuvsuNDHoM";
+// Dedicated Mr. Sprinkles Supabase project (mr_sprinkles_os). The anon key
+// is safe to ship client-side by design; it only has access RLS policies
+// explicitly grant it. Both must be set as Vercel env vars — no fallback
+// is checked into source so a key-shaped literal never lands in git history.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  // eslint-disable-next-line no-console
+  console.error("Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY — set them in Vercel project settings.");
+}
 
 export async function api(path, options = {}) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {

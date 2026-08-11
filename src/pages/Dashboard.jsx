@@ -91,7 +91,19 @@ function DepartureWidget({ events, members }) {
   );
 }
 
-export default function Dashboard({ members, events, chores, completions, weather, onToggleChore, onNavigate }) {
+function useWeather() {
+  const [weather, setWeather] = useState(null);
+  useEffect(() => {
+    fetch("/api/weather")
+      .then((r) => r.json())
+      .then((d) => setWeather(d?.available ? d : null))
+      .catch(() => setWeather(null));
+  }, []);
+  return weather;
+}
+
+export default function Dashboard({ members, events, chores, completions, onToggleChore, onNavigate }) {
+  const weather = useWeather();
   const birthdayMember = members.find((m) => isTodayBirthday(m.birthday));
   const upcoming = events
     .filter((e) => new Date(e.start_at) > new Date())
@@ -114,7 +126,11 @@ export default function Dashboard({ members, events, chores, completions, weathe
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>
               {new Date().getHours() < 12 ? "Good morning!" : new Date().getHours() < 18 ? "Good afternoon!" : "Good evening!"}
             </div>
-            {weather && <div style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 600, color: BASE.t2 }}>{weather}</div>}
+            {weather && (
+              <div style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 600, color: BASE.t2 }}>
+                {weather.emoji} {weather.temperatureF}°F {weather.summary}
+              </div>
+            )}
           </div>
         </div>
 
