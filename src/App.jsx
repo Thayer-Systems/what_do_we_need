@@ -246,7 +246,12 @@ function AppInner() {
   };
 
   const PAGES = {
-    home: <Dashboard members={members} events={allEvents} chores={chores} completions={completions} onToggleChore={onToggleChore} onNavigate={setTab} />,
+    home: (
+      <Dashboard
+        members={members} events={allEvents} chores={chores} completions={completions}
+        mealPlan={mealPlan} shopping={shopping} onToggleChore={onToggleChore} onNavigate={setTab}
+      />
+    ),
     family: (
       <Family
         members={members} contacts={contacts} activities={activities} medications={medications}

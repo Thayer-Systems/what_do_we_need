@@ -1,4 +1,5 @@
 import { BASE, F, cardStyle, hardShadow } from "../lib/theme.js";
+import { IconBadge } from "./Deco.jsx";
 
 export function PageHeader({ title, right }) {
   return (
@@ -24,8 +25,8 @@ export function PageHeader({ title, right }) {
 
 export function EmptyState({ icon = "🍩", text, action, onAction }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", gap: 12, textAlign: "center" }}>
-      <div style={{ fontSize: 44 }}>{icon}</div>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", gap: 14, textAlign: "center" }}>
+      <IconBadge emoji={icon} bg={BASE.yellow} size={64} radius={18} rotate={-4} />
       <div style={{ fontFamily: F.display, fontSize: 19, fontWeight: 700, color: BASE.ink }}>{text}</div>
       {action && (
         <button onClick={onAction} style={{ ...pillFrom(BASE.pink), marginTop: 4 }}>

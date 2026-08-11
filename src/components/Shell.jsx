@@ -1,12 +1,13 @@
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
+import { IconBadge, StarAccent } from "./Deco.jsx";
 
 export const TABS = [
-  ["home", "🏠", "Home"],
-  ["family", "👨‍👩‍👧‍👦", "Family"],
-  ["calendar", "📅", "Calendar"],
-  ["meals", "🍽️", "Meals"],
-  ["grocery", "🛒", "Grocery"],
-  ["settings", "⚙️", "Settings"],
+  ["home", "🏠", "Home", BASE.yellow],
+  ["family", "👨‍👩‍👧‍👦", "Family", BASE.pink],
+  ["calendar", "📅", "Calendar", BASE.teal],
+  ["meals", "🍽️", "Meals", BASE.lilac],
+  ["grocery", "🛒", "Grocery", BASE.orange],
+  ["settings", "⚙️", "Settings", BASE.green],
 ];
 
 export default function Shell({ tab, setTab, children }) {
@@ -16,32 +17,33 @@ export default function Shell({ tab, setTab, children }) {
       <div
         className="sprinkles-sidebar"
         style={{
-          width: 220,
+          width: 232,
           flexShrink: 0,
           borderRight: `2.5px solid ${BASE.ink}`,
           background: BASE.surface,
           padding: "24px 14px",
           display: "none",
           flexDirection: "column",
-          gap: 6,
+          gap: 8,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 20px" }}>
-          <img src={MASCOT.main} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 22px", position: "relative" }}>
+          <img src={MASCOT.main} alt="" style={{ width: 42, height: 42, objectFit: "contain" }} />
           <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>Mr. Sprinkles</span>
+          <StarAccent color={BASE.pink} size={16} style={{ position: "absolute", top: -2, right: 6 }} />
         </div>
-        {TABS.map(([t, emoji, label]) => (
+        {TABS.map(([t, emoji, label, color]) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
-              padding: "11px 12px",
-              borderRadius: 12,
+              gap: 12,
+              padding: "8px 10px",
+              borderRadius: 14,
               border: tab === t ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
-              background: tab === t ? BASE.yellow : "transparent",
+              background: tab === t ? color : "transparent",
               boxShadow: tab === t ? hardShadow(BASE.ink, 3, 3) : "none",
               cursor: "pointer",
               fontFamily: F.ui,
@@ -51,7 +53,8 @@ export default function Shell({ tab, setTab, children }) {
               textAlign: "left",
             }}
           >
-            <span style={{ fontSize: 18 }}>{emoji}</span> {label}
+            <IconBadge emoji={emoji} bg={tab === t ? "#fff" : BASE.muted} size={32} radius={10} style={{ boxShadow: tab === t ? hardShadow(BASE.ink, 2, 2) : "none" }} />
+            {label}
           </button>
         ))}
       </div>
@@ -75,13 +78,13 @@ export default function Shell({ tab, setTab, children }) {
           paddingBottom: "env(safe-area-inset-bottom,0px)",
         }}
       >
-        {TABS.map(([t, emoji, label]) => (
+        {TABS.map(([t, emoji, label, color]) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             style={{
               flex: 1,
-              padding: "9px 0 7px",
+              padding: "8px 0 7px",
               border: "none",
               background: "transparent",
               color: BASE.ink,
@@ -92,11 +95,11 @@ export default function Shell({ tab, setTab, children }) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 2,
+              gap: 3,
               opacity: tab === t ? 1 : 0.55,
             }}
           >
-            <span style={{ fontSize: 19 }}>{emoji}</span>
+            <IconBadge emoji={emoji} bg={tab === t ? color : "transparent"} size={28} radius={9} style={{ border: tab === t ? `2px solid ${BASE.ink}` : "2px solid transparent", boxShadow: tab === t ? hardShadow(BASE.ink, 2, 2) : "none" }} />
             <span>{label}</span>
           </button>
         ))}

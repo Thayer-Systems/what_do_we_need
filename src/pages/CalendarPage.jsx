@@ -76,6 +76,24 @@ function AddEventModal({ members, defaultDate, onSave, onClose }) {
   const [notes, setNotes] = useState("");
 
   const toggleMember = (id) => setMemberIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const [travelLookup, setTravelLookup] = useState("idle");
+
+  const lookupTravel = async () => {
+    if (!location.trim()) return;
+    setTravelLookup("loading");
+    try {
+      const r = await fetch(`/api/travel-time?destination=${encodeURIComponent(location.trim())}`);
+      const d = await r.json();
+      if (d.available) {
+        setTravel(String(d.minutes));
+        setTravelLookup("done");
+      } else {
+        setTravelLookup("unavailable");
+      }
+    } catch (e) {
+      setTravelLookup("unavailable");
+    }
+  };
 
   const save = () => {
     if (!title.trim() || !date) return;
@@ -107,8 +125,19 @@ function AddEventModal({ members, defaultDate, onSave, onClose }) {
           <div style={{ flex: 1 }}><span style={label}>Date</span><input type="date" style={inp} value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div style={{ flex: 1 }}><span style={label}>Time</span><input type="time" style={inp} value={time} onChange={(e) => setTime(e.target.value)} /></div>
         </div>
-        <div><span style={label}>Location</span><input style={inp} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Address or place" /></div>
-        <div><span style={label}>Travel time (minutes, optional)</span><input type="number" style={inp} value={travel} onChange={(e) => setTravel(e.target.value)} placeholder="Auto once Google Maps is connected" /></div>
+        <div>
+          <span style={label}>Location</span>
+          <input style={inp} value={location} onChange={(e) => setLocation(e.target.value)} onBlur={lookupTravel} placeholder="Address or place" />
+        </div>
+        <div>
+          <span style={label}>Travel time (minutes)</span>
+          <input type="number" style={inp} value={travel} onChange={(e) => setTravel(e.target.value)} placeholder="Auto-filled from Google Maps" />
+          <div style={{ fontSize: 11, color: BASE.t2, fontFamily: F.ui, marginTop: 4 }}>
+            {travelLookup === "loading" && "Looking up drive time…"}
+            {travelLookup === "done" && "✓ Auto-filled from Google Maps — edit if needed"}
+            {travelLookup === "unavailable" && "Couldn't look it up — enter manually"}
+          </div>
+        </div>
         <div><span style={label}>Who</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {members.map((m) => (
