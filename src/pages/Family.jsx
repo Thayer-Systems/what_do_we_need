@@ -16,6 +16,14 @@ const btn = (bg = BASE.pink) => ({
 });
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 8, display: "block" };
+const cardBtnStyle = (bg) => ({
+  background: bg,
+  color: BASE.ink,
+  border: `2.5px solid ${BASE.ink}`,
+  borderRadius: 18,
+  boxShadow: hardShadow(BASE.ink, 4, 4),
+  fontFamily: F.ui,
+});
 
 function Section({ title, children, onAdd }) {
   return (
@@ -86,7 +94,34 @@ export default function Family({
 }) {
   const [modal, setModal] = useState(null);
   const member = members.find((m) => m.id === selected) || members[0];
-  if (!member) return null;
+  const [view, setView] = useState("grid");
+
+  if (view === "grid" || !member) {
+    return (
+      <div>
+        <PageHeader title="Family" />
+        <div style={{ padding: "20px 16px 40px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 14 }}>
+          {members.map((m) => {
+            const t = themeFor(m);
+            return (
+              <button
+                key={m.id}
+                onClick={() => { setSelected(m.id); setView("detail"); }}
+                style={{
+                  ...cardBtnStyle(t.primary),
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "22px 12px", cursor: "pointer",
+                }}
+              >
+                <div style={{ fontSize: 40 }}>{m.avatar_emoji}</div>
+                <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>{m.name}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   const theme = themeFor(member);
 
   const mContacts = contacts.filter((c) => c.member_id === member.id);
@@ -101,15 +136,7 @@ export default function Family({
       <PageHeader
         title="Family"
         right={
-          <select
-            value={member.id}
-            onChange={(e) => setSelected(Number(e.target.value))}
-            style={{ ...inp, width: "auto", fontWeight: 800 }}
-          >
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>{m.avatar_emoji} {m.name}</option>
-            ))}
-          </select>
+          <button onClick={() => setView("grid")} style={btn("#fff")}>← All Family</button>
         }
       />
 
