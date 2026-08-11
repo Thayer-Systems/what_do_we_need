@@ -1,11 +1,11 @@
 {
-  "name": "What Do We Need?",
-  "short_name": "Pantry",
-  "description": "Shared household inventory tracker",
+  "name": "Mr. Sprinkles",
+  "short_name": "Sprinkles",
+  "description": "Family command center for calendar, meals, chores, and grocery.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf9f7",
-  "theme_color": "#faf9f7",
+  "background_color": "#fdf6ec",
+  "theme_color": "#fdf6ec",
   "orientation": "portrait",
   "icons": [
     {
