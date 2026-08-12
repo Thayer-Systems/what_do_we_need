@@ -315,6 +315,13 @@ export default function Dashboard({ members, events, chores, completions, mealPl
 
   return (
     <div style={{ padding: "18px 16px 32px" }}>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img src={MASCOT.main} alt="" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0 }} />
+          <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, whiteSpace: "nowrap" }}>Mr. Sprinkles</span>
+        </div>
+        <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t2, marginTop: 2, marginLeft: 34 }}>Our family's calendar, meals &amp; tasks, in one place</div>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }} className="sprinkles-dashgrid">
         <Hero birthdayMember={birthdayMember} onAssistant={onOpenAssistant} />
         <MiniCalendar events={events} navigate={navigate} />
