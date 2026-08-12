@@ -16,6 +16,7 @@ import Privacy from "./pages/Privacy.jsx";
 import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage, PreferencesPage } from "./pages/SettingsPages.jsx";
 import { get, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
+import { notifyAssignment } from "./lib/push.js";
 
 const DAY_MS = 86400000;
 
@@ -139,9 +140,18 @@ function AppInner() {
     SETTERS[table]?.((p) => p.filter((x) => x.id !== id));
     await del(table, id);
   };
+  const onAddChore = async (body) => {
+    const d = await onAdd("sprinkles_chores", { active: true, ...body });
+    if (d && body.member_id) notifyAssignment([body.member_id], "New task assigned", d.title, "/tasks");
+    return d;
+  };
   const onUpdateChore = async (id, ch) => {
+    const before = chores.find((c) => c.id === id);
     setChores((p) => p.map((c) => (c.id === id ? { ...c, ...ch } : c)));
     await patch("sprinkles_chores", id, ch);
+    if (ch.member_id && before && ch.member_id !== before.member_id) {
+      notifyAssignment([ch.member_id], "Task assigned to you", ch.title || before.title, "/tasks");
+    }
   };
   const onUpdateSettings = async (ch) => {
     setSettings((p) => ({ ...p, ...ch }));
@@ -178,12 +188,19 @@ function AppInner() {
   // ── Projects ──
   const onAddProject = async (body) => {
     const d = await post("sprinkles_projects", body);
-    if (d?.[0]) setProjects((p) => [d[0], ...p]);
+    if (d?.[0]) {
+      setProjects((p) => [d[0], ...p]);
+      if (body.member_id) notifyAssignment([body.member_id], "New project assigned", d[0].title, "/tasks");
+    }
   };
   const onUpdateProject = async (id, ch) => {
+    const before = projects.find((x) => x.id === id);
     setProjects((p) => p.map((x) => (x.id === id ? { ...x, ...ch } : x)));
     await patch("sprinkles_projects", id, ch);
     if (ch.progress === 100 || ch.status === "done") celebrate("Project done!");
+    if (ch.member_id && before && ch.member_id !== before.member_id) {
+      notifyAssignment([ch.member_id], "Project assigned to you", ch.title || before.title, "/tasks");
+    }
   };
   const onDeleteProject = async (id) => {
     setProjects((p) => p.filter((x) => x.id !== id));
@@ -202,6 +219,7 @@ function AppInner() {
   const onAddEvent = async (body) => {
     const saved = await onAdd("sprinkles_events", body);
     if (saved) {
+      if (saved.member_ids?.length) notifyAssignment(saved.member_ids, "Added to an event", `${saved.title} · ${new Date(saved.start_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`, "/calendar");
       fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(saved) })
         .then((r) => r.json())
         .then((d) => {
@@ -216,8 +234,17 @@ function AppInner() {
   };
   const onDeleteEvent = (id) => onDelete("sprinkles_events", id);
   const onUpdateEvent = async (id, ch) => {
+    const before = events.find((e) => e.id === id);
     setEvents((p) => p.map((e) => (e.id === id ? { ...e, ...ch } : e)));
     await patch("sprinkles_events", id, ch);
+    if (ch.member_ids && before) {
+      const newlyAdded = ch.member_ids.filter((mid) => !(before.member_ids || []).includes(mid));
+      if (newlyAdded.length) {
+        const title = ch.title || before.title;
+        const startAt = ch.start_at || before.start_at;
+        notifyAssignment(newlyAdded, "Added to an event", `${title} · ${new Date(startAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`, "/calendar");
+      }
+    }
   };
   const onSyncEventToGoogle = async (event) => {
     const r = await fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(event) });
@@ -326,7 +353,7 @@ function AppInner() {
     page = (
       <Tasks
         members={members} chores={chores} completions={completions} projects={projects}
-        onAddChore={(body) => onAdd("sprinkles_chores", { active: true, ...body })}
+        onAddChore={onAddChore}
         onUpdateChore={onUpdateChore}
         onDeleteChore={(id) => onDelete("sprinkles_chores", id)}
         onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
@@ -354,7 +381,7 @@ function AppInner() {
   } else if (path === "/settings/instructions") {
     page = <InstructionsPage />;
   } else if (path === "/settings/preferences") {
-    page = <PreferencesPage settings={settings} onUpdateSettings={onUpdateSettings} />;
+    page = <PreferencesPage settings={settings} onUpdateSettings={onUpdateSettings} members={members} />;
   } else if (path === "/settings") {
     page = <Settings />;
   } else {

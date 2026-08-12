@@ -4,6 +4,7 @@ import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
+import { pushSupported, getPushSubscriptionStatus, enablePush, disablePush, getDeviceMemberId, setDeviceMemberId } from "../lib/push.js";
 
 function Field({ label, value }) {
   return (
@@ -109,12 +110,22 @@ const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius:
 const fieldLabel = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
 const saveBtn = { background: BASE.green, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui };
 
-export function PreferencesPage({ settings, onUpdateSettings }) {
+export function PreferencesPage({ settings, onUpdateSettings, members = [] }) {
   const { navigate } = useRouter();
   const [address, setAddress] = useState(settings?.household_address || "");
   const [timezone, setTimezone] = useState(settings?.timezone || "");
   const [emails, setEmails] = useState((settings?.attendee_emails || []).join(", "));
-  const [notifPerm, setNotifPerm] = useState(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
+  const [deviceMemberId, setDeviceMemberIdState] = useState(getDeviceMemberId());
+  const [pushStatus, setPushStatus] = useState("checking");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(null);
+
+  useEffect(() => {
+    pushSupported().then((ok) => {
+      if (!ok) { setPushStatus("unsupported"); return; }
+      getPushSubscriptionStatus().then(setPushStatus);
+    });
+  }, []);
 
   const save = () => {
     onUpdateSettings({
@@ -124,10 +135,25 @@ export function PreferencesPage({ settings, onUpdateSettings }) {
     });
   };
 
-  const requestNotifications = async () => {
-    if (typeof Notification === "undefined") return;
-    const perm = await Notification.requestPermission();
-    setNotifPerm(perm);
+  const handleEnable = async () => {
+    if (!deviceMemberId) { setPushError("Pick who this device belongs to first."); return; }
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      const result = await enablePush(deviceMemberId);
+      if (result.ok) setPushStatus("subscribed");
+      else if (result.reason === "not_configured") setPushError("Push isn't set up on the server yet (missing VAPID keys).");
+      else setPushError(result.permission === "denied" ? "Notifications blocked — enable them in your browser settings." : "Couldn't enable notifications.");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    setPushBusy(true);
+    await disablePush();
+    setPushStatus("unsubscribed");
+    setPushBusy(false);
   };
 
   return (
@@ -146,15 +172,41 @@ export function PreferencesPage({ settings, onUpdateSettings }) {
 
         <Card>
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Notifications</div>
-          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 10 }}>
-            Turn on browser notifications so this device alerts you when someone assigns you a task or adds you to an event. Works best once you've added Mr. Sprinkles to your home screen.
+          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 12 }}>
+            Turn on push notifications so this device alerts you when someone assigns you a task, project, or event. Works best once you've added Mr. Sprinkles to your home screen.
           </div>
-          {notifPerm === "unsupported" ? (
+          {pushStatus === "unsupported" ? (
             <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Not supported in this browser.</div>
-          ) : notifPerm === "granted" ? (
-            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.green }}>✓ Notifications enabled</div>
           ) : (
-            <button onClick={requestNotifications} style={saveBtn}>{notifPerm === "denied" ? "Blocked — enable in browser settings" : "Enable Notifications"}</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div>
+                <span style={fieldLabel}>This device belongs to</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {members.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setDeviceMemberIdState(m.id); setDeviceMemberId(m.id); }}
+                      style={{
+                        background: deviceMemberId === m.id ? m.color : "#fff", color: deviceMemberId === m.id ? "#fff" : BASE.ink,
+                        border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui,
+                        display: "flex", alignItems: "center", gap: 6,
+                      }}
+                    >
+                      <Icon name={m.icon} size={14} color={deviceMemberId === m.id ? "#fff" : BASE.ink} /> {m.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {pushStatus === "subscribed" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.green }}>✓ Notifications enabled on this device</span>
+                  <button onClick={handleDisable} disabled={pushBusy} style={{ ...saveBtn, background: "#fff" }}>Turn off</button>
+                </div>
+              ) : (
+                <button onClick={handleEnable} disabled={pushBusy} style={saveBtn}>{pushBusy ? "..." : "Enable Notifications"}</button>
+              )}
+              {pushError && <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.red }}>{pushError}</div>}
+            </div>
           )}
         </Card>
       </div>
