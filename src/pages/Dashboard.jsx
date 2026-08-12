@@ -44,14 +44,21 @@ const widgetCard = (bg) => ({
 });
 const eyebrow = { fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: F.ui };
 
+function greetingForNow(now = new Date()) {
+  const h = now.getHours();
+  if (h < 12) return "Coffee & Donuts";
+  if (h < 17) return "Sprinkle Break";
+  return "Donut O'Clock";
+}
+
 function Hero({ birthdayMember, onAssistant }) {
   return (
-    <div style={{ ...widgetCard(BASE.yellow), gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+    <div style={{ ...widgetCard(BASE.yellow), gridColumn: "1 / -1", minHeight: 190 }}>
       <StarAccent color={BASE.lilac} size={36} style={{ position: "absolute", top: 12, right: 152 }} />
       <StarAccent color={BASE.pink} size={24} style={{ position: "absolute", bottom: 10, right: 220 }} />
-      <div>
+      <div style={{ maxWidth: "60%" }}>
         <div style={{ ...eyebrow, color: BASE.ink, opacity: 0.7 }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
-        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 34, lineHeight: 1.05, margin: "4px 0 6px" }}>Hello Rarick's</div>
+        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 34, lineHeight: 1.05, margin: "4px 0 6px" }}>{greetingForNow()}</div>
         <Squiggle color={BASE.ink} width={110} height={16} />
         {birthdayMember && (
           <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "6px 14px", boxShadow: hardShadow(BASE.ink, 3, 3) }}>
@@ -65,7 +72,7 @@ function Hero({ birthdayMember, onAssistant }) {
           </button>
         </div>
       </div>
-      <img src={mascotOfDay()} alt="" style={{ width: 148, height: 148, objectFit: "contain", flexShrink: 0 }} />
+      <img src={mascotOfDay()} alt="" style={{ position: "absolute", right: 6, bottom: 0, width: "42%", maxWidth: 148, height: "auto", objectFit: "contain" }} />
     </div>
   );
 }
