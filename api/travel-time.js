@@ -1,4 +1,4 @@
-// Server-side Google Distance Matrix lookup — keeps GOOGLE_MAPS_API_KEY
+// Server-side Google Distance Matrix lookup — keeps GOOGLE_MAPS_KEY
 // off the client. Given an event location, returns driving minutes from
 // the household address.
 
@@ -18,7 +18,7 @@ async function readHouseholdAddress() {
 }
 
 module.exports = async function handler(req, res) {
-  const key = process.env.GOOGLE_MAPS_API_KEY;
+  const key = process.env.GOOGLE_MAPS_KEY;
   if (!key) {
     res.status(200).json({ available: false, reason: "not_configured" });
     return;
