@@ -4,6 +4,7 @@ import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
+import { pushSupported, getPushSubscriptionStatus, enablePush, disablePush, getDeviceMemberId, setDeviceMemberId } from "../lib/push.js";
 
 function Field({ label, value }) {
   return (
@@ -14,22 +15,31 @@ function Field({ label, value }) {
   );
 }
 
+const HOUSEHOLD_LINKS = [
+  ["sparkle", "Integrations", BASE.lilac, "/settings/integrations"],
+  ["question", "FAQ", BASE.orange, "/settings/faq"],
+  ["book", "Instructions", BASE.green, "/settings/instructions"],
+  ["cloudSun", "Weather", BASE.teal, "/settings/tools/weather"],
+];
+
 export function HouseholdPage({ settings }) {
   const { navigate } = useRouter();
   return (
     <div>
       <PageHeader title="Household" sprinkles="settings" back={() => navigate("/settings")} />
-      <div style={{ padding: "18px 16px 40px" }}>
+      <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
         <Card>
           <Field label="Address" value={settings?.household_address || "—"} />
           <Field label="Calendar attendees" value={(settings?.attendee_emails || []).join(", ")} />
           <Field label="Timezone" value={settings?.timezone || "—"} />
         </Card>
-        <Card onClick={() => navigate("/settings/household/projects")} style={{ marginTop: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
-          <IconBadge icon="grid" bg={BASE.lilac} size={40} />
-          <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 15, flex: 1 }}>Projects</span>
-          <Icon name="chevronRight" size={18} />
-        </Card>
+        {HOUSEHOLD_LINKS.map(([icon, label, color, path]) => (
+          <Card key={path} onClick={() => navigate(path)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+            <IconBadge icon={icon} bg={color} size={40} />
+            <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 15, flex: 1 }}>{label}</span>
+            <Icon name="chevronRight" size={18} />
+          </Card>
+        ))}
       </div>
     </div>
   );
@@ -91,6 +101,114 @@ export function FaqPage() {
             {open === i && <div style={{ padding: "10px 14px", fontFamily: F.ui, fontSize: 13, color: BASE.t2, background: "#fff" }}>{f.a}</div>}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const fieldLabel = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
+const saveBtn = { background: BASE.green, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui };
+
+export function PreferencesPage({ settings, onUpdateSettings, members = [] }) {
+  const { navigate } = useRouter();
+  const [address, setAddress] = useState(settings?.household_address || "");
+  const [timezone, setTimezone] = useState(settings?.timezone || "");
+  const [emails, setEmails] = useState((settings?.attendee_emails || []).join(", "));
+  const [deviceMemberId, setDeviceMemberIdState] = useState(getDeviceMemberId());
+  const [pushStatus, setPushStatus] = useState("checking");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(null);
+
+  useEffect(() => {
+    pushSupported().then((ok) => {
+      if (!ok) { setPushStatus("unsupported"); return; }
+      getPushSubscriptionStatus().then(setPushStatus);
+    });
+  }, []);
+
+  const save = () => {
+    onUpdateSettings({
+      household_address: address.trim() || null,
+      timezone: timezone.trim() || null,
+      attendee_emails: emails.split(",").map((s) => s.trim()).filter(Boolean),
+    });
+  };
+
+  const handleEnable = async () => {
+    if (!deviceMemberId) { setPushError("Pick who this device belongs to first."); return; }
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      const result = await enablePush(deviceMemberId);
+      if (result.ok) setPushStatus("subscribed");
+      else if (result.reason === "not_configured") setPushError("Push isn't set up on the server yet (missing VAPID keys).");
+      else setPushError(result.permission === "denied" ? "Notifications blocked — enable them in your browser settings." : "Couldn't enable notifications.");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    setPushBusy(true);
+    await disablePush();
+    setPushStatus("unsubscribed");
+    setPushBusy(false);
+  };
+
+  return (
+    <div>
+      <PageHeader title="Settings" sprinkles="settings" back={() => navigate("/settings")} />
+      <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <Card>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Household</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div><span style={fieldLabel}>Address</span><input style={inp} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" /></div>
+            <div><span style={fieldLabel}>Timezone</span><input style={inp} value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/New_York" /></div>
+            <div><span style={fieldLabel}>Calendar attendee emails</span><input style={inp} value={emails} onChange={(e) => setEmails(e.target.value)} placeholder="you@email.com, partner@email.com" /></div>
+            <button onClick={save} style={saveBtn}>Save</button>
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Notifications</div>
+          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 12 }}>
+            Turn on push notifications so this device alerts you when someone assigns you a task, project, or event. Works best once you've added Mr. Sprinkles to your home screen.
+          </div>
+          {pushStatus === "unsupported" ? (
+            <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Not supported in this browser.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div>
+                <span style={fieldLabel}>This device belongs to</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {members.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setDeviceMemberIdState(m.id); setDeviceMemberId(m.id); }}
+                      style={{
+                        background: deviceMemberId === m.id ? m.color : "#fff", color: deviceMemberId === m.id ? "#fff" : BASE.ink,
+                        border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui,
+                        display: "flex", alignItems: "center", gap: 6,
+                      }}
+                    >
+                      <Icon name={m.icon} size={14} color={deviceMemberId === m.id ? "#fff" : BASE.ink} /> {m.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {pushStatus === "subscribed" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.green }}>✓ Notifications enabled on this device</span>
+                  <button onClick={handleDisable} disabled={pushBusy} style={{ ...saveBtn, background: "#fff" }}>Turn off</button>
+                </div>
+              ) : (
+                <button onClick={handleEnable} disabled={pushBusy} style={saveBtn}>{pushBusy ? "..." : "Enable Notifications"}</button>
+              )}
+              {pushError && <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.red }}>{pushError}</div>}
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

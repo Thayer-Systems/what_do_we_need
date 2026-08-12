@@ -322,6 +322,16 @@ export const MEMBER_ICONS = {
   donut: "donut",
 };
 
+// Illustrated badge art for member icons — swapped in for the plain line
+// icon wherever a matching image exists (see IconBadge in Deco.jsx).
+export const MEMBER_ICON_IMAGES = {
+  fox: "/member-icons/fox.png",
+  pokeball: "/member-icons/pokeball.png",
+  unicorn: "/member-icons/unicorn.png",
+  polarBear: "/member-icons/polar-bear.png",
+  dumbbell: "/member-icons/dumbbell.png",
+};
+
 export const EQUIPMENT_ICONS = {
   Oven: "oven",
   Crockpot: "crockpot",

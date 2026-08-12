@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
+import { promptOfDay } from "../lib/prompts.js";
 import { Icon } from "./Icons.jsx";
 
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "10px 14px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -68,8 +69,8 @@ export default function AssistantPopover({ onSend }) {
 
             <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
               {log.length === 0 && (
-                <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2 }}>
-                  Try: "need milk", "am I free Sept 4th at 7pm for dinner?", or "Piper has dance Tuesdays at 5".
+                <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, fontWeight: 700 }}>
+                  {promptOfDay()}
                 </div>
               )}
               {log.map((m, i) => (

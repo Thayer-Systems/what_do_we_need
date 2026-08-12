@@ -6,5 +6,6 @@ module.exports = async function handler(req, res) {
     weather: !!process.env.TOMORROW_IO_API_KEY,
     googleMapsConfigured: !!process.env.GOOGLE_MAPS_KEY,
     googleCalendarConfigured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    pushConfigured: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
   });
 };

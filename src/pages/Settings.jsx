@@ -6,18 +6,15 @@ import { useRouter } from "../lib/router.jsx";
 
 const ITEMS = [
   ["users", "Family", BASE.pink, "/settings/family"],
-  ["settings", "Tools", BASE.teal, "/settings/tools"],
   ["home", "Household", BASE.yellow, "/settings/household"],
-  ["sparkle", "Integrations", BASE.lilac, "/settings/integrations"],
-  ["question", "FAQ", BASE.orange, "/settings/faq"],
-  ["book", "Instructions", BASE.green, "/settings/instructions"],
+  ["settings", "Settings", BASE.green, "/settings/preferences"],
 ];
 
 export default function Settings() {
   const { navigate } = useRouter();
   return (
     <div>
-      <PageHeader title="Settings" sprinkles="settings" />
+      <PageHeader title="Tools" sprinkles="settings" />
       <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 10 }}>
         {ITEMS.map(([icon, label, color, path]) => (
           <Card key={path} onClick={() => navigate(path)} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>

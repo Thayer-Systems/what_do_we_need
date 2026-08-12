@@ -37,6 +37,46 @@ export function BarChart({ data, color = BASE.pink, height = 120, valueSuffix = 
   );
 }
 
+// Minimal dependency-free SVG line chart — used for the weather hourly
+// temperature trend. Values are plotted against their index; labels are
+// rendered underneath at a thinned-out interval so they stay legible.
+export function LineChart({ data, color = BASE.pink, height = 110, labelEvery = 3 }) {
+  const values = data.map((d) => d.value).filter((v) => v != null);
+  if (values.length === 0) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const stepX = data.length > 1 ? 100 / (data.length - 1) : 0;
+  const pad = 10;
+  const points = data.map((d, i) => {
+    const x = i * stepX;
+    const y = d.value == null ? null : pad + (1 - (d.value - min) / range) * (height - pad * 2);
+    return { x, y, label: d.label, value: d.value };
+  });
+  const pathD = points
+    .filter((p) => p.y != null)
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(" ");
+
+  return (
+    <div>
+      <svg viewBox={`0 0 100 ${height}`} width="100%" height={height} preserveAspectRatio="none">
+        <path d={pathD} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        {points.map((p, i) => p.y != null && (
+          <circle key={i} cx={p.x} cy={p.y} r={1.6} fill={color} stroke={BASE.ink} strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+        ))}
+      </svg>
+      <div style={{ display: "flex" }}>
+        {points.map((p, i) => (
+          <div key={i} style={{ width: `${stepX || 100 / data.length}%`, textAlign: "center", fontSize: 9, fontFamily: F.ui, fontWeight: 700, color: BASE.t2 }}>
+            {i % labelEvery === 0 ? p.label : ""}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ProgressBar({ pct, color = BASE.pink, height = 14 }) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (

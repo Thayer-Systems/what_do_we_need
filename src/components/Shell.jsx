@@ -5,9 +5,9 @@ import { useRouter } from "../lib/router.jsx";
 export const TABS = [
   ["/", "home", "Home", BASE.yellow],
   ["/calendar", "calendar", "Calendar", BASE.teal],
-  ["/meals", "meals", "Meals", BASE.lilac],
-  ["/grocery", "cart", "Grocery", BASE.orange],
-  ["/settings", "settings", "Settings", BASE.green],
+  ["/tasks", "check", "Tasks", BASE.pink],
+  ["/food", "meals", "Food", BASE.lilac],
+  ["/settings", "settings", "Tools", BASE.green],
 ];
 
 export default function Shell({ children }) {
@@ -90,7 +90,7 @@ export default function Shell({ children }) {
           paddingBottom: "env(safe-area-inset-bottom,0px)",
         }}
       >
-        {TABS.slice(0, 3).map(([p, icon, label, color]) => (
+        {TABS.map(([p, icon, label, color]) => (
           <button
             key={p}
             onClick={() => navigate(p)}
@@ -113,20 +113,6 @@ export default function Shell({ children }) {
           </div>
           <span>Sprinkles</span>
         </button>
-        {TABS.slice(3).map(([p, icon, label, color]) => (
-          <button
-            key={p}
-            onClick={() => navigate(p)}
-            style={{
-              flex: 1, padding: "8px 0 7px", border: "none", background: "transparent", color: BASE.ink, fontSize: 10,
-              fontWeight: active(p) ? 800 : 500, cursor: "pointer", fontFamily: F.ui, display: "flex", flexDirection: "column",
-              alignItems: "center", gap: 3, opacity: active(p) ? 1 : 0.7,
-            }}
-          >
-            <IconBadge icon={icon} bg={color} size={28} radius={9} style={{ border: `2px solid ${BASE.ink}`, boxShadow: hardShadow(BASE.ink, active(p) ? 2 : 1.5, active(p) ? 2 : 1.5) }} />
-            <span>{label}</span>
-          </button>
-        ))}
       </div>
 
       <style>{`
