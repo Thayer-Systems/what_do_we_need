@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { IconBadge, StarAccent, Squiggle } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { BASE, F, MASCOT, mascotOfDay, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
+import { BASE, F, mascotOfDay, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 
 const DAY_MS = 86400000;
@@ -314,16 +314,7 @@ export default function Dashboard({ members, events, chores, completions, mealPl
   const birthdayMember = members.find((m) => isTodayBirthday(m.birthday));
 
   return (
-    <div style={{ padding: "18px 16px 32px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <img src={MASCOT.main} alt="" style={{ width: 44, height: 44, objectFit: "contain", flexShrink: 0 }} />
-        <div style={{ minWidth: 0 }}>
-          <h1 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26, lineHeight: 1.1, margin: 0 }}>Mr. Sprinkles</h1>
-          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginTop: 2 }}>
-            A private family organizer for the Rarick household — shared calendar, meal plans, tasks, grocery list &amp; household projects, all in one place.
-          </div>
-        </div>
-      </div>
+    <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 32px" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }} className="sprinkles-dashgrid">
         <Hero birthdayMember={birthdayMember} onAssistant={onOpenAssistant} />
         <MiniCalendar events={events} navigate={navigate} />

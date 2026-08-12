@@ -6,7 +6,7 @@ export function PageHeader({ title, right, back, sprinkles }) {
   return (
     <div
       style={{
-        padding: "20px 20px 16px",
+        padding: "calc(env(safe-area-inset-top, 0px) + 20px) 20px 16px",
         background: BASE.surface,
         borderBottom: `2.5px solid ${BASE.ink}`,
         position: "sticky",
