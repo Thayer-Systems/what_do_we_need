@@ -26,6 +26,9 @@ export default function Settings() {
             <Icon name="chevronRight" size={18} />
           </Card>
         ))}
+        <a href="/privacy" style={{ textAlign: "center", marginTop: 8, fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>
+          Privacy Policy
+        </a>
       </div>
     </div>
   );

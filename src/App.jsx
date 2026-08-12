@@ -13,6 +13,7 @@ import Settings from "./pages/Settings.jsx";
 import Tools from "./pages/Tools.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
 import Projects from "./pages/Projects.jsx";
+import Privacy from "./pages/Privacy.jsx";
 import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage } from "./pages/SettingsPages.jsx";
 import { get, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
@@ -63,6 +64,8 @@ function AppInner() {
   const { path, navigate } = useRouter();
   const celebrate = useCelebrate();
   const weekStart = getWeekStart();
+
+  if (path === "/privacy") return <Privacy />;
 
   const [members, setMembers] = useState([]);
   const [contacts, setContacts] = useState([]);
