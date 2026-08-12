@@ -303,8 +303,8 @@ const PATHS = {
   ),
 };
 
-export function Icon({ name, size = 22, color = BASE.ink, strokeWidth = 2.2, style }) {
-  const content = PATHS[name];
+export function Icon({ name, size = 22, color = BASE.ink, strokeWidth = 2.2, style, fallback }) {
+  const content = PATHS[name] || PATHS[MEMBER_ICONS[name]] || (fallback && PATHS[fallback]);
   if (!content) return null;
   return (
     <svg {...base(size, color, strokeWidth)} style={style}>
