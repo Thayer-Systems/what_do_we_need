@@ -55,8 +55,12 @@ module.exports = async function handler(req, res) {
 
   try {
     if (result.type === "grocery") {
-      await supaInsert("shopping_list", { name: result.item, category: "Other", status: "pending" });
-      res.status(200).json({ reply: `Added "${result.item}" to the grocery list.` });
+      const items = result.items || (result.item ? [result.item] : []);
+      await Promise.all(items.map((item) => supaInsert("shopping_list", { name: item, category: "Other", status: "pending" })));
+      const reply = items.length > 1
+        ? `Added ${items.map((i) => `"${i}"`).join(", ")} to the grocery list.`
+        : `Added "${items[0]}" to the grocery list.`;
+      res.status(200).json({ reply });
       return;
     }
 
