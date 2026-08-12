@@ -29,12 +29,14 @@ module.exports = async function handler(req, res) {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!clientId || !clientSecret || !serviceKey) {
+    console.error("create-event: not_configured", { hasClientId: !!clientId, hasClientSecret: !!clientSecret, hasServiceKey: !!serviceKey });
     res.status(200).json({ ok: false, reason: "not_configured" });
     return;
   }
 
   const tokenRow = await supaRead("oauth_tokens?id=eq.google_calendar&select=refresh_token");
   if (!tokenRow) {
+    console.error("create-event: not_connected (no oauth_tokens row)");
     res.status(200).json({ ok: false, reason: "not_connected" });
     return;
   }
@@ -52,7 +54,8 @@ module.exports = async function handler(req, res) {
     });
     const refreshData = await refreshRes.json();
     if (!refreshRes.ok || !refreshData.access_token) {
-      res.status(200).json({ ok: false, reason: "refresh_failed" });
+      console.error("create-event: refresh_failed", refreshData);
+      res.status(200).json({ ok: false, reason: "refresh_failed", detail: refreshData.error_description || refreshData.error });
       return;
     }
 
@@ -87,11 +90,13 @@ module.exports = async function handler(req, res) {
     );
     const evData = await evRes.json();
     if (!evRes.ok) {
+      console.error("create-event: create_failed", { status: evRes.status, calendarId, error: evData.error });
       res.status(200).json({ ok: false, reason: "create_failed", detail: evData.error?.message });
       return;
     }
     res.status(200).json({ ok: true, googleEventId: evData.id });
   } catch (e) {
+    console.error("create-event: exception", e);
     res.status(200).json({ ok: false, reason: "exception", detail: e.message });
   }
 };

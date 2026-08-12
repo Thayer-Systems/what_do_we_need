@@ -25,6 +25,7 @@ function sameDay(a, b) {
 function EventDetail({ event, members, settings, onClose, onDelete, onSyncGoogle }) {
   const attendees = (event.member_ids || []).map((id) => members.find((m) => m.id === id)?.name).filter(Boolean);
   const [syncState, setSyncState] = useState(event.google_event_id ? "synced" : "idle");
+  const [syncError, setSyncError] = useState(null);
   const googleConnected = !!settings?.google_calendar_connected;
 
   const handleAddToCalendar = async () => {
@@ -34,8 +35,10 @@ function EventDetail({ event, members, settings, onClose, onDelete, onSyncGoogle
     }
     if (syncState === "synced") return;
     setSyncState("syncing");
+    setSyncError(null);
     const d = await onSyncGoogle(event);
     setSyncState(d?.ok ? "synced" : "error");
+    if (!d?.ok) setSyncError(d?.detail || d?.reason || "unknown error");
   };
 
   const btnLabel = !googleConnected
@@ -58,6 +61,7 @@ function EventDetail({ event, members, settings, onClose, onDelete, onSyncGoogle
         <button style={btn(BASE.teal)} disabled={syncState === "syncing" || syncState === "synced"} onClick={handleAddToCalendar}>{btnLabel}</button>
         <button style={btn(BASE.red)} onClick={() => { onDelete(event.id); onClose(); }}>Delete</button>
       </div>
+      {syncError && <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.red, marginTop: 8 }}>{syncError}</div>}
     </Modal>
   );
 }
