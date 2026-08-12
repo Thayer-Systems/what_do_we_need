@@ -111,6 +111,30 @@ function RecipeModal({ recipe, onSave, onDelete, onClose }) {
   );
 }
 
+function SlotPickerModal({ day, meal, recipes, onPick, onClose }) {
+  const [q, setQ] = useState("");
+  const filtered = recipes.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{day} · {meal}</div>
+      <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t2, marginBottom: 14 }}>Pick a recipe to add</div>
+      <input autoFocus style={{ ...inp, marginBottom: 10 }} placeholder="Search recipes..." value={q} onChange={(e) => setQ(e.target.value)} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "50vh", overflowY: "auto" }}>
+        {filtered.length === 0 ? (
+          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No recipes match.</div>
+        ) : (
+          filtered.map((r) => (
+            <div key={r.id} onClick={() => onPick(r)} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "8px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>{r.name}</span>
+              <Icon name="chevronRight" size={14} />
+            </div>
+          ))
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function RecipeLibrary({ recipes, open, setOpen, onAddNew, onView }) {
   const [q, setQ] = useState("");
   const filtered = recipes.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
@@ -158,6 +182,7 @@ export default function Meals({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe,
   const [libOpen, setLibOpen] = useState(false);
   const [recipeModal, setRecipeModal] = useState(null);
   const [viewRecipe, setViewRecipe] = useState(null);
+  const [pickerSlot, setPickerSlot] = useState(null);
 
   const slotFor = (day, meal) => mealPlan.find((s) => s.day === day && s.meal === meal);
 
@@ -175,7 +200,7 @@ export default function Meals({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe,
 
   return (
     <div>
-      <PageHeader title="Meals" />
+      <PageHeader title="Meals" sprinkles="meals" />
       <div style={{ padding: "18px 16px 32px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {DAY_NAMES.map((day) => (
@@ -200,7 +225,12 @@ export default function Meals({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe,
                         <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex" }}><Icon name="close" size={13} /></button>
                       </div>
                     ) : (
-                      <div style={{ flex: 1, border: `1.5px dashed ${BASE.t3}`, borderRadius: 8, padding: "5px 10px", fontSize: 12, color: BASE.t3, fontFamily: F.ui }}>Drop a recipe here</div>
+                      <div
+                        onClick={() => setPickerSlot({ day, meal })}
+                        style={{ flex: 1, border: `1.5px dashed ${BASE.t3}`, borderRadius: 8, padding: "5px 10px", fontSize: 12, color: BASE.t3, fontFamily: F.ui, cursor: "pointer" }}
+                      >
+                        + Add a recipe
+                      </div>
                     )}
                   </div>
                 );
@@ -213,6 +243,15 @@ export default function Meals({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe,
       </div>
 
       {viewRecipe && <RecipeViewModal recipe={viewRecipe} onClose={() => setViewRecipe(null)} onEdit={(r) => { setViewRecipe(null); setRecipeModal(r); }} />}
+      {pickerSlot && (
+        <SlotPickerModal
+          day={pickerSlot.day}
+          meal={pickerSlot.meal}
+          recipes={recipes}
+          onPick={(r) => { onScheduleRecipe(pickerSlot.day, pickerSlot.meal, r); setPickerSlot(null); }}
+          onClose={() => setPickerSlot(null)}
+        />
+      )}
       {recipeModal && (
         <RecipeModal
           recipe={recipeModal.id ? recipeModal : null}

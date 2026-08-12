@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { IconBadge, StarAccent, Squiggle, ProgressRing } from "../components/Deco.jsx";
+import { IconBadge, StarAccent, Squiggle } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { BASE, F, MASCOT, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
+import { BASE, F, MASCOT, mascotOfDay, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 
 const DAY_MS = 86400000;
@@ -47,11 +47,11 @@ const eyebrow = { fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTr
 function Hero({ birthdayMember, onAssistant }) {
   return (
     <div style={{ ...widgetCard(BASE.yellow), gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-      <StarAccent color={BASE.lilac} size={44} style={{ position: "absolute", top: 12, right: 120 }} />
-      <StarAccent color={BASE.pink} size={28} style={{ position: "absolute", bottom: 10, right: 190 }} />
+      <StarAccent color={BASE.lilac} size={36} style={{ position: "absolute", top: 12, right: 152 }} />
+      <StarAccent color={BASE.pink} size={24} style={{ position: "absolute", bottom: 10, right: 220 }} />
       <div>
         <div style={{ ...eyebrow, color: BASE.ink, opacity: 0.7 }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
-        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 34, lineHeight: 1.05, margin: "4px 0 6px" }}>Hi, Rarick!</div>
+        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 34, lineHeight: 1.05, margin: "4px 0 6px" }}>Hello Rarick's</div>
         <Squiggle color={BASE.ink} width={110} height={16} />
         {birthdayMember && (
           <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "6px 14px", boxShadow: hardShadow(BASE.ink, 3, 3) }}>
@@ -59,13 +59,13 @@ function Hero({ birthdayMember, onAssistant }) {
             <span style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 13 }}>Happy Birthday, {birthdayMember.name}!</span>
           </div>
         )}
+        <div style={{ marginTop: 12 }}>
+          <button onClick={onAssistant} style={{ background: "#c5f26b", color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3), display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon name="sparkle" size={16} /> Ask Mr. Sprinkles
+          </button>
+        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <button onClick={onAssistant} style={{ background: "#c5f26b", color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3), display: "flex", alignItems: "center", gap: 8 }}>
-          <Icon name="sparkle" size={16} /> Ask Mr. Sprinkles
-        </button>
-        <img src={MASCOT.main} alt="" style={{ width: 76, height: 76, objectFit: "contain" }} />
-      </div>
+      <img src={mascotOfDay()} alt="" style={{ width: 148, height: 148, objectFit: "contain", flexShrink: 0 }} />
     </div>
   );
 }
@@ -178,6 +178,20 @@ function GroceryWidget({ shopping, navigate }) {
   );
 }
 
+function ProjectsWidget({ projects, navigate }) {
+  const active = projects.filter((p) => p.status !== "done");
+  return (
+    <div style={{ ...widgetCard(BASE.lilac), cursor: "pointer" }} onClick={() => navigate("/settings/household/projects")}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={eyebrow}>Projects</span>
+        <IconBadge icon="grid" bg="#fff" size={32} />
+      </div>
+      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 30 }}>{active.length}</div>
+      <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>{active.length ? active.slice(0, 2).map((p) => p.title).join(", ") : "Nothing in progress"}</div>
+    </div>
+  );
+}
+
 function DepartureWidget({ events, members }) {
   const now = useNow();
   const next = useMemo(() => events.filter((e) => e.location && new Date(e.start_at) > now).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))[0], [events, now]);
@@ -219,7 +233,7 @@ function DepartureWidget({ events, members }) {
   );
 }
 
-function ChoresWidget({ members, chores, completions, onToggleChore }) {
+function TasksWidget({ members, chores, completions, onToggleChore }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const dow = new Date().getDay();
   const todaysChores = chores.filter((c) => c.active && (c.frequency === "daily" || (c.days || []).includes(dow)));
@@ -228,7 +242,7 @@ function ChoresWidget({ members, chores, completions, onToggleChore }) {
   return (
     <div style={{ ...widgetCard(BASE.pink), gridColumn: "span 2" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Today's Chores</span>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Today's Tasks</span>
         <IconBadge icon="check" bg="#fff" size={32} />
       </div>
       {todaysChores.length === 0 ? (
@@ -262,33 +276,32 @@ function pctFor(member, chores, completions, stats) {
   return mine.length ? Math.round((done / mine.length) * 100) : 0;
 }
 
+// Compact single-row view — all 5 members' progress at a glance, no
+// rings or dividers, sized to fit comfortably on a phone screen.
 function WinsBox({ members, chores, completions, stats, navigate }) {
-  const parents = members.filter((m) => m.role === "parent");
-  const kids = members.filter((m) => m.role !== "parent");
-
-  const Ring = (m) => {
-    const pct = pctFor(m, chores, completions, stats);
-    return (
-      <div key={m.id} onClick={() => navigate(`/settings/family/${m.id}`)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}>
-        <ProgressRing pct={pct} color={m.color}>
-          <span style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 13 }}>{pct}%</span>
-        </ProgressRing>
-        <IconBadge icon={m.icon} bg={m.color} size={30} radius={999} iconColor="#fff" />
-        <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 11 }}>{m.name}</span>
-      </div>
-    );
-  };
-
   return (
-    <div style={{ ...widgetCard("#fff"), gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 18 }}>
-      <div style={{ display: "flex", gap: 18, flex: 1, justifyContent: "space-around" }}>{parents.map(Ring)}</div>
-      <div style={{ width: 2.5, alignSelf: "stretch", background: BASE.ink, borderRadius: 2, minHeight: 90 }} />
-      <div style={{ display: "flex", gap: 16, flex: 1.4, justifyContent: "space-around" }}>{kids.map(Ring)}</div>
+    <div style={{ ...widgetCard("#fff"), gridColumn: "1 / -1" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Today's Wins</span>
+        <IconBadge icon="star" bg={BASE.yellow} size={32} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
+        {members.map((m) => {
+          const pct = pctFor(m, chores, completions, stats);
+          return (
+            <div key={m.id} onClick={() => navigate(`/settings/family/${m.id}`)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", flex: 1 }}>
+              <IconBadge icon={m.icon} bg={m.color} size={34} radius={999} iconColor="#fff" />
+              <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>{pct}%</span>
+              <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 10, color: BASE.t2 }}>{m.name}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-export default function Dashboard({ members, events, chores, completions, mealPlan, shopping, stats, onToggleChore, onOpenAssistant }) {
+export default function Dashboard({ members, events, chores, completions, mealPlan, shopping, stats, projects = [], onToggleChore, onOpenAssistant }) {
   const { navigate } = useRouter();
   const weather = useWeather();
   const birthdayMember = members.find((m) => isTodayBirthday(m.birthday));
@@ -302,8 +315,9 @@ export default function Dashboard({ members, events, chores, completions, mealPl
         <WeatherWidget weather={weather} navigate={navigate} />
         <MealsWidget mealPlan={mealPlan} navigate={navigate} />
         <GroceryWidget shopping={shopping} navigate={navigate} />
+        <ProjectsWidget projects={projects} navigate={navigate} />
         <DepartureWidget events={events} members={members} />
-        <ChoresWidget members={members} chores={chores} completions={completions} onToggleChore={onToggleChore} />
+        <TasksWidget members={members} chores={chores} completions={completions} onToggleChore={onToggleChore} />
         <WinsBox members={members} chores={chores} completions={completions} stats={stats} navigate={navigate} />
       </div>
 

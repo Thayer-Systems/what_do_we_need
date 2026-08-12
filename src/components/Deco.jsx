@@ -54,6 +54,37 @@ export function Squiggle({ color = BASE.ink, width = 90, height = 18, style }) {
   );
 }
 
+// A single candy sprinkle — small rounded capsule, rotated.
+function SprinkleDot({ color, x, y, rotate, size = 14 }) {
+  return (
+    <div
+      style={{
+        position: "absolute", left: x, top: y, width: size, height: size * 0.42,
+        borderRadius: size, background: color, border: `1.5px solid ${BASE.ink}`,
+        transform: `rotate(${rotate}deg)`,
+      }}
+    />
+  );
+}
+
+// Scatter of sprinkles for decorating a header bar without touching its
+// (white) background — used on every page except the home dashboard,
+// with a different color set per section so pages stay distinguishable.
+export function HeaderSprinkles({ colors = [BASE.pink, BASE.yellow, BASE.teal] }) {
+  const layout = [
+    { x: "62%", y: "18%", rotate: 20 }, { x: "70%", y: "55%", rotate: -15 },
+    { x: "80%", y: "25%", rotate: 60 }, { x: "88%", y: "60%", rotate: -30 },
+    { x: "94%", y: "20%", rotate: 10 }, { x: "56%", y: "70%", rotate: 45 },
+  ];
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+      {layout.map((l, i) => (
+        <SprinkleDot key={i} x={l.x} y={l.y} rotate={l.rotate} color={colors[i % colors.length]} />
+      ))}
+    </div>
+  );
+}
+
 // CSS-only ring (conic-gradient), used for per-member progress.
 export function ProgressRing({ pct, color = BASE.pink, size = 72, thickness = 10, children }) {
   const clamped = Math.max(0, Math.min(100, pct));

@@ -56,15 +56,15 @@ export default function Shell({ children }) {
               textAlign: "left",
             }}
           >
-            <IconBadge icon={icon} bg={active(p) ? "#fff" : BASE.muted} size={32} radius={10} style={{ boxShadow: active(p) ? hardShadow(BASE.ink, 2, 2) : "none" }} />
+            <IconBadge icon={icon} bg={color} size={32} radius={10} style={{ boxShadow: hardShadow(BASE.ink, 2, 2) }} />
             {label}
           </button>
         ))}
         <button
           onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
-          style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 14, border: `2.5px solid ${BASE.ink}`, background: BASE.pink, boxShadow: hardShadow(BASE.ink, 3, 3), cursor: "pointer", fontFamily: F.ui, fontWeight: 800, fontSize: 14, color: BASE.ink, textAlign: "left", marginTop: 8 }}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 14, border: `2.5px solid ${BASE.ink}`, background: "transparent", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 14, color: BASE.ink, textAlign: "left", marginTop: 8 }}
         >
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: hardShadow(BASE.ink, 2, 2) }}>
             <img src={MASCOT.main} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
           </div>
           Ask Mr. Sprinkles
@@ -97,10 +97,10 @@ export default function Shell({ children }) {
             style={{
               flex: 1, padding: "8px 0 7px", border: "none", background: "transparent", color: BASE.ink, fontSize: 10,
               fontWeight: active(p) ? 800 : 500, cursor: "pointer", fontFamily: F.ui, display: "flex", flexDirection: "column",
-              alignItems: "center", gap: 3, opacity: active(p) ? 1 : 0.55,
+              alignItems: "center", gap: 3, opacity: active(p) ? 1 : 0.7,
             }}
           >
-            <IconBadge icon={icon} bg={active(p) ? color : "transparent"} size={28} radius={9} style={{ border: active(p) ? `2px solid ${BASE.ink}` : "2px solid transparent", boxShadow: active(p) ? hardShadow(BASE.ink, 2, 2) : "none" }} />
+            <IconBadge icon={icon} bg={color} size={28} radius={9} style={{ border: `2px solid ${BASE.ink}`, boxShadow: hardShadow(BASE.ink, active(p) ? 2 : 1.5, active(p) ? 2 : 1.5) }} />
             <span>{label}</span>
           </button>
         ))}
@@ -108,7 +108,7 @@ export default function Shell({ children }) {
           onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
           style={{ flex: 1, padding: "6px 0 7px", border: "none", background: "transparent", cursor: "pointer", fontFamily: F.ui, fontSize: 10, fontWeight: 800, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}
         >
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: BASE.pink, border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hardShadow(BASE.ink, 2, 2) }}>
+          <div style={{ width: 30, height: 30, borderRadius: 9, background: "#fff", border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hardShadow(BASE.ink, 2, 2) }}>
             <img src={MASCOT.main} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
           </div>
           <span>Sprinkles</span>
@@ -120,10 +120,10 @@ export default function Shell({ children }) {
             style={{
               flex: 1, padding: "8px 0 7px", border: "none", background: "transparent", color: BASE.ink, fontSize: 10,
               fontWeight: active(p) ? 800 : 500, cursor: "pointer", fontFamily: F.ui, display: "flex", flexDirection: "column",
-              alignItems: "center", gap: 3, opacity: active(p) ? 1 : 0.55,
+              alignItems: "center", gap: 3, opacity: active(p) ? 1 : 0.7,
             }}
           >
-            <IconBadge icon={icon} bg={active(p) ? color : "transparent"} size={28} radius={9} style={{ border: active(p) ? `2px solid ${BASE.ink}` : "2px solid transparent", boxShadow: active(p) ? hardShadow(BASE.ink, 2, 2) : "none" }} />
+            <IconBadge icon={icon} bg={color} size={28} radius={9} style={{ border: `2px solid ${BASE.ink}`, boxShadow: hardShadow(BASE.ink, active(p) ? 2 : 1.5, active(p) ? 2 : 1.5) }} />
             <span>{label}</span>
           </button>
         ))}

@@ -266,11 +266,9 @@ const PATHS = {
   ),
   dumbbell: (
     <>
-      <rect x="2.5" y="9.5" width="3" height="5" rx="1" />
-      <rect x="18.5" y="9.5" width="3" height="5" rx="1" />
-      <rect x="5.5" y="8" width="2.2" height="8" rx="0.8" />
-      <rect x="16.3" y="8" width="2.2" height="8" rx="0.8" />
-      <path d="M7.7 12h8.6" />
+      <path d="M6 21c-1.5-1-2.5-3-2.5-5 0-3 1.8-5.5 4-7.5C9.5 6.5 11 4.5 11 3" />
+      <path d="M6 21c1.8.5 4-.2 5.5-2 2-2.4 2-5.8 0-8" />
+      <circle cx="11" cy="3" r="1.6" />
     </>
   ),
   pokeball: (
@@ -290,9 +288,11 @@ const PATHS = {
   ),
   unicorn: (
     <>
-      <path d="M6 20c0-4.5 2.7-8 7-8s6 3 6-1c0-2.4-1.6-3.6-3-4l3-3.5-4.3 1.3C13.4 4 12.2 4 11 4.6L6.5 7 9 9.3C6 10.6 4 13.4 4 17v3z" />
-      <path d="M13 8l3-5.5" />
-      <circle cx="10.3" cy="12.4" r="1" fill={BASE.ink} stroke="none" />
+      <circle cx="12" cy="7" r="3" />
+      <path d="M9.5 5.5l-2-2.5 2.6.9" />
+      <path d="M9 10c-1.6 1-2.6 2.8-2.6 5 0 3 1.8 6.5 1.8 6.5" />
+      <path d="M15 10c1.6 1 2.6 2.8 2.6 5 0 1.6-.5 3.4-1 4.7" />
+      <path d="M9 15.5c1.2.8 3 1 4.4.3" strokeDasharray="0.1 3" />
     </>
   ),
   donut: (

@@ -3,7 +3,7 @@ import { PageHeader, Card, Modal } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { BarChart, ProgressBar, StatCard } from "../components/Charts.jsx";
 import { Icon, MEMBER_ICONS } from "../components/Icons.jsx";
-import { BASE, F, THEMES, themeFor, DAY_NAMES, hardShadow } from "../lib/theme.js";
+import { BASE, F, THEMES, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 
 const btn = (bg = BASE.pink) => ({
@@ -108,7 +108,7 @@ export default function FamilyMember({
   const [statModal, setStatModal] = useState(null);
 
   if (!member) return null;
-  const theme = themeFor(member);
+  const theme = THEMES.default;
 
   const mContacts = contacts.filter((c) => c.member_id === member.id);
   const mActivities = activities.filter((a) => a.member_id === member.id);
@@ -137,7 +137,7 @@ export default function FamilyMember({
 
   return (
     <div>
-      <PageHeader title={member.name} back={() => navigate("/settings/family")} />
+      <PageHeader title={member.name} sprinkles="family" back={() => navigate("/settings/family")} />
 
       <div style={{ background: theme.bg, padding: "20px 16px 40px", display: "flex", flexDirection: "column", gap: 14 }}>
         <Card bg={member.color} style={{ display: "flex", alignItems: "center", gap: 14, color: "#fff" }}>
@@ -149,13 +149,13 @@ export default function FamilyMember({
         </Card>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-          <StatCard label="Chores today" value={`${doneToday}/${todaysChores.length}`} color={BASE.yellow} />
+          <StatCard label="Tasks today" value={`${doneToday}/${todaysChores.length}`} color={BASE.yellow} />
           <StatCard label="7-day avg" value={`${weekAvg}%`} color={BASE.teal} />
           <StatCard label="Active goals" value={mStats.filter((s) => !s.paused).length} color={BASE.pink} />
         </div>
 
         <Card>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Chore completion — last 7 days</div>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Task completion — last 7 days</div>
           <BarChart data={chartData} color={member.color} />
         </Card>
 
@@ -175,25 +175,13 @@ export default function FamilyMember({
           </div>
         </Section>
 
-        {member.role === "kid" && (
-          <Section title="Theme">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {Object.entries(THEMES).filter(([k]) => k !== "default").map(([key, t]) => (
-                <button key={key} onClick={() => onUpdateMember(member.id, { theme: key })} style={btn(member.theme === key ? t.primary : "#fff")}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </Section>
-        )}
-
         <Section title="Birthday">
-          <input type="date" style={inp} value={member.birthday || ""} onChange={(e) => onUpdateMember(member.id, { birthday: e.target.value })} />
+          <input type="date" style={{ ...inp, maxWidth: "100%" }} value={member.birthday || ""} onChange={(e) => onUpdateMember(member.id, { birthday: e.target.value })} />
           <div style={{ fontSize: 12, color: BASE.t2, fontFamily: F.ui }}>Mr. Sprinkles will wish {member.name} a happy birthday on the home screen that day.</div>
         </Section>
 
-        <Section title="Chores" onAdd={() => setModal({ type: "chore" })}>
-          {mChores.length === 0 && <div style={{ fontSize: 13, color: BASE.t3, fontFamily: F.ui }}>No chores yet.</div>}
+        <Section title="Tasks" onAdd={() => setModal({ type: "chore" })}>
+          {mChores.length === 0 && <div style={{ fontSize: 13, color: BASE.t3, fontFamily: F.ui }}>No tasks yet.</div>}
           {mChores.map((c) => (
             <Row key={c.id} onDelete={() => onDelete("sprinkles_chores", c.id)}>
               <b>{c.title}</b> · {c.frequency === "daily" ? "every day" : (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "custom"}
@@ -276,8 +264,8 @@ export default function FamilyMember({
         ]} onSave={(v) => { onAdd("sprinkles_links", { member_id: member.id, ...v }); setModal(null); }} onClose={() => setModal(null)} />
       )}
       {modal?.type === "chore" && (
-        <SimpleAddModal title="Add Chore" fields={[
-          { key: "title", label: "Chore", placeholder: "Feed the dog", autoFocus: true },
+        <SimpleAddModal title="Add Task" fields={[
+          { key: "title", label: "Task", placeholder: "Feed the dog", autoFocus: true },
           { key: "frequency", label: "Frequency", type: "select", options: ["daily", "custom"], default: "daily" },
           { key: "days", label: "Days (if custom)", type: "days", default: [] },
         ]} onSave={(v) => { onAdd("sprinkles_chores", { member_id: member.id, active: true, ...v }); setModal(null); }} onClose={() => setModal(null)} />

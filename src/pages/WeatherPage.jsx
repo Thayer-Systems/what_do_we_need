@@ -39,7 +39,7 @@ export default function WeatherPage() {
 
   return (
     <div>
-      <PageHeader title="Weather" back={() => navigate("/")} />
+      <PageHeader title="Weather" sprinkles="calendar" back={() => navigate("/")} />
       <div style={{ padding: "18px 16px 40px" }}>
         {!data ? (
           <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2 }}>Loading…</div>

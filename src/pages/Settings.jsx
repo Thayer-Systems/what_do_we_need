@@ -17,7 +17,7 @@ export default function Settings() {
   const { navigate } = useRouter();
   return (
     <div>
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" sprinkles="settings" />
       <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 10 }}>
         {ITEMS.map(([icon, label, color, path]) => (
           <Card key={path} onClick={() => navigate(path)} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>

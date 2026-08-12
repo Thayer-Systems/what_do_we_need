@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader, Card } from "../components/ui.jsx";
+import { IconBadge } from "../components/Deco.jsx";
+import { Icon } from "../components/Icons.jsx";
 import { BASE, F } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 
@@ -16,12 +18,17 @@ export function HouseholdPage({ settings }) {
   const { navigate } = useRouter();
   return (
     <div>
-      <PageHeader title="Household" back={() => navigate("/settings")} />
+      <PageHeader title="Household" sprinkles="settings" back={() => navigate("/settings")} />
       <div style={{ padding: "18px 16px 40px" }}>
         <Card>
           <Field label="Address" value={settings?.household_address || "—"} />
           <Field label="Calendar attendees" value={(settings?.attendee_emails || []).join(", ")} />
           <Field label="Timezone" value={settings?.timezone || "—"} />
+        </Card>
+        <Card onClick={() => navigate("/settings/household/projects")} style={{ marginTop: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+          <IconBadge icon="grid" bg={BASE.lilac} size={40} />
+          <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 15, flex: 1 }}>Projects</span>
+          <Icon name="chevronRight" size={18} />
         </Card>
       </div>
     </div>
@@ -37,7 +44,7 @@ export function IntegrationsPage({ settings }) {
   const s = (ok, onText, offText) => (ok ? `Connected — ${onText}` : `Not connected — ${offText}`);
   return (
     <div>
-      <PageHeader title="Integrations" back={() => navigate("/settings")} />
+      <PageHeader title="Integrations" sprinkles="settings" back={() => navigate("/settings")} />
       <div style={{ padding: "18px 16px 40px" }}>
         <Card>
           <Field label="AI assistant" value={status ? s(status.assistant, "ready", "add ANTHROPIC_API_KEY") : "Checking..."} />
@@ -66,7 +73,7 @@ const FAQS = [
   { q: "How do events get shared between us?", a: "Every event includes both of you as attendees. Once Google Calendar is connected, events push there automatically." },
   { q: "How does the assistant work?", a: "Tap the mascot icon anywhere in the app. Type things like \"need milk\" or \"am I free Friday at 6?\" — it reads the message and acts on it." },
   { q: "How do kid themes work?", a: "Each kid's Family profile has a Theme picker that changes the look of their own profile page." },
-  { q: "What happens when a chore is completed?", a: "Tap it on the Home screen for a sprinkle-explosion celebration." },
+  { q: "What happens when a task is completed?", a: "Tap it on the Home screen for a sprinkle-explosion celebration." },
 ];
 
 export function FaqPage() {
@@ -74,7 +81,7 @@ export function FaqPage() {
   const [open, setOpen] = useState(null);
   return (
     <div>
-      <PageHeader title="FAQ" back={() => navigate("/settings")} />
+      <PageHeader title="FAQ" sprinkles="settings" back={() => navigate("/settings")} />
       <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 8 }}>
         {FAQS.map((f, i) => (
           <div key={i} style={{ border: `1.5px solid ${BASE.ink}`, borderRadius: 12, overflow: "hidden" }}>
@@ -93,7 +100,7 @@ export function InstructionsPage() {
   const { navigate } = useRouter();
   return (
     <div>
-      <PageHeader title="Instructions" back={() => navigate("/settings")} />
+      <PageHeader title="Instructions" sprinkles="settings" back={() => navigate("/settings")} />
       <div style={{ padding: "18px 16px 40px" }}>
         <Card>
           <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, lineHeight: 1.7 }}>
