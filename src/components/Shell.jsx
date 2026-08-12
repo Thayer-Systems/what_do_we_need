@@ -71,7 +71,7 @@ export default function Shell({ children }) {
         </button>
       </div>
 
-      <div style={{ flex: 1, minWidth: 0, paddingBottom: 84 }} className="sprinkles-main">
+      <div style={{ flex: 1, minWidth: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)" }} className="sprinkles-main">
         {children}
       </div>
 
@@ -87,7 +87,7 @@ export default function Shell({ children }) {
           borderTop: `2.5px solid ${BASE.ink}`,
           display: "flex",
           zIndex: 20,
-          paddingBottom: "env(safe-area-inset-bottom,0px)",
+          paddingBottom: "max(env(safe-area-inset-bottom, 0px), 6px)",
         }}
       >
         {TABS.map(([p, icon, label, color]) => (
