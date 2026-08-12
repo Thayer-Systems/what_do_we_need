@@ -258,47 +258,32 @@ function AppInner() {
   };
 
   // ── Assistant ──
-  const fmtTime = (iso) => new Date(iso).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-
   const onAssistantSend = async (text, history) => {
     const result = await interpretMessage(text, history);
-    if (result.type === "grocery") {
-      const items = result.items || (result.item ? [result.item] : []);
-      await Promise.all(items.map((item) => onAddGrocery(item)));
-      return items.length > 1
-        ? `Added ${items.map((i) => `"${i}"`).join(", ")} to the grocery list.`
-        : `Added "${items[0]}" to the grocery list.`;
+    const actions = Array.isArray(result.actions) ? result.actions : [];
+    for (const action of actions) {
+      if (action.type === "grocery") {
+        await Promise.all((action.items || []).map((item) => onAddGrocery(item)));
+      } else if (action.type === "chore") {
+        const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase());
+        if (member) await onAdd("sprinkles_chores", { member_id: member.id, title: action.title, frequency: action.frequency || "daily", active: true });
+      } else if (action.type === "event") {
+        const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase());
+        await onAddEvent({
+          title: action.title,
+          category: action.category || "event",
+          start_at: new Date(action.start).toISOString(),
+          location: action.location || null,
+          member_ids: member ? [member.id] : [],
+          source: "manual",
+        });
+      } else if (action.type === "meal") {
+        const d = await post("meal_plan", { day: action.day, meal: action.meal, recipe_id: null, recipe_name: action.name, week_start: weekStart, eat_out: false });
+        if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+      }
+      // "call" actions: not supported yet, no-op — the model's reply already says so.
     }
-    if (result.type === "chore") {
-      const member = members.find((m) => m.name.toLowerCase() === (result.member || "").toLowerCase());
-      if (!member) return `Couldn't match "${result.member}" to a family member — add the chore from their Family profile.`;
-      await onAdd("sprinkles_chores", { member_id: member.id, title: result.title, frequency: result.frequency || "daily", active: true });
-      return `Added chore "${result.title}" for ${member.name}.`;
-    }
-    if (result.type === "event") {
-      const member = members.find((m) => m.name.toLowerCase() === (result.member || "").toLowerCase());
-      await onAddEvent({
-        title: result.title,
-        category: result.category || "event",
-        start_at: new Date(result.start).toISOString(),
-        location: result.location || null,
-        member_ids: member ? [member.id] : [],
-        source: "manual",
-      });
-      return `Added "${result.title}" to the calendar for ${fmtTime(result.start)}.`;
-    }
-    if (result.type === "meal") {
-      const d = await post("meal_plan", { day: result.day, meal: result.meal, recipe_id: null, recipe_name: result.name, week_start: weekStart, eat_out: false });
-      if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
-      return `Scheduled "${result.name}" for ${result.day} ${result.meal}.`;
-    }
-    if (result.type === "availability") {
-      let msg = result.available ? "Yes, that time looks free!" : `No — that overlaps with ${result.conflict || "something already on the calendar"}.`;
-      if (!result.available && result.suggestion) msg += ` ${result.suggestion}`;
-      if (result.available && result.proposedEvent) msg += ` Want me to add "${result.proposedEvent.title}" at ${fmtTime(result.proposedEvent.start)}? Just say "add it".`;
-      return msg;
-    }
-    return result.reason || "Not sure what to do with that yet — try rephrasing.";
+    return result.reply || "Not sure what to do with that yet — try rephrasing.";
   };
 
   const memberFromPath = (p) => {
