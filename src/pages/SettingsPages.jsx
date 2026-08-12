@@ -1,0 +1,110 @@
+import { useEffect, useState } from "react";
+import { PageHeader, Card } from "../components/ui.jsx";
+import { BASE, F } from "../lib/theme.js";
+import { useRouter } from "../lib/router.jsx";
+
+function Field({ label, value }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${BASE.muted}`, fontFamily: F.ui, fontSize: 13, gap: 12 }}>
+      <span style={{ color: BASE.t2, fontWeight: 700 }}>{label}</span>
+      <span style={{ fontWeight: 600, textAlign: "right" }}>{value}</span>
+    </div>
+  );
+}
+
+export function HouseholdPage({ settings }) {
+  const { navigate } = useRouter();
+  return (
+    <div>
+      <PageHeader title="Household" back={() => navigate("/settings")} />
+      <div style={{ padding: "18px 16px 40px" }}>
+        <Card>
+          <Field label="Address" value={settings?.household_address || "—"} />
+          <Field label="Calendar attendees" value={(settings?.attendee_emails || []).join(", ")} />
+          <Field label="Timezone" value={settings?.timezone || "—"} />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export function IntegrationsPage({ settings }) {
+  const { navigate } = useRouter();
+  const [status, setStatus] = useState(null);
+  useEffect(() => {
+    fetch("/api/status").then((r) => r.json()).then(setStatus).catch(() => setStatus(null));
+  }, []);
+  const s = (ok, onText, offText) => (ok ? `Connected — ${onText}` : `Not connected — ${offText}`);
+  return (
+    <div>
+      <PageHeader title="Integrations" back={() => navigate("/settings")} />
+      <div style={{ padding: "18px 16px 40px" }}>
+        <Card>
+          <Field label="AI assistant" value={status ? s(status.assistant, "ready", "add ANTHROPIC_API_KEY") : "Checking..."} />
+          <Field label="Weather" value={status ? s(status.weather, "ready", "add TOMORROW_IO_API_KEY") : "Checking..."} />
+          <Field label="Google Maps" value={status ? s(status.googleMapsConfigured, "ready", "enter travel time manually for now") : "Checking..."} />
+          <Field
+            label="Google Calendar"
+            value={settings?.google_calendar_connected ? "Connected" : status?.googleCalendarConfigured ? "Configured, not connected yet" : "Not configured"}
+          />
+          <Field label="SMS" value="On hold — awaiting Twilio approval, use the assistant instead" />
+        </Card>
+        {!settings?.google_calendar_connected && status?.googleCalendarConfigured && (
+          <a href="/api/integrations/google/authorize" style={{ display: "block", marginTop: 14 }}>
+            <button style={{ width: "100%", background: BASE.teal, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "12px", fontWeight: 800, fontFamily: F.ui, cursor: "pointer" }}>
+              Connect Google Calendar
+            </button>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const FAQS = [
+  { q: "How do we add an event?", a: "Go to Calendar → + Event. Set a location and travel time fills in automatically from Google Maps." },
+  { q: "How do events get shared between us?", a: "Every event includes both of you as attendees. Once Google Calendar is connected, events push there automatically." },
+  { q: "How does the assistant work?", a: "Tap the mascot icon anywhere in the app. Type things like \"need milk\" or \"am I free Friday at 6?\" — it reads the message and acts on it." },
+  { q: "How do kid themes work?", a: "Each kid's Family profile has a Theme picker that changes the look of their own profile page." },
+  { q: "What happens when a chore is completed?", a: "Tap it on the Home screen for a sprinkle-explosion celebration." },
+];
+
+export function FaqPage() {
+  const { navigate } = useRouter();
+  const [open, setOpen] = useState(null);
+  return (
+    <div>
+      <PageHeader title="FAQ" back={() => navigate("/settings")} />
+      <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {FAQS.map((f, i) => (
+          <div key={i} style={{ border: `1.5px solid ${BASE.ink}`, borderRadius: 12, overflow: "hidden" }}>
+            <button onClick={() => setOpen(open === i ? null : i)} style={{ width: "100%", textAlign: "left", padding: "12px 14px", background: open === i ? BASE.yellow : "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
+              {f.q}
+            </button>
+            {open === i && <div style={{ padding: "10px 14px", fontFamily: F.ui, fontSize: 13, color: BASE.t2, background: "#fff" }}>{f.a}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function InstructionsPage() {
+  const { navigate } = useRouter();
+  return (
+    <div>
+      <PageHeader title="Instructions" back={() => navigate("/settings")} />
+      <div style={{ padding: "18px 16px 40px" }}>
+        <Card>
+          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, lineHeight: 1.7 }}>
+            1. Add family members' profiles under Settings → Family — contacts, activities, medications, food preferences, links, birthdays, chores, and goals.<br />
+            2. Recurring activities you add on a kid's profile show up automatically on the shared Calendar.<br />
+            3. Tap the mascot icon anywhere for the assistant — quick asks like "need milk" or availability questions.<br />
+            4. Tap a chore on Home when it's done for the sprinkle celebration.<br />
+            5. Add this app to your iPhone home screen (Share → Add to Home Screen) for the best experience.
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}

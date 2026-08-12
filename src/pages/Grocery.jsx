@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader, Card, EmptyState } from "../components/ui.jsx";
+import { Icon } from "../components/Icons.jsx";
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
 
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "11px 14px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -56,13 +57,15 @@ export default function Grocery({ shopping, onAssistantSend, onAdd, onRemove }) 
         </div>
 
         {shopping.length === 0 ? (
-          <EmptyState icon="🛒" text="Nothing on the list" />
+          <EmptyState icon="cart" text="Nothing on the list" />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {shopping.map((s) => (
               <Card key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 15 }}>{s.name}</span>
-                <button onClick={() => onRemove(s.id)} style={{ border: `1.5px solid ${BASE.ink}`, background: "#fff", borderRadius: 8, width: 26, height: 26, cursor: "pointer" }}>✓</button>
+                <button onClick={() => onRemove(s.id)} style={{ border: `1.5px solid ${BASE.ink}`, background: "#fff", borderRadius: 8, width: 26, height: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="check" size={14} />
+                </button>
               </Card>
             ))}
           </div>

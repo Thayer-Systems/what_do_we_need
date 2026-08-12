@@ -1,7 +1,8 @@
 import { BASE, F, cardStyle, hardShadow } from "../lib/theme.js";
 import { IconBadge } from "./Deco.jsx";
+import { Icon } from "./Icons.jsx";
 
-export function PageHeader({ title, right }) {
+export function PageHeader({ title, right, back }) {
   return (
     <div
       style={{
@@ -17,16 +18,27 @@ export function PageHeader({ title, right }) {
         gap: 10,
       }}
     >
-      <h1 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26, margin: 0, letterSpacing: "-0.3px" }}>{title}</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        {back && (
+          <button
+            onClick={back}
+            aria-label="Back"
+            style={{ width: 34, height: 34, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: hardShadow(BASE.ink, 2, 2) }}
+          >
+            <Icon name="chevronLeft" size={18} />
+          </button>
+        )}
+        <h1 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26, margin: 0, letterSpacing: "-0.3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</h1>
+      </div>
       {right}
     </div>
   );
 }
 
-export function EmptyState({ icon = "🍩", text, action, onAction }) {
+export function EmptyState({ icon = "donut", text, action, onAction }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", gap: 14, textAlign: "center" }}>
-      <IconBadge emoji={icon} bg={BASE.yellow} size={64} radius={18} rotate={-4} />
+      <IconBadge icon={icon} bg={BASE.yellow} size={64} radius={18} rotate={-4} />
       <div style={{ fontFamily: F.display, fontSize: 19, fontWeight: 700, color: BASE.ink }}>{text}</div>
       {action && (
         <button onClick={onAction} style={{ ...pillFrom(BASE.pink), marginTop: 4 }}>

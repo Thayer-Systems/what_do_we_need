@@ -1,16 +1,19 @@
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
 import { IconBadge, StarAccent } from "./Deco.jsx";
+import { useRouter } from "../lib/router.jsx";
 
 export const TABS = [
-  ["home", "🏠", "Home", BASE.yellow],
-  ["family", "👨‍👩‍👧‍👦", "Family", BASE.pink],
-  ["calendar", "📅", "Calendar", BASE.teal],
-  ["meals", "🍽️", "Meals", BASE.lilac],
-  ["grocery", "🛒", "Grocery", BASE.orange],
-  ["settings", "⚙️", "Settings", BASE.green],
+  ["/", "home", "Home", BASE.yellow],
+  ["/calendar", "calendar", "Calendar", BASE.teal],
+  ["/meals", "meals", "Meals", BASE.lilac],
+  ["/grocery", "cart", "Grocery", BASE.orange],
+  ["/settings", "settings", "Settings", BASE.green],
 ];
 
-export default function Shell({ tab, setTab, children }) {
+export default function Shell({ children }) {
+  const { path, navigate } = useRouter();
+  const active = (p) => (p === "/" ? path === "/" : path.startsWith(p));
+
   return (
     <div style={{ minHeight: "100vh", background: BASE.bg, fontFamily: F.ui, color: BASE.ink, display: "flex" }}>
       {/* Desktop sidebar */}
@@ -32,31 +35,40 @@ export default function Shell({ tab, setTab, children }) {
           <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>Mr. Sprinkles</span>
           <StarAccent color={BASE.pink} size={16} style={{ position: "absolute", top: -2, right: 6 }} />
         </div>
-        {TABS.map(([t, emoji, label, color]) => (
+        {TABS.map(([p, icon, label, color]) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={p}
+            onClick={() => navigate(p)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 12,
               padding: "8px 10px",
               borderRadius: 14,
-              border: tab === t ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
-              background: tab === t ? color : "transparent",
-              boxShadow: tab === t ? hardShadow(BASE.ink, 3, 3) : "none",
+              border: active(p) ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
+              background: active(p) ? color : "transparent",
+              boxShadow: active(p) ? hardShadow(BASE.ink, 3, 3) : "none",
               cursor: "pointer",
               fontFamily: F.ui,
-              fontWeight: tab === t ? 800 : 600,
+              fontWeight: active(p) ? 800 : 600,
               fontSize: 14,
               color: BASE.ink,
               textAlign: "left",
             }}
           >
-            <IconBadge emoji={emoji} bg={tab === t ? "#fff" : BASE.muted} size={32} radius={10} style={{ boxShadow: tab === t ? hardShadow(BASE.ink, 2, 2) : "none" }} />
+            <IconBadge icon={icon} bg={active(p) ? "#fff" : BASE.muted} size={32} radius={10} style={{ boxShadow: active(p) ? hardShadow(BASE.ink, 2, 2) : "none" }} />
             {label}
           </button>
         ))}
+        <button
+          onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 14, border: `2.5px solid ${BASE.ink}`, background: BASE.pink, boxShadow: hardShadow(BASE.ink, 3, 3), cursor: "pointer", fontFamily: F.ui, fontWeight: 800, fontSize: 14, color: BASE.ink, textAlign: "left", marginTop: 8 }}
+        >
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <img src={MASCOT.main} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+          </div>
+          Ask Mr. Sprinkles
+        </button>
       </div>
 
       <div style={{ flex: 1, minWidth: 0, paddingBottom: 84 }} className="sprinkles-main">
@@ -78,28 +90,40 @@ export default function Shell({ tab, setTab, children }) {
           paddingBottom: "env(safe-area-inset-bottom,0px)",
         }}
       >
-        {TABS.map(([t, emoji, label, color]) => (
+        {TABS.slice(0, 3).map(([p, icon, label, color]) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={p}
+            onClick={() => navigate(p)}
             style={{
-              flex: 1,
-              padding: "8px 0 7px",
-              border: "none",
-              background: "transparent",
-              color: BASE.ink,
-              fontSize: 10,
-              fontWeight: tab === t ? 800 : 500,
-              cursor: "pointer",
-              fontFamily: F.ui,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 3,
-              opacity: tab === t ? 1 : 0.55,
+              flex: 1, padding: "8px 0 7px", border: "none", background: "transparent", color: BASE.ink, fontSize: 10,
+              fontWeight: active(p) ? 800 : 500, cursor: "pointer", fontFamily: F.ui, display: "flex", flexDirection: "column",
+              alignItems: "center", gap: 3, opacity: active(p) ? 1 : 0.55,
             }}
           >
-            <IconBadge emoji={emoji} bg={tab === t ? color : "transparent"} size={28} radius={9} style={{ border: tab === t ? `2px solid ${BASE.ink}` : "2px solid transparent", boxShadow: tab === t ? hardShadow(BASE.ink, 2, 2) : "none" }} />
+            <IconBadge icon={icon} bg={active(p) ? color : "transparent"} size={28} radius={9} style={{ border: active(p) ? `2px solid ${BASE.ink}` : "2px solid transparent", boxShadow: active(p) ? hardShadow(BASE.ink, 2, 2) : "none" }} />
+            <span>{label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
+          style={{ flex: 1, padding: "6px 0 7px", border: "none", background: "transparent", cursor: "pointer", fontFamily: F.ui, fontSize: 10, fontWeight: 800, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}
+        >
+          <div style={{ width: 30, height: 30, borderRadius: 9, background: BASE.pink, border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hardShadow(BASE.ink, 2, 2) }}>
+            <img src={MASCOT.main} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+          </div>
+          <span>Sprinkles</span>
+        </button>
+        {TABS.slice(3).map(([p, icon, label, color]) => (
+          <button
+            key={p}
+            onClick={() => navigate(p)}
+            style={{
+              flex: 1, padding: "8px 0 7px", border: "none", background: "transparent", color: BASE.ink, fontSize: 10,
+              fontWeight: active(p) ? 800 : 500, cursor: "pointer", fontFamily: F.ui, display: "flex", flexDirection: "column",
+              alignItems: "center", gap: 3, opacity: active(p) ? 1 : 0.55,
+            }}
+          >
+            <IconBadge icon={icon} bg={active(p) ? color : "transparent"} size={28} radius={9} style={{ border: active(p) ? `2px solid ${BASE.ink}` : "2px solid transparent", boxShadow: active(p) ? hardShadow(BASE.ink, 2, 2) : "none" }} />
             <span>{label}</span>
           </button>
         ))}
