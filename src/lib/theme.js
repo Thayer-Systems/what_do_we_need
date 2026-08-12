@@ -118,6 +118,20 @@ export const MASCOT = {
   pointing: "/mascot/10_pointing.png",
 };
 
+// Home hero mascot cycles through a color variant per day of week.
+export const mascotOfDay = (date = new Date()) => MASCOT.variants[date.getDay() % MASCOT.variants.length];
+
+// Sprinkle accent color sets per page — used to decorate header bars
+// (background stays white) so each section reads distinctly.
+export const SPRINKLE_SETS = {
+  calendar: [BASE.teal, BASE.pink, BASE.yellow],
+  meals: [BASE.lilac, BASE.orange, BASE.teal],
+  grocery: [BASE.orange, BASE.green, BASE.pink],
+  settings: [BASE.green, BASE.lilac, BASE.yellow],
+  family: [BASE.pink, BASE.teal, BASE.orange],
+  default: [BASE.pink, BASE.yellow, BASE.teal],
+};
+
 export const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const CATEGORY_COLORS = {
   event: BASE.pink,

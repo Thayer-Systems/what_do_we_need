@@ -12,6 +12,7 @@ import Grocery from "./pages/Grocery.jsx";
 import Settings from "./pages/Settings.jsx";
 import Tools from "./pages/Tools.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
+import Projects from "./pages/Projects.jsx";
 import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage } from "./pages/SettingsPages.jsx";
 import { get, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
@@ -77,9 +78,10 @@ function AppInner() {
   const [mealPlan, setMealPlan] = useState([]);
   const [shopping, setShopping] = useState([]);
   const [stats, setStats] = useState([]);
+  const [projects, setProjects] = useState([]);
 
   const loadAll = useCallback(async () => {
-    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj] = await Promise.all([
       get("sprinkles_family_members?order=sort_order.asc"),
       get("sprinkles_contacts"),
       get("sprinkles_activities"),
@@ -94,6 +96,7 @@ function AppInner() {
       get(`meal_plan?week_start=eq.${weekStart}`),
       get("shopping_list?status=eq.pending&order=name.asc"),
       get("sprinkles_member_stats?order=sort_order.asc"),
+      get("sprinkles_projects?order=created_at.desc"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -109,6 +112,7 @@ function AppInner() {
     setMealPlan(mp || []);
     setShopping(shop || []);
     setStats(sta || []);
+    setProjects(proj || []);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -150,12 +154,30 @@ function AppInner() {
     if (d?.[0]) setStats((p) => [...p, d[0]]);
   };
   const onUpdateStat = async (id, ch) => {
+    const before = stats.find((s) => s.id === id);
     setStats((p) => p.map((s) => (s.id === id ? { ...s, ...ch } : s)));
     await patch("sprinkles_member_stats", id, ch);
+    const after = { ...before, ...ch };
+    if (before && ch.value != null && after.value >= after.target && before.value < before.target) celebrate("Goal reached!");
   };
   const onDeleteStat = async (id) => {
     setStats((p) => p.filter((s) => s.id !== id));
     await del("sprinkles_member_stats", id);
+  };
+
+  // ── Projects ──
+  const onAddProject = async (body) => {
+    const d = await post("sprinkles_projects", body);
+    if (d?.[0]) setProjects((p) => [d[0], ...p]);
+  };
+  const onUpdateProject = async (id, ch) => {
+    setProjects((p) => p.map((x) => (x.id === id ? { ...x, ...ch } : x)));
+    await patch("sprinkles_projects", id, ch);
+    if (ch.progress === 100 || ch.status === "done") celebrate("Project done!");
+  };
+  const onDeleteProject = async (id) => {
+    setProjects((p) => p.filter((x) => x.id !== id));
+    await del("sprinkles_projects", id);
   };
 
   // ── Chores / celebration ──
@@ -220,6 +242,7 @@ function AppInner() {
   const onRemoveGrocery = async (id) => {
     setShopping((p) => p.filter((s) => s.id !== id));
     await del("shopping_list", id);
+    celebrate("Got it!");
   };
 
   // ── Assistant ──
@@ -270,7 +293,7 @@ function AppInner() {
 
   let page;
   if (path === "/") {
-    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
+    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} projects={projects} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
   } else if (path === "/calendar") {
     page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onDelete={onDeleteEvent} />;
   } else if (path === "/meals") {
@@ -292,6 +315,8 @@ function AppInner() {
     page = <Tools />;
   } else if (path === "/settings/tools/weather") {
     page = <WeatherPage />;
+  } else if (path === "/settings/household/projects") {
+    page = <Projects projects={projects} onAdd={onAddProject} onUpdate={onUpdateProject} onDelete={onDeleteProject} />;
   } else if (path === "/settings/household") {
     page = <HouseholdPage settings={settings} />;
   } else if (path === "/settings/integrations") {
@@ -303,7 +328,7 @@ function AppInner() {
   } else if (path === "/settings") {
     page = <Settings />;
   } else {
-    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
+    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} projects={projects} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
   }
 
   return (

@@ -1,8 +1,8 @@
-import { BASE, F, cardStyle, hardShadow } from "../lib/theme.js";
-import { IconBadge } from "./Deco.jsx";
+import { BASE, F, cardStyle, hardShadow, SPRINKLE_SETS } from "../lib/theme.js";
+import { IconBadge, HeaderSprinkles } from "./Deco.jsx";
 import { Icon } from "./Icons.jsx";
 
-export function PageHeader({ title, right, back }) {
+export function PageHeader({ title, right, back, sprinkles }) {
   return (
     <div
       style={{
@@ -16,9 +16,11 @@ export function PageHeader({ title, right, back }) {
         alignItems: "center",
         justifyContent: "space-between",
         gap: 10,
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      {sprinkles !== false && <HeaderSprinkles colors={SPRINKLE_SETS[sprinkles] || SPRINKLE_SETS.default} />}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, position: "relative" }}>
         {back && (
           <button
             onClick={back}
@@ -30,7 +32,7 @@ export function PageHeader({ title, right, back }) {
         )}
         <h1 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26, margin: 0, letterSpacing: "-0.3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</h1>
       </div>
-      {right}
+      <div style={{ position: "relative" }}>{right}</div>
     </div>
   );
 }

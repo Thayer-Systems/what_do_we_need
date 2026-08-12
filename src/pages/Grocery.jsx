@@ -43,11 +43,32 @@ function AssistantBox({ onSend }) {
   );
 }
 
+function WalmartExport({ shopping }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    const text = shopping.map((s) => s.name).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // clipboard API unavailable — fall back to a visible prompt
+      window.prompt("Copy this list:", text);
+    }
+  };
+  if (shopping.length === 0) return null;
+  return (
+    <button onClick={copy} style={{ ...btn(copied ? BASE.green : "#fff"), width: "100%", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      <Icon name="cart" size={15} /> {copied ? "Copied!" : "Copy list for Walmart+"}
+    </button>
+  );
+}
+
 export default function Grocery({ shopping, onAssistantSend, onAdd, onRemove }) {
   const [name, setName] = useState("");
   return (
     <div>
-      <PageHeader title="Grocery" />
+      <PageHeader title="Grocery" sprinkles="grocery" />
       <div style={{ padding: "18px 16px 32px" }}>
         <AssistantBox onSend={onAssistantSend} />
 
@@ -55,6 +76,8 @@ export default function Grocery({ shopping, onAssistantSend, onAdd, onRemove }) 
           <input style={inp} placeholder="Add item..." value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) { onAdd(name.trim()); setName(""); } }} />
           <button style={btn(BASE.pink)} onClick={() => { if (name.trim()) { onAdd(name.trim()); setName(""); } }}>+ Add</button>
         </div>
+
+        <WalmartExport shopping={shopping} />
 
         {shopping.length === 0 ? (
           <EmptyState icon="cart" text="Nothing on the list" />

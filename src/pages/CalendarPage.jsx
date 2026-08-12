@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader, Card, Modal, Chip, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
@@ -135,13 +135,29 @@ function FilterPanel({ open, members, memberFilter, setMemberFilter, catFilter, 
 }
 
 // Google-Calendar-mobile-style agenda: date rail + event list, clean and dense.
-function Agenda({ days, events, onOpen }) {
+function forecastFor(forecast, date) {
+  if (!forecast?.length) return null;
+  return forecast.find((f) => new Date(f.date).toDateString() === date.toDateString());
+}
+
+function WeatherBadge({ day }) {
+  if (!day) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 999, padding: "2px 8px", flexShrink: 0 }}>
+      <Icon name={day.icon} size={14} />
+      <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800 }}>{day.highF}°</span>
+    </div>
+  );
+}
+
+function Agenda({ days, events, onOpen, forecast }) {
   const today = new Date();
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {days.map((d) => {
         const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
         const isToday = sameDay(d, today);
+        const dayForecast = forecastFor(forecast, d);
         return (
           <div key={d.toISOString()} style={{ display: "flex", borderBottom: `1.5px solid ${BASE.muted}`, minHeight: 64 }}>
             <div style={{ width: 56, flexShrink: 0, padding: "12px 6px", textAlign: "center", borderRight: `1.5px solid ${BASE.muted}` }}>
@@ -164,6 +180,7 @@ function Agenda({ days, events, onOpen }) {
                       {e.all_day ? "All day" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                     </span>
                     <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, flex: 1 }}>{e.title}</span>
+                    <WeatherBadge day={dayForecast} />
                   </div>
                 ))
               )}
@@ -209,6 +226,11 @@ export default function CalendarPage({ members, events, settings, onAdd, onDelet
   const [catFilter, setCatFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(null);
   const [openEvent, setOpenEvent] = useState(null);
+  const [forecast, setForecast] = useState([]);
+
+  useEffect(() => {
+    fetch("/api/weather?range=week").then((r) => r.json()).then((d) => setForecast(d?.days || [])).catch(() => setForecast([]));
+  }, []);
 
   const filtered = useMemo(
     () => events.filter((e) => (memberFilter === "all" || (e.member_ids || []).includes(memberFilter)) && (catFilter === "all" || e.category === catFilter)),
@@ -236,6 +258,7 @@ export default function CalendarPage({ members, events, settings, onAdd, onDelet
     <div>
       <PageHeader
         title="Calendar"
+        sprinkles="calendar"
         right={
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={() => setFiltersOpen((o) => !o)} style={{ ...btn(activeFilterCount ? BASE.yellow : "#fff"), padding: "9px 12px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -260,7 +283,7 @@ export default function CalendarPage({ members, events, settings, onAdd, onDelet
 
       <div style={{ marginTop: 12 }}>
         {view === "month" && <MonthView cursor={cursor} events={filtered} onDayClick={(d) => { setCursor(d); setView("3day"); }} />}
-        {(view === "week" || view === "3day") && <Agenda days={agendaDays} events={filtered} onOpen={setOpenEvent} />}
+        {(view === "week" || view === "3day") && <Agenda days={agendaDays} events={filtered} onOpen={setOpenEvent} forecast={forecast} />}
       </div>
 
       {addOpen && <AddEventModal members={members} defaultDate={addOpen} onSave={(v) => { onAdd(v); setAddOpen(null); }} onClose={() => setAddOpen(null)} />}
