@@ -10,6 +10,8 @@ const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "9px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
 const CATEGORIES = ["event", "appointment", "activity", "meal", "chore", "other"];
+const RECURRENCE = ["none", "daily", "weekly", "monthly", "yearly"];
+const RECURRENCE_LABEL = { none: "One-time", daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
 const DAY_MS = 86400000;
 
 function startOfWeek(d) {
@@ -22,11 +24,12 @@ function sameDay(a, b) {
   return a.toDateString() === b.toDateString();
 }
 
-function EventDetail({ event, members, settings, onClose, onDelete, onSyncGoogle }) {
+function EventDetail({ event, members, settings, onClose, onDelete, onSyncGoogle, onEdit }) {
   const attendees = (event.member_ids || []).map((id) => members.find((m) => m.id === id)?.name).filter(Boolean);
   const [syncState, setSyncState] = useState(event.google_event_id ? "synced" : "idle");
   const [syncError, setSyncError] = useState(null);
   const googleConnected = !!settings?.google_calendar_connected;
+  const isEditable = event.source !== "activity";
 
   const handleAddToCalendar = async () => {
     if (!googleConnected) {
@@ -47,37 +50,47 @@ function EventDetail({ event, members, settings, onClose, onDelete, onSyncGoogle
 
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{event.title}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4, gap: 8 }}>
+        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20 }}>{event.title}</div>
+        {isEditable && <button onClick={() => onEdit(event)} style={btn(BASE.yellow)}>Edit</button>}
+      </div>
       <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 14 }}>
         {new Date(event.start_at).toLocaleString([], { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+        {event.recurrence && event.recurrence !== "none" && ` · ${RECURRENCE_LABEL[event.recurrence] || event.recurrence}`}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: F.ui, fontSize: 14, marginBottom: 18 }}>
         {event.location && <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Icon name="pin" size={16} /> {event.location}</div>}
         {event.travel_minutes != null && <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Icon name="car" size={16} /> {event.travel_minutes} min travel time</div>}
         {attendees.length > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Icon name="users" size={16} /> {attendees.join(", ")}</div>}
         {event.notes && <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Icon name="info" size={16} /> {event.notes}</div>}
+        {!isEditable && <div style={{ fontFamily: F.ui, fontSize: 12, fontStyle: "italic", color: BASE.t3 }}>This is a recurring activity — edit it from the family member's profile.</div>}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button style={btn(BASE.teal)} disabled={syncState === "syncing" || syncState === "synced"} onClick={handleAddToCalendar}>{btnLabel}</button>
-        <button style={btn(BASE.red)} onClick={() => { onDelete(event.id); onClose(); }}>Delete</button>
+        {isEditable && <button style={btn(BASE.red)} onClick={() => { onDelete(event.id); onClose(); }}>Delete</button>}
       </div>
       {syncError && <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.red, marginTop: 8 }}>{syncError}</div>}
     </Modal>
   );
 }
 
-function AddEventModal({ members, defaultDate, onSave, onClose }) {
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("event");
-  const [date, setDate] = useState(defaultDate);
-  const [time, setTime] = useState("17:00");
-  const [location, setLocation] = useState("");
-  const [travel, setTravel] = useState("");
+function EventModal({ event, members, defaultDate, onSave, onClose }) {
+  const [title, setTitle] = useState(event?.title || "");
+  const [category, setCategory] = useState(event?.category || "event");
+  const start = event ? new Date(event.start_at) : null;
+  const [date, setDate] = useState(start ? start.toISOString().slice(0, 10) : defaultDate);
+  const [time, setTime] = useState(start ? start.toTimeString().slice(0, 5) : "17:00");
+  const [location, setLocation] = useState(event?.location || "");
+  const [travel, setTravel] = useState(event?.travel_minutes != null ? String(event.travel_minutes) : "");
   const [travelLookup, setTravelLookup] = useState("idle");
-  const [memberIds, setMemberIds] = useState([]);
-  const [notes, setNotes] = useState("");
+  const [memberIds, setMemberIds] = useState(event?.member_ids || []);
+  const [notes, setNotes] = useState(event?.notes || "");
+  const [recurrence, setRecurrence] = useState(event?.recurrence || "none");
+  const [recurrenceUntil, setRecurrenceUntil] = useState(event?.recurrence_until || "");
 
   const toggleMember = (id) => setMemberIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const allSelected = members.length > 0 && members.every((m) => memberIds.includes(m.id));
+  const toggleFamily = () => setMemberIds(allSelected ? [] : members.map((m) => m.id));
 
   const lookupTravel = async () => {
     if (!location.trim()) return;
@@ -95,12 +108,13 @@ function AddEventModal({ members, defaultDate, onSave, onClose }) {
       title: title.trim(), category, start_at: new Date(`${date}T${time}:00`).toISOString(),
       location: location.trim() || null, travel_minutes: travel ? Number(travel) : null,
       member_ids: memberIds, notes: notes.trim() || null, source: "manual",
+      recurrence, recurrence_until: recurrence !== "none" ? recurrenceUntil || null : null,
     });
   };
 
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 14 }}>New Event</div>
+      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 14 }}>{event ? "Edit Event" : "New Event"}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div><span style={label}>Title</span><input autoFocus style={inp} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Piper's dance recital" /></div>
         <div><span style={label}>Category</span>
@@ -124,12 +138,26 @@ function AddEventModal({ members, defaultDate, onSave, onClose }) {
         </div>
         <div><span style={label}>Who</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button onClick={toggleFamily} style={{ ...btn(allSelected ? BASE.pink : "#fff"), color: allSelected ? "#fff" : BASE.ink, display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="users" size={14} color={allSelected ? "#fff" : BASE.ink} /> Family
+            </button>
             {members.map((m) => (
               <button key={m.id} onClick={() => toggleMember(m.id)} style={{ ...btn(memberIds.includes(m.id) ? m.color : "#fff"), color: memberIds.includes(m.id) ? "#fff" : BASE.ink, display: "flex", alignItems: "center", gap: 6 }}>
                 <Icon name={m.icon} size={14} color={memberIds.includes(m.id) ? "#fff" : BASE.ink} /> {m.name}
               </button>
             ))}
           </div>
+        </div>
+        <div><span style={label}>Repeats</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {RECURRENCE.map((r) => <button key={r} onClick={() => setRecurrence(r)} style={btn(recurrence === r ? BASE.lilac : "#fff")}>{RECURRENCE_LABEL[r]}</button>)}
+          </div>
+          {recurrence !== "none" && (
+            <div style={{ marginTop: 8 }}>
+              <span style={label}>Ends (optional)</span>
+              <input type="date" style={inp} value={recurrenceUntil} onChange={(e) => setRecurrenceUntil(e.target.value)} />
+            </div>
+          )}
         </div>
         <div><span style={label}>Notes</span><input style={inp} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         <button onClick={save} style={{ ...btn(BASE.green), width: "100%", marginTop: 4 }}>Save Event</button>
@@ -240,7 +268,7 @@ function MonthView({ cursor, events, onDayClick }) {
   );
 }
 
-export default function CalendarPage({ members, events, settings, onAdd, onDelete, onSyncGoogle }) {
+export default function CalendarPage({ members, events, settings, onAdd, onUpdate, onDelete, onSyncGoogle }) {
   const [view, setView] = useState("3day");
   const [cursor, setCursor] = useState(new Date());
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -248,6 +276,7 @@ export default function CalendarPage({ members, events, settings, onAdd, onDelet
   const [catFilter, setCatFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(null);
   const [openEvent, setOpenEvent] = useState(null);
+  const [editEvent, setEditEvent] = useState(null);
   const [forecast, setForecast] = useState([]);
 
   useEffect(() => {
@@ -308,8 +337,26 @@ export default function CalendarPage({ members, events, settings, onAdd, onDelet
         {(view === "week" || view === "3day") && <Agenda days={agendaDays} events={filtered} onOpen={setOpenEvent} forecast={forecast} />}
       </div>
 
-      {addOpen && <AddEventModal members={members} defaultDate={addOpen} onSave={(v) => { onAdd(v); setAddOpen(null); }} onClose={() => setAddOpen(null)} />}
-      {openEvent && <EventDetail event={openEvent} members={members} settings={settings} onClose={() => setOpenEvent(null)} onDelete={onDelete} onSyncGoogle={onSyncGoogle} />}
+      {addOpen && <EventModal members={members} defaultDate={addOpen} onSave={(v) => { onAdd(v); setAddOpen(null); }} onClose={() => setAddOpen(null)} />}
+      {openEvent && (
+        <EventDetail
+          event={openEvent}
+          members={members}
+          settings={settings}
+          onClose={() => setOpenEvent(null)}
+          onDelete={onDelete}
+          onSyncGoogle={onSyncGoogle}
+          onEdit={(e) => { setOpenEvent(null); setEditEvent(e); }}
+        />
+      )}
+      {editEvent && (
+        <EventModal
+          event={editEvent}
+          members={members}
+          onSave={(v) => { onUpdate(editEvent.id, v); setEditEvent(null); }}
+          onClose={() => setEditEvent(null)}
+        />
+      )}
     </div>
   );
 }

@@ -23,9 +23,33 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const isWeek = req.query?.range === "week";
+  const range = req.query?.range;
+  const isWeek = range === "week";
+  const isHourly = range === "hourly";
 
   try {
+    if (isHourly) {
+      const url = `https://api.tomorrow.io/v4/weather/forecast?location=${encodeURIComponent(location)}&units=imperial&timesteps=1h&apikey=${key}`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error("hourly forecast lookup failed");
+      const data = await r.json();
+      const hours = (data?.timelines?.hourly || []).slice(0, 168).map((h) => {
+        const v = h.values || {};
+        return {
+          time: h.time,
+          tempF: v.temperature != null ? Math.round(v.temperature) : null,
+          code: v.weatherCode,
+          summary: CODE_TEXT[v.weatherCode] || "—",
+          icon: CODE_ICON[v.weatherCode] || "sun",
+          precipProbability: v.precipitationProbability != null ? Math.round(v.precipitationProbability) : null,
+          humidity: v.humidity != null ? Math.round(v.humidity) : null,
+          windMph: v.windSpeed != null ? Math.round(v.windSpeed) : null,
+        };
+      });
+      res.status(200).json({ available: true, hours });
+      return;
+    }
+
     if (!isWeek) {
       const url = `https://api.tomorrow.io/v4/weather/realtime?location=${encodeURIComponent(location)}&units=imperial&apikey=${key}`;
       const r = await fetch(url);
