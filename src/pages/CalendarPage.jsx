@@ -22,8 +22,26 @@ function sameDay(a, b) {
   return a.toDateString() === b.toDateString();
 }
 
-function EventDetail({ event, members, settings, onClose, onDelete }) {
+function EventDetail({ event, members, settings, onClose, onDelete, onSyncGoogle }) {
   const attendees = (event.member_ids || []).map((id) => members.find((m) => m.id === id)?.name).filter(Boolean);
+  const [syncState, setSyncState] = useState(event.google_event_id ? "synced" : "idle");
+  const googleConnected = !!settings?.google_calendar_connected;
+
+  const handleAddToCalendar = async () => {
+    if (!googleConnected) {
+      downloadICS(event, settings?.attendee_emails || []);
+      return;
+    }
+    if (syncState === "synced") return;
+    setSyncState("syncing");
+    const d = await onSyncGoogle(event);
+    setSyncState(d?.ok ? "synced" : "error");
+  };
+
+  const btnLabel = !googleConnected
+    ? "Add to Calendar"
+    : { idle: "Add to Google Calendar", syncing: "Adding…", synced: "✓ On Google Calendar", error: "Couldn't add — retry" }[syncState];
+
   return (
     <Modal onClose={onClose}>
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{event.title}</div>
@@ -37,7 +55,7 @@ function EventDetail({ event, members, settings, onClose, onDelete }) {
         {event.notes && <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Icon name="info" size={16} /> {event.notes}</div>}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button style={btn(BASE.teal)} onClick={() => downloadICS(event, settings?.attendee_emails || [])}>Add to Calendar</button>
+        <button style={btn(BASE.teal)} disabled={syncState === "syncing" || syncState === "synced"} onClick={handleAddToCalendar}>{btnLabel}</button>
         <button style={btn(BASE.red)} onClick={() => { onDelete(event.id); onClose(); }}>Delete</button>
       </div>
     </Modal>
@@ -218,7 +236,7 @@ function MonthView({ cursor, events, onDayClick }) {
   );
 }
 
-export default function CalendarPage({ members, events, settings, onAdd, onDelete }) {
+export default function CalendarPage({ members, events, settings, onAdd, onDelete, onSyncGoogle }) {
   const [view, setView] = useState("3day");
   const [cursor, setCursor] = useState(new Date());
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -287,7 +305,7 @@ export default function CalendarPage({ members, events, settings, onAdd, onDelet
       </div>
 
       {addOpen && <AddEventModal members={members} defaultDate={addOpen} onSave={(v) => { onAdd(v); setAddOpen(null); }} onClose={() => setAddOpen(null)} />}
-      {openEvent && <EventDetail event={openEvent} members={members} settings={settings} onClose={() => setOpenEvent(null)} onDelete={onDelete} />}
+      {openEvent && <EventDetail event={openEvent} members={members} settings={settings} onClose={() => setOpenEvent(null)} onDelete={onDelete} onSyncGoogle={onSyncGoogle} />}
     </div>
   );
 }

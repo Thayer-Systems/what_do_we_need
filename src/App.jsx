@@ -208,6 +208,15 @@ function AppInner() {
     return saved;
   };
   const onDeleteEvent = (id) => onDelete("sprinkles_events", id);
+  const onSyncEventToGoogle = async (event) => {
+    const r = await fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(event) });
+    const d = await r.json().catch(() => null);
+    if (d?.ok && d.googleEventId) {
+      setEvents((p) => p.map((e) => (e.id === event.id ? { ...e, google_event_id: d.googleEventId } : e)));
+      patch("sprinkles_events", event.id, { google_event_id: d.googleEventId });
+    }
+    return d;
+  };
 
   // ── Meals ──
   const onSaveRecipe = async (r) => {
@@ -298,7 +307,7 @@ function AppInner() {
   if (path === "/") {
     page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} projects={projects} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
   } else if (path === "/calendar") {
-    page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onDelete={onDeleteEvent} />;
+    page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onDelete={onDeleteEvent} onSyncGoogle={onSyncEventToGoogle} />;
   } else if (path === "/meals") {
     page = <Meals recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
   } else if (path === "/grocery") {
