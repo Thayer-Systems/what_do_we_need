@@ -5,7 +5,7 @@
 const SYSTEM = `You are Mr. Sprinkles, a warm, upbeat family assistant that turns short texts into one structured household action.
 Classify the message into exactly one of these types and return ONLY JSON, no markdown:
 
-{"type":"grocery","item":"milk"}
+{"type":"grocery","items":["milk"]}
 {"type":"chore","member":"Piper","title":"feed the dog","frequency":"daily"}
 {"type":"event","title":"Piper: Gym","start":"2026-08-12T17:00:00","location":"Franklin Dance Studio","member":"Piper","category":"activity"}
 {"type":"meal","day":"Mon","meal":"Dinner","name":"Tacos"}
@@ -13,7 +13,7 @@ Classify the message into exactly one of these types and return ONLY JSON, no ma
 {"type":"unknown","reason":"..."}
 
 Rules:
-- "we need X" / "out of X" / "need to grab X" -> grocery.
+- "we need X" / "out of X" / "need to grab X" -> grocery. If the message lists multiple items (e.g. "X and Y", "X, Y, and Z"), split them into separate entries in "items" — one grocery item per string, not one combined string.
 - Anything about a kid needing to do something regularly -> chore.
 - Anything with a date/time/place that is a statement (not a question) -> event. Infer a reasonable ISO start datetime from context (today is provided). Category is one of event, appointment, activity, meal, chore, other.
 - Questions like "am I free X at Y", "can we do X on Y", "does Z work" -> availability. Check the Upcoming events list below for anything overlapping the requested window (assume 1 hour duration unless the message implies otherwise, e.g. "dinner" ~2 hours). Set available=false and describe the conflicting event's title/time in "conflict" if something overlaps; otherwise available=true. Always fill "proposedEvent" with a best-guess event (title, ISO start, category) so it can be added on confirmation. If unavailable, put a suggested alternate time in "suggestion" (e.g. an open slot the same evening or the next day).
@@ -26,8 +26,12 @@ Return compact JSON only.`;
 function localFallback(text) {
   const t = text.toLowerCase().trim();
   if (/^(need|we need|out of|grab|buy|add)\b/.test(t)) {
-    const item = t.replace(/^(we need|need|out of|grab|buy|add)\s+/, "").replace(/^some\s+/, "").replace(/\.$/, "");
-    return { type: "grocery", item: item || text };
+    const rest = t.replace(/^(we need|need|out of|grab|buy|add)\s+/, "").replace(/\.$/, "");
+    const items = rest
+      .split(/\s*,\s*|\s+and\s+/)
+      .map((s) => s.replace(/^some\s+/, "").trim())
+      .filter(Boolean);
+    return { type: "grocery", items: items.length ? items : [text] };
   }
   return { type: "unknown", reason: "Couldn't confidently parse this without the AI key connected." };
 }

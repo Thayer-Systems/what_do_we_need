@@ -263,8 +263,11 @@ function AppInner() {
   const onAssistantSend = async (text, history) => {
     const result = await interpretMessage(text, history);
     if (result.type === "grocery") {
-      await onAddGrocery(result.item);
-      return `Added "${result.item}" to the grocery list.`;
+      const items = result.items || (result.item ? [result.item] : []);
+      await Promise.all(items.map((item) => onAddGrocery(item)));
+      return items.length > 1
+        ? `Added ${items.map((i) => `"${i}"`).join(", ")} to the grocery list.`
+        : `Added "${items[0]}" to the grocery list.`;
     }
     if (result.type === "chore") {
       const member = members.find((m) => m.name.toLowerCase() === (result.member || "").toLowerCase());
