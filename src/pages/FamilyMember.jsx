@@ -144,7 +144,6 @@ export default function FamilyMember({
           <IconBadge icon={member.icon} bg="#fff" size={64} radius={18} />
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 24 }}>{member.name}</div>
-            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>{theme.label}</div>
           </div>
         </Card>
 

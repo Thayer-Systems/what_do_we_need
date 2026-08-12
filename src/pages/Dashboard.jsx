@@ -157,7 +157,7 @@ function MealsWidget({ mealPlan, navigate }) {
   const today = DAY_NAMES[new Date().getDay()];
   const slot = (meal) => mealPlan.find((s) => s.day === today && s.meal === meal);
   return (
-    <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/meals")}>
+    <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/food/meals")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Today's Meals</span>
         <IconBadge icon="meals" bg={BASE.lilac} size={32} />
@@ -174,7 +174,7 @@ function MealsWidget({ mealPlan, navigate }) {
 
 function GroceryWidget({ shopping, navigate }) {
   return (
-    <div style={{ ...widgetCard(BASE.orange), cursor: "pointer" }} onClick={() => navigate("/grocery")}>
+    <div style={{ ...widgetCard(BASE.orange), cursor: "pointer" }} onClick={() => navigate("/food/grocery")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={eyebrow}>Grocery List</span>
         <IconBadge icon="cart" bg="#fff" size={32} />
@@ -188,7 +188,7 @@ function GroceryWidget({ shopping, navigate }) {
 function ProjectsWidget({ projects, navigate }) {
   const active = projects.filter((p) => p.status !== "done");
   return (
-    <div style={{ ...widgetCard(BASE.lilac), cursor: "pointer" }} onClick={() => navigate("/settings/household/projects")}>
+    <div style={{ ...widgetCard(BASE.lilac), cursor: "pointer" }} onClick={() => navigate("/tasks")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={eyebrow}>Projects</span>
         <IconBadge icon="grid" bg="#fff" size={32} />

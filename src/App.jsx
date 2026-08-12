@@ -7,14 +7,13 @@ import Dashboard from "./pages/Dashboard.jsx";
 import FamilyList from "./pages/FamilyList.jsx";
 import FamilyMember from "./pages/FamilyMember.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
-import Meals from "./pages/Meals.jsx";
+import { FoodHub, MealsPage, RecipeLibraryPage, TrendsPage } from "./pages/Food.jsx";
 import Grocery from "./pages/Grocery.jsx";
+import Tasks from "./pages/Tasks.jsx";
 import Settings from "./pages/Settings.jsx";
-import Tools from "./pages/Tools.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
-import Projects from "./pages/Projects.jsx";
 import Privacy from "./pages/Privacy.jsx";
-import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage } from "./pages/SettingsPages.jsx";
+import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage, PreferencesPage } from "./pages/SettingsPages.jsx";
 import { get, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
 
@@ -140,6 +139,14 @@ function AppInner() {
     SETTERS[table]?.((p) => p.filter((x) => x.id !== id));
     await del(table, id);
   };
+  const onUpdateChore = async (id, ch) => {
+    setChores((p) => p.map((c) => (c.id === id ? { ...c, ...ch } : c)));
+    await patch("sprinkles_chores", id, ch);
+  };
+  const onUpdateSettings = async (ch) => {
+    setSettings((p) => ({ ...p, ...ch }));
+    await patch("sprinkles_settings", 1, ch);
+  };
   const onUpdateFoodPrefs = async (memberId, prefs) => {
     const existing = foodPrefs.find((f) => f.member_id === memberId);
     if (existing) {
@@ -223,11 +230,16 @@ function AppInner() {
     const body = { name: r.name, ingredients: r.ingredients, tags: r.tags, equipment: r.equipment, est_time: r.est_time, notes: r.notes };
     if (r.id) {
       await patch("recipes", r.id, body);
-      setRecipes((p) => p.map((x) => (x.id === r.id ? { ...x, ...body } : x)));
-    } else {
-      const d = await post("recipes", body);
-      if (d?.[0]) setRecipes((p) => [...p, d[0]].sort((a, b) => a.name.localeCompare(b.name)));
+      const updated = { ...r, ...body };
+      setRecipes((p) => p.map((x) => (x.id === r.id ? updated : x)));
+      return updated;
     }
+    const d = await post("recipes", body);
+    if (d?.[0]) {
+      setRecipes((p) => [...p, d[0]].sort((a, b) => a.name.localeCompare(b.name)));
+      return d[0];
+    }
+    return null;
   };
   const onDeleteRecipe = async (id) => {
     setRecipes((p) => p.filter((r) => r.id !== id));
@@ -296,10 +308,26 @@ function AppInner() {
     page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} projects={projects} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
   } else if (path === "/calendar") {
     page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onDelete={onDeleteEvent} onSyncGoogle={onSyncEventToGoogle} />;
-  } else if (path === "/meals") {
-    page = <Meals recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
-  } else if (path === "/grocery") {
+  } else if (path === "/food") {
+    page = <FoodHub />;
+  } else if (path === "/food/meals") {
+    page = <MealsPage recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
+  } else if (path === "/food/grocery") {
     page = <Grocery shopping={shopping} onAssistantSend={onAssistantSend} onAdd={onAddGrocery} onRemove={onRemoveGrocery} />;
+  } else if (path === "/food/recipes") {
+    page = <RecipeLibraryPage recipes={recipes} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} />;
+  } else if (path === "/food/trends") {
+    page = <TrendsPage recipes={recipes} mealPlan={mealPlan} shopping={shopping} />;
+  } else if (path === "/tasks") {
+    page = (
+      <Tasks
+        members={members} chores={chores} completions={completions} projects={projects}
+        onAddChore={(body) => onAdd("sprinkles_chores", { active: true, ...body })}
+        onUpdateChore={onUpdateChore}
+        onDeleteChore={(id) => onDelete("sprinkles_chores", id)}
+        onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
+      />
+    );
   } else if (path === "/settings/family") {
     page = <FamilyList members={members} />;
   } else if (memberFromPath(path)) {
@@ -311,12 +339,8 @@ function AppInner() {
         onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat}
       />
     );
-  } else if (path === "/settings/tools") {
-    page = <Tools />;
   } else if (path === "/settings/tools/weather") {
     page = <WeatherPage />;
-  } else if (path === "/settings/household/projects") {
-    page = <Projects projects={projects} onAdd={onAddProject} onUpdate={onUpdateProject} onDelete={onDeleteProject} />;
   } else if (path === "/settings/household") {
     page = <HouseholdPage settings={settings} />;
   } else if (path === "/settings/integrations") {
@@ -325,6 +349,8 @@ function AppInner() {
     page = <FaqPage />;
   } else if (path === "/settings/instructions") {
     page = <InstructionsPage />;
+  } else if (path === "/settings/preferences") {
+    page = <PreferencesPage settings={settings} onUpdateSettings={onUpdateSettings} />;
   } else if (path === "/settings") {
     page = <Settings />;
   } else {
