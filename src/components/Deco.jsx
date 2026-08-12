@@ -1,10 +1,11 @@
 import { BASE, hardShadow } from "../lib/theme.js";
+import { Icon } from "./Icons.jsx";
 
-// A "designed" icon treatment — emoji dropped into a bordered, shadowed
-// badge instead of floating bare. This is the fix for icons reading as
-// generic: same glyphs, but boxed like a sticker so they carry the
-// neobrutalism language (thick outline + hard offset shadow).
-export function IconBadge({ emoji, bg = BASE.yellow, size = 40, rotate = 0, radius, style }) {
+// A "designed" icon treatment — a custom line icon dropped into a
+// bordered, shadowed badge instead of floating bare. Boxed like a
+// sticker so it carries the neobrutalism language (thick outline +
+// hard offset shadow) instead of reading as a random glyph.
+export function IconBadge({ icon, emoji, bg = BASE.yellow, iconColor = BASE.ink, size = 40, rotate = 0, radius, style }) {
   return (
     <div
       style={{
@@ -24,7 +25,7 @@ export function IconBadge({ emoji, bg = BASE.yellow, size = 40, rotate = 0, radi
         ...style,
       }}
     >
-      {emoji}
+      {icon ? <Icon name={icon} size={size * 0.56} color={iconColor} strokeWidth={2.4} /> : emoji}
     </div>
   );
 }

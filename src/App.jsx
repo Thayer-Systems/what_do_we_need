@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Shell from "./components/Shell.jsx";
+import AssistantPopover from "./components/AssistantPopover.jsx";
 import { CelebrationProvider, useCelebrate } from "./components/Celebration.jsx";
+import { RouterProvider, useRouter } from "./lib/router.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Family from "./pages/Family.jsx";
+import FamilyList from "./pages/FamilyList.jsx";
+import FamilyMember from "./pages/FamilyMember.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
 import Meals from "./pages/Meals.jsx";
 import Grocery from "./pages/Grocery.jsx";
 import Settings from "./pages/Settings.jsx";
+import Tools from "./pages/Tools.jsx";
+import WeatherPage from "./pages/WeatherPage.jsx";
+import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage } from "./pages/SettingsPages.jsx";
 import { get, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
 
@@ -53,8 +59,7 @@ function buildActivityEvents(activities, members) {
 }
 
 function AppInner() {
-  const [tab, setTab] = useState("home");
-  const [selectedMember, setSelectedMember] = useState(null);
+  const { path, navigate } = useRouter();
   const celebrate = useCelebrate();
   const weekStart = getWeekStart();
 
@@ -71,11 +76,10 @@ function AppInner() {
   const [recipes, setRecipes] = useState([]);
   const [mealPlan, setMealPlan] = useState([]);
   const [shopping, setShopping] = useState([]);
+  const [stats, setStats] = useState([]);
 
   const loadAll = useCallback(async () => {
-    const [
-      mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop,
-    ] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta] = await Promise.all([
       get("sprinkles_family_members?order=sort_order.asc"),
       get("sprinkles_contacts"),
       get("sprinkles_activities"),
@@ -89,6 +93,7 @@ function AppInner() {
       get("recipes?order=name.asc"),
       get(`meal_plan?week_start=eq.${weekStart}`),
       get("shopping_list?status=eq.pending&order=name.asc"),
+      get("sprinkles_member_stats?order=sort_order.asc"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -103,8 +108,8 @@ function AppInner() {
     setRecipes(rec || []);
     setMealPlan(mp || []);
     setShopping(shop || []);
-    if (mem?.length && selectedMember == null) setSelectedMember(mem[0].id);
-  }, [weekStart, selectedMember]);
+    setStats(sta || []);
+  }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -115,21 +120,17 @@ function AppInner() {
     setMembers((p) => p.map((m) => (m.id === id ? { ...m, ...ch } : m)));
     await patch("sprinkles_family_members", id, ch);
   };
+  const SETTERS = {
+    sprinkles_contacts: setContacts, sprinkles_activities: setActivities, sprinkles_medications: setMedications,
+    sprinkles_links: setLinks, sprinkles_chores: setChores, sprinkles_events: setEvents,
+  };
   const onAdd = async (table, body) => {
     const d = await post(table, body);
-    const setters = {
-      sprinkles_contacts: setContacts, sprinkles_activities: setActivities, sprinkles_medications: setMedications,
-      sprinkles_links: setLinks, sprinkles_chores: setChores, sprinkles_events: setEvents,
-    };
-    if (d?.[0] && setters[table]) setters[table]((p) => [...p, d[0]]);
+    if (d?.[0] && SETTERS[table]) SETTERS[table]((p) => [...p, d[0]]);
     return d?.[0];
   };
   const onDelete = async (table, id) => {
-    const setters = {
-      sprinkles_contacts: setContacts, sprinkles_activities: setActivities, sprinkles_medications: setMedications,
-      sprinkles_links: setLinks, sprinkles_chores: setChores, sprinkles_events: setEvents,
-    };
-    setters[table]?.((p) => p.filter((x) => x.id !== id));
+    SETTERS[table]?.((p) => p.filter((x) => x.id !== id));
     await del(table, id);
   };
   const onUpdateFoodPrefs = async (memberId, prefs) => {
@@ -141,6 +142,20 @@ function AppInner() {
       const d = await post("sprinkles_food_prefs", { member_id: memberId, ...prefs });
       if (d?.[0]) setFoodPrefs((p) => [...p, d[0]]);
     }
+  };
+
+  // ── Member stats (wins/goals) ──
+  const onAddStat = async (memberId, body) => {
+    const d = await post("sprinkles_member_stats", { member_id: memberId, active: true, ...body });
+    if (d?.[0]) setStats((p) => [...p, d[0]]);
+  };
+  const onUpdateStat = async (id, ch) => {
+    setStats((p) => p.map((s) => (s.id === id ? { ...s, ...ch } : s)));
+    await patch("sprinkles_member_stats", id, ch);
+  };
+  const onDeleteStat = async (id) => {
+    setStats((p) => p.filter((s) => s.id !== id));
+    await del("sprinkles_member_stats", id);
   };
 
   // ── Chores / celebration ──
@@ -155,12 +170,7 @@ function AppInner() {
   const onAddEvent = async (body) => {
     const saved = await onAdd("sprinkles_events", body);
     if (saved) {
-      // Best-effort push to Google Calendar; silently no-ops if not connected.
-      fetch("/api/calendar/create-event", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(saved),
-      })
+      fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(saved) })
         .then((r) => r.json())
         .then((d) => {
           if (d?.ok && d.googleEventId) {
@@ -176,7 +186,7 @@ function AppInner() {
 
   // ── Meals ──
   const onSaveRecipe = async (r) => {
-    const body = { name: r.name, ingredients: r.ingredients, tags: r.tags, notes: r.notes };
+    const body = { name: r.name, ingredients: r.ingredients, tags: r.tags, equipment: r.equipment, est_time: r.est_time, notes: r.notes };
     if (r.id) {
       await patch("recipes", r.id, body);
       setRecipes((p) => p.map((x) => (x.id === r.id ? { ...x, ...body } : x)));
@@ -213,8 +223,10 @@ function AppInner() {
   };
 
   // ── Assistant ──
-  const onAssistantSend = async (text) => {
-    const result = await interpretMessage(text);
+  const fmtTime = (iso) => new Date(iso).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+  const onAssistantSend = async (text, history) => {
+    const result = await interpretMessage(text, history);
     if (result.type === "grocery") {
       await onAddGrocery(result.item);
       return `Added "${result.item}" to the grocery list.`;
@@ -235,48 +247,79 @@ function AppInner() {
         member_ids: member ? [member.id] : [],
         source: "manual",
       });
-      return `Added "${result.title}" to the calendar.`;
+      return `Added "${result.title}" to the calendar for ${fmtTime(result.start)}.`;
     }
     if (result.type === "meal") {
       const d = await post("meal_plan", { day: result.day, meal: result.meal, recipe_id: null, recipe_name: result.name, week_start: weekStart, eat_out: false });
       if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
       return `Scheduled "${result.name}" for ${result.day} ${result.meal}.`;
     }
+    if (result.type === "availability") {
+      let msg = result.available ? "Yes, that time looks free!" : `No — that overlaps with ${result.conflict || "something already on the calendar"}.`;
+      if (!result.available && result.suggestion) msg += ` ${result.suggestion}`;
+      if (result.available && result.proposedEvent) msg += ` Want me to add "${result.proposedEvent.title}" at ${fmtTime(result.proposedEvent.start)}? Just say "add it".`;
+      return msg;
+    }
     return result.reason || "Not sure what to do with that yet — try rephrasing.";
   };
 
-  const PAGES = {
-    home: (
-      <Dashboard
-        members={members} events={allEvents} chores={chores} completions={completions}
-        mealPlan={mealPlan} shopping={shopping} onToggleChore={onToggleChore} onNavigate={setTab}
-      />
-    ),
-    family: (
-      <Family
-        members={members} contacts={contacts} activities={activities} medications={medications}
-        foodPrefs={foodPrefs} links={links} chores={chores}
-        selected={selectedMember} setSelected={setSelectedMember}
-        onUpdateMember={onUpdateMember} onAdd={onAdd} onDelete={onDelete} onUpdateFoodPrefs={onUpdateFoodPrefs}
-      />
-    ),
-    calendar: <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onDelete={onDeleteEvent} />,
-    meals: <Meals recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />,
-    grocery: <Grocery shopping={shopping} onAssistantSend={onAssistantSend} onAdd={onAddGrocery} onRemove={onRemoveGrocery} />,
-    settings: <Settings settings={settings} />,
+  const memberFromPath = (p) => {
+    const m = p.match(/^\/settings\/family\/(\d+)$/);
+    return m ? members.find((x) => x.id === Number(m[1])) : null;
   };
 
+  let page;
+  if (path === "/") {
+    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
+  } else if (path === "/calendar") {
+    page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onDelete={onDeleteEvent} />;
+  } else if (path === "/meals") {
+    page = <Meals recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
+  } else if (path === "/grocery") {
+    page = <Grocery shopping={shopping} onAssistantSend={onAssistantSend} onAdd={onAddGrocery} onRemove={onRemoveGrocery} />;
+  } else if (path === "/settings/family") {
+    page = <FamilyList members={members} />;
+  } else if (memberFromPath(path)) {
+    page = (
+      <FamilyMember
+        member={memberFromPath(path)} contacts={contacts} activities={activities} medications={medications}
+        foodPrefs={foodPrefs} links={links} chores={chores} completions={completions} stats={stats}
+        onUpdateMember={onUpdateMember} onAdd={onAdd} onDelete={onDelete} onUpdateFoodPrefs={onUpdateFoodPrefs}
+        onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat}
+      />
+    );
+  } else if (path === "/settings/tools") {
+    page = <Tools />;
+  } else if (path === "/settings/tools/weather") {
+    page = <WeatherPage />;
+  } else if (path === "/settings/household") {
+    page = <HouseholdPage settings={settings} />;
+  } else if (path === "/settings/integrations") {
+    page = <IntegrationsPage settings={settings} />;
+  } else if (path === "/settings/faq") {
+    page = <FaqPage />;
+  } else if (path === "/settings/instructions") {
+    page = <InstructionsPage />;
+  } else if (path === "/settings") {
+    page = <Settings />;
+  } else {
+    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
+  }
+
   return (
-    <Shell tab={tab} setTab={setTab}>
-      {PAGES[tab]}
+    <Shell>
+      {page}
+      <AssistantPopover onSend={onAssistantSend} />
     </Shell>
   );
 }
 
 export default function App() {
   return (
-    <CelebrationProvider>
-      <AppInner />
-    </CelebrationProvider>
+    <RouterProvider>
+      <CelebrationProvider>
+        <AppInner />
+      </CelebrationProvider>
+    </RouterProvider>
   );
 }

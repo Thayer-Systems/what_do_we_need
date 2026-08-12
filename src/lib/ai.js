@@ -1,14 +1,14 @@
 // Mr. Sprinkles text assistant — parses free-form family text into a
-// structured action (grocery item, chore, calendar event, or meal).
-// The actual model call happens server-side in /api/assistant so the
-// Anthropic key never ships to the browser.
+// structured action (grocery item, chore, calendar event, meal, or an
+// availability answer). The actual model call happens server-side in
+// /api/assistant so the Anthropic key never ships to the browser.
 
-export async function interpretMessage(text) {
+export async function interpretMessage(text, history) {
   try {
     const r = await fetch("/api/assistant", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, history }),
     });
     if (!r.ok) throw new Error("assistant request failed");
     return await r.json();
