@@ -260,7 +260,7 @@ function TasksWidget({ members, chores, completions, onToggleChore }) {
             const done = doneToday.has(c.id);
             const member = members.find((m) => m.id === c.member_id);
             return (
-              <div key={c.id} onClick={() => !done && onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "8px 12px", cursor: done ? "default" : "pointer", opacity: done ? 0.6 : 1 }}>
+              <div key={c.id} onClick={() => onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "8px 12px", cursor: "pointer", opacity: done ? 0.6 : 1 }}>
                 <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={26} radius={8} iconColor="#fff" />
                 <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, textDecoration: done ? "line-through" : "none" }}>{c.title}</span>
                 <Icon name={done ? "check" : "close"} size={16} style={{ opacity: done ? 1 : 0.25 }} />

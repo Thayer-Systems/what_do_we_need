@@ -210,6 +210,12 @@ function AppInner() {
   // ── Chores / celebration ──
   const onToggleChore = async (chore) => {
     const date = new Date().toISOString().slice(0, 10);
+    const existing = completions.find((c) => c.chore_id === chore.id && c.date === date);
+    if (existing) {
+      setCompletions((p) => p.filter((c) => c.id !== existing.id));
+      await del("sprinkles_chore_completions", existing.id);
+      return;
+    }
     const d = await post("sprinkles_chore_completions", { chore_id: chore.id, date });
     if (d?.[0]) setCompletions((p) => [...p, d[0]]);
     celebrate("Good Job!");
@@ -356,6 +362,7 @@ function AppInner() {
         onAddChore={onAddChore}
         onUpdateChore={onUpdateChore}
         onDeleteChore={(id) => onDelete("sprinkles_chores", id)}
+        onToggleChore={onToggleChore}
         onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
       />
     );

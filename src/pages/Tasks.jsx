@@ -29,6 +29,22 @@ function AssigneePicker({ members, value, onChange }) {
   );
 }
 
+function CompleteCheckbox({ done, onToggle }) {
+  return (
+    <button
+      type="button"
+      aria-label={done ? "Mark task not done" : "Mark task done"}
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      style={{
+        width: 28, height: 28, borderRadius: 8, border: `2.5px solid ${BASE.ink}`, flexShrink: 0, padding: 0,
+        background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+      }}
+    >
+      {done && <Icon name="check" size={16} color="#fff" />}
+    </button>
+  );
+}
+
 function AssigneeBadge({ member }) {
   if (!member) return <span style={{ fontSize: 11, fontWeight: 700, color: BASE.t3, fontFamily: F.ui }}>Unassigned</span>;
   return (
@@ -115,7 +131,7 @@ function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
   );
 }
 
-export default function Tasks({ members, chores, completions, projects, onAddChore, onUpdateChore, onDeleteChore, onAddProject, onUpdateProject, onDeleteProject }) {
+export default function Tasks({ members, chores, completions, projects, onAddChore, onUpdateChore, onDeleteChore, onToggleChore, onAddProject, onUpdateProject, onDeleteProject }) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [choreModal, setChoreModal] = useState(null);
   const [projectModal, setProjectModal] = useState(null);
@@ -165,9 +181,12 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
                 const done = completions.some((cm) => cm.chore_id === c.id && cm.date === todayStr);
                 return (
                   <Card key={c.id} onClick={() => setChoreModal(c)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <div>
-                      <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14 }}>{c.title}</div>
-                      <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2, marginTop: 2 }}>{c.frequency === "daily" ? "Every day" : (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "Custom"}{applicable ? (done ? " · done today" : " · due today") : ""}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <CompleteCheckbox done={done} onToggle={() => onToggleChore(c)} />
+                      <div>
+                        <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14, textDecoration: done ? "line-through" : "none", opacity: done ? 0.6 : 1 }}>{c.title}</div>
+                        <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2, marginTop: 2 }}>{c.frequency === "daily" ? "Every day" : (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "Custom"}{applicable ? (done ? " · done today" : " · due today") : ""}</div>
+                      </div>
                     </div>
                     <AssigneeBadge member={memberById(c.member_id)} />
                   </Card>
