@@ -5,6 +5,7 @@ import { BarChart, ProgressBar, StatCard } from "../components/Charts.jsx";
 import { Icon, MEMBER_ICONS } from "../components/Icons.jsx";
 import { BASE, F, THEMES, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
+import { isChoreDue, isChoreDone, choreScheduleLabel } from "../lib/chores.js";
 
 const btn = (bg = BASE.pink) => ({
   background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px",
@@ -124,15 +125,15 @@ export default function FamilyMember({
     d.setDate(d.getDate() - (6 - i));
     const dow = d.getDay();
     const dateStr = d.toISOString().slice(0, 10);
-    const applicable = mChores.filter((c) => c.active && (c.frequency === "daily" || (c.days || []).includes(dow)));
+    const applicable = mChores.filter((c) => isChoreDue(c, dow));
     const done = completions.filter((c) => c.date === dateStr && applicable.some((a) => a.id === c.chore_id)).length;
     return { label: DAY_NAMES[dow][0], value: applicable.length ? Math.round((done / applicable.length) * 100) : 0 };
   });
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const dow = new Date().getDay();
-  const todaysChores = mChores.filter((c) => c.active && (c.frequency === "daily" || (c.days || []).includes(dow)));
-  const doneToday = completions.filter((c) => c.date === todayStr && todaysChores.some((t) => t.id === c.chore_id)).length;
+  const todaysChores = mChores.filter((c) => isChoreDue(c, dow));
+  const doneToday = todaysChores.filter((c) => isChoreDone(c, completions, todayStr)).length;
   const weekAvg = Math.round(chartData.reduce((s, d) => s + d.value, 0) / 7);
 
   return (
@@ -183,7 +184,7 @@ export default function FamilyMember({
           {mChores.length === 0 && <div style={{ fontSize: 13, color: BASE.t3, fontFamily: F.ui }}>No tasks yet.</div>}
           {mChores.map((c) => (
             <Row key={c.id} onDelete={() => onDelete("sprinkles_chores", c.id)}>
-              <b>{c.title}</b> · {c.frequency === "daily" ? "every day" : (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "custom"}
+              <b>{c.title}</b> · {c.frequency === "custom" ? (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "custom" : choreScheduleLabel(c).toLowerCase()}
             </Row>
           ))}
         </Section>
@@ -265,7 +266,7 @@ export default function FamilyMember({
       {modal?.type === "chore" && (
         <SimpleAddModal title="Add Task" fields={[
           { key: "title", label: "Task", placeholder: "Feed the dog", autoFocus: true },
-          { key: "frequency", label: "Frequency", type: "select", options: ["daily", "custom"], default: "daily" },
+          { key: "frequency", label: "Frequency", type: "select", options: ["once", "daily", "custom"], default: "once" },
           { key: "days", label: "Days (if custom)", type: "days", default: [] },
         ]} onSave={(v) => { onAdd("sprinkles_chores", { member_id: member.id, active: true, ...v }); setModal(null); }} onClose={() => setModal(null)} />
       )}

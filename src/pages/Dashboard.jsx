@@ -3,6 +3,7 @@ import { IconBadge, StarAccent, Squiggle } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F, mascotOfDay, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
+import { isChoreDue, isChoreDone } from "../lib/chores.js";
 
 const DAY_MS = 86400000;
 
@@ -243,8 +244,7 @@ function DepartureWidget({ events, members }) {
 function TasksWidget({ members, chores, completions, onToggleChore }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const dow = new Date().getDay();
-  const todaysChores = chores.filter((c) => c.active && (c.frequency === "daily" || (c.days || []).includes(dow)));
-  const doneToday = new Set(completions.filter((c) => c.date === todayStr).map((c) => c.chore_id));
+  const todaysChores = chores.filter((c) => isChoreDue(c, dow));
 
   return (
     <div style={{ ...widgetCard(BASE.pink), gridColumn: "span 2" }}>
@@ -257,7 +257,7 @@ function TasksWidget({ members, chores, completions, onToggleChore }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {todaysChores.map((c) => {
-            const done = doneToday.has(c.id);
+            const done = isChoreDone(c, completions, todayStr);
             const member = members.find((m) => m.id === c.member_id);
             return (
               <div key={c.id} onClick={() => onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "8px 12px", cursor: "pointer", opacity: done ? 0.6 : 1 }}>
@@ -278,8 +278,8 @@ function pctFor(member, chores, completions, stats) {
   if (primary) return Math.round((primary.value / primary.target) * 100);
   const todayStr = new Date().toISOString().slice(0, 10);
   const dow = new Date().getDay();
-  const mine = chores.filter((c) => c.member_id === member.id && c.active && (c.frequency === "daily" || (c.days || []).includes(dow)));
-  const done = mine.filter((c) => completions.some((cm) => cm.chore_id === c.id && cm.date === todayStr)).length;
+  const mine = chores.filter((c) => c.member_id === member.id && isChoreDue(c, dow));
+  const done = mine.filter((c) => isChoreDone(c, completions, todayStr)).length;
   return mine.length ? Math.round((done / mine.length) * 100) : 0;
 }
 
