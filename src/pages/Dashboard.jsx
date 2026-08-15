@@ -3,6 +3,7 @@ import { IconBadge, StarAccent, Squiggle } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F, mascotOfDay, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
+import { TV_QUERY, useMediaQuery } from "../lib/useMediaQuery.js";
 
 const DAY_MS = 86400000;
 
@@ -308,10 +309,136 @@ function WinsBox({ members, chores, completions, stats, navigate }) {
   );
 }
 
+// ── TV layout ──────────────────────────────────────────────────
+// Wide-but-short (landscape TV) viewports get a dedicated single-screen
+// layout: compact header, widget rail on the left, full month calendar
+// filling the rest — no scrolling required.
+const tvTile = (bg) => ({
+  ...widgetCard(bg), flex: 1, minHeight: 0, padding: "8px 12px", display: "flex",
+  flexDirection: "column", justifyContent: "center", boxShadow: hardShadow(BASE.ink, 3, 3), borderRadius: 14,
+});
+const tvEllipsis = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+
+function TVTile({ bg, icon, label, value, sub, onClick }) {
+  return (
+    <div onClick={onClick} style={{ ...tvTile(bg), cursor: onClick ? "pointer" : "default" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <IconBadge icon={icon} bg="#fff" size={24} radius={8} />
+        <span style={{ ...eyebrow, fontSize: 10 }}>{label}</span>
+      </div>
+      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginTop: 3, ...tvEllipsis }}>{value}</div>
+      {sub && <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 600, opacity: 0.8, ...tvEllipsis }}>{sub}</div>}
+    </div>
+  );
+}
+
+function TVWidgetRail({ weather, mealPlan, shopping, chores, completions, members, stats, events, navigate }) {
+  const today = DAY_NAMES[new Date().getDay()];
+  const lunch = mealPlan.find((s) => s.day === today && s.meal === "Lunch");
+  const dinner = mealPlan.find((s) => s.day === today && s.meal === "Dinner");
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dow = new Date().getDay();
+  const todaysChores = chores.filter((c) => c.active && (c.frequency === "daily" || (c.days || []).includes(dow)));
+  const doneToday = todaysChores.filter((c) => completions.some((cm) => cm.chore_id === c.id && cm.date === todayStr));
+  const nextTodo = todaysChores.find((c) => !doneToday.includes(c));
+  const now = new Date();
+  const nextEvent = events.filter((e) => e.location && new Date(e.start_at) > now).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))[0];
+
+  return (
+    <div style={{ width: 236, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+      <TVTile bg={BASE.teal} icon="sun" label="Weather" value={weather ? `${weather.temperatureF}°F` : "—"} sub={weather ? weather.summary : "Not connected"} onClick={() => navigate("/settings/tools/weather")} />
+      <TVTile bg={BASE.orange} icon="car" label="Next Up" value={nextEvent ? nextEvent.title : "Nothing planned"} sub={nextEvent ? `${new Date(nextEvent.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${nextEvent.location}` : ""} onClick={() => navigate("/calendar")} />
+      <TVTile bg="#fff" icon="meals" label="Meals" value={dinner ? dinner.recipe_name : "Dinner not planned"} sub={lunch ? `Lunch: ${lunch.recipe_name}` : "Lunch not planned"} onClick={() => navigate("/food/meals")} />
+      <TVTile bg={BASE.lilac} icon="cart" label="Grocery" value={`${shopping.length} items`} sub={shopping.length ? shopping.slice(0, 3).map((s) => s.name).join(", ") : "All stocked up"} onClick={() => navigate("/food/grocery")} />
+      <TVTile bg={BASE.pink} icon="check" label="Tasks" value={`${doneToday.length}/${todaysChores.length} done`} sub={nextTodo ? nextTodo.title : "All done today!"} onClick={() => navigate("/tasks")} />
+      <div style={{ ...tvTile("#fff"), padding: 10 }}>
+        <div style={{ ...eyebrow, fontSize: 10, marginBottom: 6 }}>Today's Wins</div>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          {members.map((m) => {
+            const pct = pctFor(m, chores, completions, stats);
+            return (
+              <div key={m.id} onClick={() => navigate(`/settings/family/${m.id}`)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer" }}>
+                <IconBadge icon={m.icon} bg={m.color} size={24} radius={999} iconColor="#fff" />
+                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 11 }}>{pct}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TVCalendar({ events, navigate }) {
+  const today = new Date();
+  const first = new Date(today.getFullYear(), today.getMonth(), 1);
+  const gridStart = new Date(first);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  const days = Array.from({ length: 42 }, (_, i) => new Date(gridStart.getTime() + i * DAY_MS));
+  const sameDay = (a, b) => a.toDateString() === b.toDateString();
+
+  return (
+    <div style={{ ...widgetCard("#fff"), flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: 14, cursor: "pointer" }} onClick={() => navigate("/calendar")}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexShrink: 0 }}>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>{today.toLocaleDateString([], { month: "long", year: "numeric" })}</span>
+        <IconBadge icon="calendar" bg={BASE.teal} size={30} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, flexShrink: 0, marginBottom: 4 }}>
+        {DAY_NAMES.map((d) => <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 800, color: BASE.t2, fontFamily: F.ui }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gridTemplateRows: "repeat(6,1fr)", gap: 4, flex: 1, minHeight: 0 }}>
+        {days.map((d) => {
+          const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d));
+          const inMonth = d.getMonth() === today.getMonth();
+          return (
+            <div key={d.toISOString()} style={{ border: `1.5px solid ${sameDay(d, today) ? BASE.ink : BASE.muted}`, borderRadius: 8, background: sameDay(d, today) ? BASE.yellow : inMonth ? "#fff" : BASE.muted, opacity: inMonth ? 1 : 0.45, padding: 4, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ fontSize: 11, fontWeight: sameDay(d, today) ? 800 : 600, fontFamily: F.ui }}>{d.getDate()}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 2, marginTop: 2 }}>
+                {dayEvents.slice(0, 4).map((e) => <div key={e.id} style={{ width: 5, height: 5, borderRadius: "50%", background: CATEGORY_COLORS[e.category] || BASE.pink, border: `1px solid ${BASE.ink}` }} />)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TVDashboard({ members, events, chores, completions, mealPlan, shopping, stats, onOpenAssistant }) {
+  const { navigate } = useRouter();
+  const weather = useWeather();
+  const birthdayMember = members.find((m) => isTodayBirthday(m.birthday));
+
+  return (
+    <div style={{ height: "100vh", boxSizing: "border-box", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+      <div style={{ ...widgetCard(BASE.yellow), flexShrink: 0, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...eyebrow, opacity: 0.7, fontSize: 10 }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22, lineHeight: 1.15, ...tvEllipsis }}>
+            {greetingForNow()}{birthdayMember ? ` · Happy Birthday, ${birthdayMember.name}!` : ""}
+          </div>
+        </div>
+        <button onClick={onOpenAssistant} style={{ background: "#c5f26b", color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 2, 2), display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <Icon name="sparkle" size={14} /> Ask Mr. Sprinkles
+        </button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, display: "flex", gap: 10 }}>
+        <TVWidgetRail weather={weather} mealPlan={mealPlan} shopping={shopping} chores={chores} completions={completions} members={members} stats={stats} events={events} navigate={navigate} />
+        <TVCalendar events={events} navigate={navigate} />
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ members, events, chores, completions, mealPlan, shopping, stats, projects = [], onToggleChore, onOpenAssistant }) {
   const { navigate } = useRouter();
   const weather = useWeather();
   const birthdayMember = members.find((m) => isTodayBirthday(m.birthday));
+  const isTV = useMediaQuery(TV_QUERY);
+
+  if (isTV) {
+    return <TVDashboard members={members} events={events} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} onOpenAssistant={onOpenAssistant} />;
+  }
 
   return (
     <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 32px" }}>

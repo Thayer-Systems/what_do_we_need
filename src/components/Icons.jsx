@@ -83,6 +83,7 @@ const PATHS = {
       <circle cx="12" cy="12" r="3" />
     </>
   ),
+  menu: <path d="M4 6.5h16M4 12h16M4 17.5h16" />,
   chevronLeft: <path d="M15 5l-7 7 7 7" />,
   chevronRight: <path d="M9 5l7 7-7 7" />,
   chevronDown: <path d="M5 9l7 7 7-7" />,

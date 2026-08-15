@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
 import { IconBadge, StarAccent } from "./Deco.jsx";
 import { useRouter } from "../lib/router.jsx";
+import { TV_QUERY, useMediaQuery } from "../lib/useMediaQuery.js";
 
 export const TABS = [
   ["/", "home", "Home", BASE.yellow],
@@ -10,8 +12,51 @@ export const TABS = [
   ["/settings", "settings", "Tools", BASE.green],
 ];
 
+function NavList({ active, navigate, onNavigate }) {
+  return (
+    <>
+      {TABS.map(([p, icon, label, color]) => (
+        <button
+          key={p}
+          onClick={() => { navigate(p); onNavigate?.(); }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "8px 10px",
+            borderRadius: 14,
+            border: active(p) ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
+            background: active(p) ? color : "transparent",
+            boxShadow: active(p) ? hardShadow(BASE.ink, 3, 3) : "none",
+            cursor: "pointer",
+            fontFamily: F.ui,
+            fontWeight: active(p) ? 800 : 600,
+            fontSize: 14,
+            color: BASE.ink,
+            textAlign: "left",
+          }}
+        >
+          <IconBadge icon={icon} bg={color} size={32} radius={10} style={{ boxShadow: hardShadow(BASE.ink, 2, 2) }} />
+          {label}
+        </button>
+      ))}
+      <button
+        onClick={() => { window.dispatchEvent(new Event("sprinkles-open-assistant")); onNavigate?.(); }}
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 14, border: `2.5px solid ${BASE.ink}`, background: "transparent", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 14, color: BASE.ink, textAlign: "left", marginTop: 8 }}
+      >
+        <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: hardShadow(BASE.ink, 2, 2) }}>
+          <img src={MASCOT.main} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+        </div>
+        Ask Mr. Sprinkles
+      </button>
+    </>
+  );
+}
+
 export default function Shell({ children }) {
   const { path, navigate } = useRouter();
+  const isTV = useMediaQuery(TV_QUERY);
+  const [navOpen, setNavOpen] = useState(false);
   const active = (p) => (p === "/" ? path === "/" : path.startsWith(p));
 
   return (
@@ -20,55 +65,65 @@ export default function Shell({ children }) {
       <div
         className="sprinkles-sidebar"
         style={{
-          width: 232,
+          width: isTV ? 76 : 232,
           flexShrink: 0,
           borderRight: `2.5px solid ${BASE.ink}`,
           background: BASE.surface,
-          padding: "24px 14px",
+          padding: isTV ? "16px 10px" : "24px 14px",
           display: "none",
           flexDirection: "column",
           gap: 8,
+          position: "relative",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 22px", position: "relative" }}>
-          <img src={MASCOT.main} alt="" style={{ width: 42, height: 42, objectFit: "contain" }} />
-          <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>Mr. Sprinkles</span>
-          <StarAccent color={BASE.pink} size={16} style={{ position: "absolute", top: -2, right: 6 }} />
-        </div>
-        {TABS.map(([p, icon, label, color]) => (
-          <button
-            key={p}
-            onClick={() => navigate(p)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "8px 10px",
-              borderRadius: 14,
-              border: active(p) ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
-              background: active(p) ? color : "transparent",
-              boxShadow: active(p) ? hardShadow(BASE.ink, 3, 3) : "none",
-              cursor: "pointer",
-              fontFamily: F.ui,
-              fontWeight: active(p) ? 800 : 600,
-              fontSize: 14,
-              color: BASE.ink,
-              textAlign: "left",
-            }}
-          >
-            <IconBadge icon={icon} bg={color} size={32} radius={10} style={{ boxShadow: hardShadow(BASE.ink, 2, 2) }} />
-            {label}
-          </button>
-        ))}
-        <button
-          onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
-          style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 14, border: `2.5px solid ${BASE.ink}`, background: "transparent", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 14, color: BASE.ink, textAlign: "left", marginTop: 8 }}
-        >
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff", border: `2px solid ${BASE.ink}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: hardShadow(BASE.ink, 2, 2) }}>
-            <img src={MASCOT.main} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
-          </div>
-          Ask Mr. Sprinkles
-        </button>
+        {isTV ? (
+          <>
+            <button
+              onClick={() => setNavOpen((o) => !o)}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "transparent", border: "none", cursor: "pointer", padding: "4px 0 10px" }}
+            >
+              <div style={{ position: "relative" }}>
+                <img src={MASCOT.main} alt="" style={{ width: 38, height: 38, objectFit: "contain" }} />
+                <StarAccent color={BASE.pink} size={13} style={{ position: "absolute", top: -4, right: -6 }} />
+              </div>
+              <IconBadge icon="menu" bg={navOpen ? BASE.yellow : "#fff"} size={30} radius={9} />
+            </button>
+            {navOpen && (
+              <>
+                <div onClick={() => setNavOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 55 }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    left: "100%",
+                    marginLeft: 8,
+                    width: 220,
+                    background: BASE.surface,
+                    border: `2.5px solid ${BASE.ink}`,
+                    borderRadius: 16,
+                    boxShadow: hardShadow(BASE.ink, 5, 5),
+                    padding: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    zIndex: 60,
+                  }}
+                >
+                  <NavList active={active} navigate={navigate} onNavigate={() => setNavOpen(false)} />
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 22px", position: "relative" }}>
+              <img src={MASCOT.main} alt="" style={{ width: 42, height: 42, objectFit: "contain" }} />
+              <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>Mr. Sprinkles</span>
+              <StarAccent color={BASE.pink} size={16} style={{ position: "absolute", top: -2, right: 6 }} />
+            </div>
+            <NavList active={active} navigate={navigate} />
+          </>
+        )}
       </div>
 
       <div style={{ flex: 1, minWidth: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)" }} className="sprinkles-main">
@@ -120,6 +175,9 @@ export default function Shell({ children }) {
           .sprinkles-sidebar { display: flex !important; }
           .sprinkles-bottomnav { display: none !important; }
           .sprinkles-main { padding-bottom: 24px !important; }
+        }
+        ${TV_QUERY.replace("(", "@media (")} {
+          .sprinkles-main { padding-bottom: 0 !important; }
         }
       `}</style>
     </div>
