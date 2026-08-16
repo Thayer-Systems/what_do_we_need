@@ -411,7 +411,7 @@ function AppInner() {
   } else if (path === "/settings") {
     page = <Settings />;
   } else {
-    page = <Today members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} coinLedger={coinLedger} onToggleChore={onToggleChore} />;
+    page = <Today members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} projects={projects} stats={stats} coinLedger={coinLedger} onToggleChore={onToggleChore} />;
   }
 
   if (path.startsWith("/settings")) page = <PinGate>{page}</PinGate>;
