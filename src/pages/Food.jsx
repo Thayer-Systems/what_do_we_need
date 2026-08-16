@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader, Card, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon, EQUIPMENT_ICONS } from "../components/Icons.jsx";
 import { BarChart } from "../components/Charts.jsx";
 import { BASE, F, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
+import { FOLDERS, FOLDER_LABELS, WEEKLY_FOLDERS, WEEK_DAYS, getActiveWeekTag, folderForWeekTag, shuffle } from "../lib/weekPlan.js";
 
 const MEALS = ["Breakfast", "Lunch", "Dinner"];
 const RECIPE_TAGS = ["Quick", "Dinner", "Lunch", "Breakfast", "Crockpot", "Dump & Go"];
@@ -97,16 +98,19 @@ function RecipeViewModal({ recipe, onClose, onEdit }) {
   );
 }
 
-function RecipeModal({ recipe, onSave, onDelete, onClose }) {
+function RecipeModal({ recipe, defaultFolder, onSave, onDelete, onClose }) {
   const [name, setName] = useState(recipe?.name || "");
   const [ingredients, setIngredients] = useState((recipe?.ingredients || [""]).join("\n"));
   const [tags, setTags] = useState(recipe?.tags || []);
   const [equipment, setEquipment] = useState(recipe?.equipment || []);
   const [estTime, setEstTime] = useState(recipe?.est_time || "");
   const [notes, setNotes] = useState(recipe?.notes || "");
+  const [folder, setFolder] = useState(recipe?.folder || defaultFolder || "");
+  const [dayOfWeek, setDayOfWeek] = useState(recipe?.day_of_week || "");
   const toggle = (setter) => (val) => setter((p) => (p.includes(val) ? p.filter((x) => x !== val) : [...p, val]));
   const toggleTag = toggle(setTags);
   const toggleEquip = toggle(setEquipment);
+  const isWeekly = WEEKLY_FOLDERS.includes(folder);
 
   return (
     <Modal onClose={onClose}>
@@ -135,12 +139,32 @@ function RecipeModal({ recipe, onSave, onDelete, onClose }) {
           </div>
         </div>
         <div><span style={label}>Notes</span><input style={inp} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div><span style={label}>Folder</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button onClick={() => { setFolder(""); setDayOfWeek(""); }} style={btn(!folder ? BASE.yellow : "#fff")}>Uncategorized</button>
+            {FOLDERS.map((f) => (
+              <button key={f} onClick={() => { setFolder(f); if (!WEEKLY_FOLDERS.includes(f)) setDayOfWeek(""); }} style={btn(folder === f ? BASE.yellow : "#fff")}>{FOLDER_LABELS[f]}</button>
+            ))}
+          </div>
+        </div>
+        {isWeekly && (
+          <div><span style={label}>Day of week</span>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {WEEK_DAYS.map((d) => <button key={d} onClick={() => setDayOfWeek(d)} style={btn(dayOfWeek === d ? BASE.teal : "#fff")}>{d}</button>)}
+            </div>
+          </div>
+        )}
         <button
           style={{ ...btn(BASE.green), width: "100%" }}
           onClick={() => {
             const ing = ingredients.split("\n").map((s) => s.trim()).filter(Boolean);
             if (!name.trim() || !ing.length) return;
-            onSave({ id: recipe?.id, name: name.trim(), ingredients: ing, tags, equipment, est_time: estTime || null, notes: notes.trim() || null });
+            onSave({
+              id: recipe?.id, name: name.trim(), ingredients: ing, tags, equipment, est_time: estTime || null, notes: notes.trim() || null,
+              folder: folder || null,
+              day_of_week: isWeekly ? dayOfWeek || null : null,
+              week_tag: isWeekly ? Number(folder.split("-")[1]) : null,
+            });
           }}
         >
           Save Recipe
@@ -182,6 +206,76 @@ function SlotPickerModal({ day, meal, recipes, onPick, onCreateNew, onClose }) {
   );
 }
 
+// This week's dinner lineup, pulled from the recipe library's weekly
+// rotation folders (week-1..4) based on day-of-month — cycles back to
+// week 1 on a month's 5th week rather than leaving a blank week.
+function ThisWeeksDinners({ recipes, onView }) {
+  const activeWeekTag = getActiveWeekTag();
+  const folder = folderForWeekTag(activeWeekTag);
+  const byDay = WEEK_DAYS.map((day) => ({ day, recipe: recipes.find((r) => r.folder === folder && r.day_of_week === day) }));
+  const hasAny = byDay.some((d) => d.recipe);
+
+  return (
+    <Card style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>This Week's Dinners</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, fontFamily: F.ui, textTransform: "uppercase" }}>{FOLDER_LABELS[folder]}</span>
+      </div>
+      {!hasAny ? (
+        <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No recipes tagged for {FOLDER_LABELS[folder]} yet — add some from the Recipe Library.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {byDay.map(({ day, recipe }) => (
+            <div key={day} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "6px 10px" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, minWidth: 66, fontFamily: F.ui }}>{day}</span>
+              {recipe ? (
+                <span onClick={() => onView(recipe)} style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{recipe.name}</span>
+              ) : (
+                <span style={{ flex: 1, fontFamily: F.ui, fontSize: 12, color: BASE.t3, fontStyle: "italic" }}>Not set</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// A pool of 10 fallback dinners — 3 random picks, re-rolled whenever this
+// view is loaded (no persistence, so navigating away and back re-rolls).
+function AlternativeMealsWidget({ recipes, onView }) {
+  const pool = useMemo(() => recipes.filter((r) => r.folder === "alternative-meals"), [recipes]);
+  const [picks, setPicks] = useState([]);
+  const rolled = useRef(false);
+
+  useEffect(() => {
+    if (!rolled.current && pool.length) {
+      setPicks(shuffle(pool).slice(0, 3));
+      rolled.current = true;
+    }
+  }, [pool]);
+
+  if (!pool.length) return null;
+
+  return (
+    <Card style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Need Something Different?</span>
+        <button onClick={() => setPicks(shuffle(pool).slice(0, 3))} style={{ ...btn("#fff"), display: "flex", alignItems: "center", gap: 6, padding: "6px 12px" }}>
+          <Icon name="star" size={13} /> Shuffle
+        </button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {picks.map((r) => (
+          <div key={r.id} onClick={() => onView(r)} style={{ background: BASE.muted, borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
+            {r.name}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 // ─── Meals (weekly plan grid) ───────────────────────────────────
 export function MealsPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
   const { navigate } = useRouter();
@@ -209,6 +303,8 @@ export function MealsPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, onS
     <div>
       <PageHeader title="Meals" sprinkles="meals" back={() => navigate("/food")} />
       <div style={{ padding: "18px 16px 32px" }}>
+        <ThisWeeksDinners recipes={recipes} onView={setViewRecipe} />
+        <AlternativeMealsWidget recipes={recipes} onView={setViewRecipe} />
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {days.map((day, i) => (
             <Card key={day} style={{ padding: 0, overflow: "hidden" }}>
@@ -289,9 +385,10 @@ export function MealsPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, onS
 export function RecipeLibraryPage({ recipes, onSaveRecipe, onDeleteRecipe }) {
   const { navigate } = useRouter();
   const [q, setQ] = useState("");
+  const [folderFilter, setFolderFilter] = useState("all");
   const [recipeModal, setRecipeModal] = useState(null);
   const [viewRecipe, setViewRecipe] = useState(null);
-  const filtered = recipes.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = recipes.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()) && (folderFilter === "all" || r.folder === folderFilter));
 
   return (
     <div>
@@ -302,7 +399,11 @@ export function RecipeLibraryPage({ recipes, onSaveRecipe, onDeleteRecipe }) {
         right={<button onClick={() => setRecipeModal({})} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>}
       />
       <div style={{ padding: "18px 16px 40px" }}>
-        <input style={{ ...inp, marginBottom: 14 }} placeholder="Search recipes..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <input style={{ ...inp, marginBottom: 10 }} placeholder="Search recipes..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+          <button onClick={() => setFolderFilter("all")} style={btn(folderFilter === "all" ? BASE.yellow : "#fff")}>All</button>
+          {FOLDERS.map((f) => <button key={f} onClick={() => setFolderFilter(f)} style={btn(folderFilter === f ? BASE.yellow : "#fff")}>{FOLDER_LABELS[f]}</button>)}
+        </div>
         {filtered.length === 0 ? (
           <EmptyState icon="book" text="No recipes yet" />
         ) : (
@@ -311,7 +412,10 @@ export function RecipeLibraryPage({ recipes, onSaveRecipe, onDeleteRecipe }) {
               <Card key={r.id} onClick={() => setViewRecipe(r)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <div>
                   <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14 }}>{r.name}</div>
-                  <div style={{ fontSize: 11, color: BASE.t3, fontFamily: F.ui }}>{r.est_time ? `${r.est_time} · ` : ""}{(r.tags || []).join(", ")}</div>
+                  <div style={{ fontSize: 11, color: BASE.t3, fontFamily: F.ui }}>
+                    {r.folder ? `${FOLDER_LABELS[r.folder]}${r.day_of_week ? ` · ${r.day_of_week}` : ""} · ` : ""}
+                    {r.est_time ? `${r.est_time} · ` : ""}{(r.tags || []).join(", ")}
+                  </div>
                 </div>
                 <Icon name="chevronRight" size={16} />
               </Card>
@@ -324,6 +428,7 @@ export function RecipeLibraryPage({ recipes, onSaveRecipe, onDeleteRecipe }) {
       {recipeModal && (
         <RecipeModal
           recipe={recipeModal.id ? recipeModal : null}
+          defaultFolder={folderFilter !== "all" ? folderFilter : ""}
           onSave={(r) => { onSaveRecipe(r); setRecipeModal(null); }}
           onDelete={onDeleteRecipe}
           onClose={() => setRecipeModal(null)}

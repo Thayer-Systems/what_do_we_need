@@ -275,7 +275,10 @@ function AppInner() {
 
   // ── Meals ──
   const onSaveRecipe = async (r) => {
-    const body = { name: r.name, ingredients: r.ingredients, tags: r.tags, equipment: r.equipment, est_time: r.est_time, notes: r.notes };
+    const body = {
+      name: r.name, ingredients: r.ingredients, tags: r.tags, equipment: r.equipment, est_time: r.est_time, notes: r.notes,
+      folder: r.folder ?? null, day_of_week: r.day_of_week ?? null, week_tag: r.week_tag ?? null,
+    };
     if (r.id) {
       await patch("recipes", r.id, body);
       const updated = { ...r, ...body };
