@@ -3,7 +3,7 @@ import { IconBadge, StarAccent, Squiggle } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F, mascotOfDay, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
-import { TV_QUERY, useMediaQuery } from "../lib/useMediaQuery.js";
+import { useIsTVMode } from "../lib/useMediaQuery.js";
 
 const DAY_MS = 86400000;
 
@@ -434,7 +434,7 @@ export default function Dashboard({ members, events, chores, completions, mealPl
   const { navigate } = useRouter();
   const weather = useWeather();
   const birthdayMember = members.find((m) => isTodayBirthday(m.birthday));
-  const isTV = useMediaQuery(TV_QUERY);
+  const isTV = useIsTVMode();
 
   if (isTV) {
     return <TVDashboard members={members} events={events} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} onOpenAssistant={onOpenAssistant} />;

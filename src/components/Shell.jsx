@@ -2,7 +2,7 @@ import { useState } from "react";
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
 import { IconBadge, StarAccent } from "./Deco.jsx";
 import { useRouter } from "../lib/router.jsx";
-import { TV_QUERY, useMediaQuery } from "../lib/useMediaQuery.js";
+import { useIsTVMode } from "../lib/useMediaQuery.js";
 
 export const TABS = [
   ["/", "home", "Home", BASE.yellow],
@@ -55,12 +55,12 @@ function NavList({ active, navigate, onNavigate }) {
 
 export default function Shell({ children }) {
   const { path, navigate } = useRouter();
-  const isTV = useMediaQuery(TV_QUERY);
+  const isTV = useIsTVMode();
   const [navOpen, setNavOpen] = useState(false);
   const active = (p) => (p === "/" ? path === "/" : path.startsWith(p));
 
   return (
-    <div style={{ minHeight: "100vh", background: BASE.bg, fontFamily: F.ui, color: BASE.ink, display: "flex" }}>
+    <div style={{ minHeight: "100vh", background: BASE.bg, fontFamily: F.ui, color: BASE.ink, display: "flex" }} className={isTV ? "sprinkles-tv-active" : undefined}>
       {/* Desktop sidebar */}
       <div
         className="sprinkles-sidebar"
@@ -126,7 +126,7 @@ export default function Shell({ children }) {
         )}
       </div>
 
-      <div style={{ flex: 1, minWidth: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)" }} className="sprinkles-main">
+      <div style={{ flex: 1, minWidth: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)" }} className={`sprinkles-main${isTV ? " sprinkles-tv-main" : ""}`}>
         {children}
       </div>
 
@@ -176,9 +176,11 @@ export default function Shell({ children }) {
           .sprinkles-bottomnav { display: none !important; }
           .sprinkles-main { padding-bottom: 24px !important; }
         }
-        ${TV_QUERY.replace("(", "@media (")} {
-          .sprinkles-main { padding-bottom: 0 !important; }
-        }
+        /* Forced/auto-detected TV mode — applies regardless of whether the
+           TV's browser actually reports a viewport matching TV_QUERY. */
+        .sprinkles-tv-active .sprinkles-sidebar { display: flex !important; }
+        .sprinkles-tv-active .sprinkles-bottomnav { display: none !important; }
+        .sprinkles-tv-main { padding-bottom: 0 !important; }
       `}</style>
     </div>
   );
