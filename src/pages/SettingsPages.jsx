@@ -5,6 +5,7 @@ import { Icon } from "../components/Icons.jsx";
 import { BASE, F } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { pushSupported, getPushSubscriptionStatus, enablePush, disablePush, getDeviceMemberId, setDeviceMemberId } from "../lib/push.js";
+import { useIsTVMode, getForcedTVMode, setForcedTVMode, clearForcedTVMode } from "../lib/useMediaQuery.js";
 
 function Field({ label, value }) {
   return (
@@ -119,6 +120,8 @@ export function PreferencesPage({ settings, onUpdateSettings, members = [] }) {
   const [pushStatus, setPushStatus] = useState("checking");
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(null);
+  const isTVNow = useIsTVMode();
+  const [tvForced, setTvForced] = useState(getForcedTVMode());
 
   useEffect(() => {
     pushSupported().then((ok) => {
@@ -208,6 +211,40 @@ export function PreferencesPage({ settings, onUpdateSettings, members = [] }) {
               {pushError && <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.red }}>{pushError}</div>}
             </div>
           )}
+        </Card>
+
+        <Card>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Display</div>
+          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 12 }}>
+            On a TV, the app tries to detect a wide-but-short screen automatically and switch to a single-screen layout. Some TV browsers report a full-size viewport instead, so if it isn't switching on its own, force it here — this only affects this device/browser.
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: isTVNow ? BASE.green : BASE.t2 }}>
+              {isTVNow ? "✓ TV layout active on this device" : "Currently using the regular layout"}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button
+              onClick={() => { setForcedTVMode(true); setTvForced(true); }}
+              style={{ ...saveBtn, background: tvForced === true ? BASE.yellow : "#fff" }}
+            >
+              Force TV Layout On
+            </button>
+            <button
+              onClick={() => { setForcedTVMode(false); setTvForced(false); }}
+              style={{ ...saveBtn, background: tvForced === false ? BASE.yellow : "#fff" }}
+            >
+              Force It Off
+            </button>
+            {tvForced !== null && (
+              <button
+                onClick={() => { clearForcedTVMode(); setTvForced(null); }}
+                style={{ ...saveBtn, background: "#fff" }}
+              >
+                Reset to Auto
+              </button>
+            )}
+          </div>
         </Card>
       </div>
     </div>
