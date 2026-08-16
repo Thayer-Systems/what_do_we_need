@@ -45,6 +45,7 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
   const [progress, setProgress] = useState(project?.progress ?? 0);
   const [dueDate, setDueDate] = useState(project?.due_date || "");
   const [memberId, setMemberId] = useState(project?.member_id ?? null);
+  const [visibility, setVisibility] = useState(project?.visibility || "public");
   const status = progress >= 100 ? "done" : progress > 0 ? "in_progress" : "not_started";
 
   return (
@@ -54,6 +55,12 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
         <div><span style={label}>Title</span><input autoFocus style={inp} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Family trip" /></div>
         <div><span style={label}>Description</span><textarea style={{ ...inp, minHeight: 70 }} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
         <div><span style={label}>Assigned to</span><AssigneePicker members={members} value={memberId} onChange={setMemberId} /></div>
+        <div><span style={label}>Visibility</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button type="button" onClick={() => setVisibility("public")} style={btn(visibility === "public" ? BASE.teal : "#fff")}>Public — on Tasks tab</button>
+            <button type="button" onClick={() => setVisibility("private")} style={btn(visibility === "private" ? BASE.lilac : "#fff")}>Private — profile only</button>
+          </div>
+        </div>
         <div><span style={label}>Due date (optional)</span><input type="date" style={inp} value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
         <div>
           <span style={label}>Progress — {progress}%</span>
@@ -64,7 +71,7 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
           style={{ ...btn(BASE.green), width: "100%" }}
           onClick={() => {
             if (!title.trim()) return;
-            onSave({ id: project?.id, title: title.trim(), description: description.trim() || null, progress, status, due_date: dueDate || null, member_id: memberId });
+            onSave({ id: project?.id, title: title.trim(), description: description.trim() || null, progress, status, due_date: dueDate || null, member_id: memberId, visibility });
           }}
         >
           Save Project
@@ -126,7 +133,7 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
   const dow = new Date().getDay();
 
   const visibleChores = chores.filter((c) => assigneeFilter === "all" || c.member_id === assigneeFilter);
-  const visibleProjects = projects.filter((p) => assigneeFilter === "all" || p.member_id === assigneeFilter);
+  const visibleProjects = projects.filter((p) => (p.visibility || "public") === "public" && (assigneeFilter === "all" || p.member_id === assigneeFilter));
 
   return (
     <div>

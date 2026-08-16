@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Shell from "./components/Shell.jsx";
+import PinGate from "./components/PinGate.jsx";
 import AssistantPopover from "./components/AssistantPopover.jsx";
 import { CelebrationProvider, useCelebrate } from "./components/Celebration.jsx";
 import { RouterProvider, useRouter } from "./lib/router.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
+import Today from "./pages/Today.jsx";
 import FamilyList from "./pages/FamilyList.jsx";
 import FamilyMember from "./pages/FamilyMember.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
-import { FoodHub, MealsPage, RecipeLibraryPage, TrendsPage } from "./pages/Food.jsx";
+import { FoodWeekPage, RecipeLibraryPage, TrendsPage } from "./pages/Food.jsx";
 import Grocery from "./pages/Grocery.jsx";
 import Tasks from "./pages/Tasks.jsx";
+import KidsGoals, { KidsGoalsRulesPage } from "./pages/KidsGoals.jsx";
+import ParentsGoals from "./pages/ParentsGoals.jsx";
 import Settings from "./pages/Settings.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
 import Privacy from "./pages/Privacy.jsx";
@@ -82,9 +85,12 @@ function AppInner() {
   const [shopping, setShopping] = useState([]);
   const [stats, setStats] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [coinRules, setCoinRules] = useState([]);
+  const [coinLedger, setCoinLedger] = useState([]);
+  const [coinRewards, setCoinRewards] = useState([]);
 
   const loadAll = useCallback(async () => {
-    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards] = await Promise.all([
       get("sprinkles_family_members?order=sort_order.asc"),
       get("sprinkles_contacts"),
       get("sprinkles_activities"),
@@ -100,6 +106,9 @@ function AppInner() {
       get("shopping_list?status=eq.pending&order=name.asc"),
       get("sprinkles_member_stats?order=sort_order.asc"),
       get("sprinkles_projects?order=created_at.desc"),
+      get("sprinkles_coin_rules?order=sort_order.asc"),
+      get("sprinkles_coin_ledger?order=created_at.desc"),
+      get("sprinkles_coin_rewards?order=sort_order.asc"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -116,6 +125,9 @@ function AppInner() {
     setShopping(shop || []);
     setStats(sta || []);
     setProjects(proj || []);
+    setCoinRules(rules || []);
+    setCoinLedger(ledger || []);
+    setCoinRewards(rewards || []);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -205,6 +217,15 @@ function AppInner() {
   const onDeleteProject = async (id) => {
     setProjects((p) => p.filter((x) => x.id !== id));
     await del("sprinkles_projects", id);
+  };
+
+  // ── Kids Goals (coins) ──
+  const onAddCoinTransaction = async (body) => {
+    const d = await post("sprinkles_coin_ledger", body);
+    if (d?.[0]) {
+      setCoinLedger((p) => [d[0], ...p]);
+      if (d[0].delta > 0) celebrate("Coins earned!");
+    }
   };
 
   // ── Chores / celebration ──
@@ -338,20 +359,22 @@ function AppInner() {
   };
 
   let page;
-  if (path === "/") {
-    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} projects={projects} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
-  } else if (path === "/calendar") {
+  if (path === "/calendar") {
     page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} onSyncGoogle={onSyncEventToGoogle} />;
   } else if (path === "/food") {
-    page = <FoodHub />;
-  } else if (path === "/food/meals") {
-    page = <MealsPage recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
+    page = <FoodWeekPage recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
   } else if (path === "/food/grocery") {
     page = <Grocery shopping={shopping} onAssistantSend={onAssistantSend} onAdd={onAddGrocery} onRemove={onRemoveGrocery} />;
   } else if (path === "/food/recipes") {
     page = <RecipeLibraryPage recipes={recipes} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} />;
   } else if (path === "/food/trends") {
     page = <TrendsPage recipes={recipes} mealPlan={mealPlan} shopping={shopping} />;
+  } else if (path === "/goals/kids/rules") {
+    page = <KidsGoalsRulesPage members={members} coinRules={coinRules} coinLedger={coinLedger} onAddCoinTransaction={onAddCoinTransaction} />;
+  } else if (path === "/goals/kids") {
+    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} onAddCoinTransaction={onAddCoinTransaction} />;
+  } else if (path === "/goals/parents") {
+    page = <ParentsGoals members={members} stats={stats} onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat} />;
   } else if (path === "/tasks") {
     page = (
       <Tasks
@@ -368,7 +391,7 @@ function AppInner() {
     page = (
       <FamilyMember
         member={memberFromPath(path)} contacts={contacts} activities={activities} medications={medications}
-        foodPrefs={foodPrefs} links={links} chores={chores} completions={completions} stats={stats}
+        foodPrefs={foodPrefs} links={links} chores={chores} completions={completions} stats={stats} projects={projects}
         onUpdateMember={onUpdateMember} onAdd={onAdd} onDelete={onDelete} onUpdateFoodPrefs={onUpdateFoodPrefs}
         onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat}
       />
@@ -388,8 +411,10 @@ function AppInner() {
   } else if (path === "/settings") {
     page = <Settings />;
   } else {
-    page = <Dashboard members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} shopping={shopping} stats={stats} projects={projects} onToggleChore={onToggleChore} onOpenAssistant={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))} />;
+    page = <Today members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} coinLedger={coinLedger} onToggleChore={onToggleChore} />;
   }
+
+  if (path.startsWith("/settings")) page = <PinGate>{page}</PinGate>;
 
   return (
     <Shell>

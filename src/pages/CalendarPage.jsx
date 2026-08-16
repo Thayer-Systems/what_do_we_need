@@ -242,7 +242,7 @@ function Agenda({ days, events, onOpen, forecast }) {
   );
 }
 
-function MonthView({ cursor, events, onDayClick }) {
+function MonthView({ cursor, events, onDayClick, onOpenEvent }) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const gridStart = startOfWeek(first);
   const days = Array.from({ length: 42 }, (_, i) => new Date(gridStart.getTime() + i * DAY_MS));
@@ -252,13 +252,26 @@ function MonthView({ cursor, events, onDayClick }) {
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, marginBottom: 10 }}>{cursor.toLocaleDateString([], { month: "long", year: "numeric" })}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
         {days.map((d) => {
-          const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d));
+          const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
           const inMonth = d.getMonth() === cursor.getMonth();
           return (
-            <div key={d.toISOString()} onClick={() => onDayClick(d)} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 62, padding: 5, background: sameDay(d, today) ? BASE.yellow : inMonth ? "#fff" : BASE.muted, opacity: inMonth ? 1 : 0.5, cursor: "pointer" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: F.ui }}>{d.getDate()}</div>
-              <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 3 }}>
-                {dayEvents.slice(0, 4).map((e) => <div key={e.id} style={{ width: 6, height: 6, borderRadius: "50%", background: CATEGORY_COLORS[e.category] || BASE.pink, border: `1px solid ${BASE.ink}` }} />)}
+            <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 96, padding: 5, background: sameDay(d, today) ? BASE.yellow : inMonth ? "#fff" : BASE.muted, opacity: inMonth ? 1 : 0.5, display: "flex", flexDirection: "column", gap: 3, overflow: "hidden" }}>
+              <div onClick={() => onDayClick(d)} style={{ fontSize: 11, fontWeight: 700, fontFamily: F.ui, cursor: "pointer" }}>{d.getDate()}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0 }}>
+                {dayEvents.slice(0, 3).map((e) => (
+                  <div
+                    key={e.id}
+                    onClick={(ev) => { ev.stopPropagation(); onOpenEvent ? onOpenEvent(e) : onDayClick(d); }}
+                    style={{ background: CATEGORY_COLORS[e.category] || BASE.pink, border: `1px solid ${BASE.ink}`, borderRadius: 5, padding: "1px 4px", cursor: "pointer", overflow: "hidden" }}
+                  >
+                    <div style={{ fontSize: 9, fontWeight: 800, fontFamily: F.ui, color: BASE.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {e.all_day ? "" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} {e.title}
+                    </div>
+                  </div>
+                ))}
+                {dayEvents.length > 3 && (
+                  <div onClick={() => onDayClick(d)} style={{ fontSize: 9, fontWeight: 800, fontFamily: F.ui, color: BASE.t2, cursor: "pointer" }}>+{dayEvents.length - 3} more</div>
+                )}
               </div>
             </div>
           );
@@ -333,7 +346,7 @@ export default function CalendarPage({ members, events, settings, onAdd, onUpdat
       </div>
 
       <div style={{ marginTop: 12 }}>
-        {view === "month" && <MonthView cursor={cursor} events={filtered} onDayClick={(d) => { setCursor(d); setView("3day"); }} />}
+        {view === "month" && <MonthView cursor={cursor} events={filtered} onDayClick={(d) => { setCursor(d); setView("3day"); }} onOpenEvent={setOpenEvent} />}
         {(view === "week" || view === "3day") && <Agenda days={agendaDays} events={filtered} onOpen={setOpenEvent} forecast={forecast} />}
       </div>
 

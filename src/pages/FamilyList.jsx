@@ -30,6 +30,7 @@ export default function FamilyList({ members }) {
           >
             <IconBadge icon={m.icon} bg="#fff" size={54} radius={16} />
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>{m.name}</div>
+            <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, textTransform: "uppercase", opacity: 0.85 }}>{m.role === "parent" ? "Parent" : "Kid"}</div>
           </button>
         ))}
       </div>

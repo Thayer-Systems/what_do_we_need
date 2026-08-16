@@ -100,7 +100,7 @@ function StatRow({ stat, color, onEdit, onTogglePause, onDelete }) {
 }
 
 export default function FamilyMember({
-  member, contacts, activities, medications, foodPrefs, links, chores, completions, stats,
+  member, contacts, activities, medications, foodPrefs, links, chores, completions, stats, projects = [],
   onUpdateMember, onAdd, onDelete, onUpdateFoodPrefs, onAddStat, onUpdateStat, onDeleteStat,
 }) {
   const { navigate } = useRouter();
@@ -116,6 +116,7 @@ export default function FamilyMember({
   const mLinks = links.filter((l) => l.member_id === member.id);
   const mChores = chores.filter((c) => c.member_id === member.id);
   const mStats = stats.filter((s) => s.member_id === member.id);
+  const mPrivateProjects = projects.filter((p) => p.member_id === member.id && p.visibility === "private");
   const mFood = foodPrefs.find((f) => f.member_id === member.id) || { likes: [], dislikes: [], allergies: [] };
 
   // last 7 days chore completion %
@@ -145,6 +146,12 @@ export default function FamilyMember({
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 24 }}>{member.name}</div>
           </div>
+          <button
+            onClick={() => onUpdateMember(member.id, { role: member.role === "parent" ? "kid" : "parent" })}
+            style={{ background: "#fff", color: BASE.ink, border: `2px solid ${BASE.ink}`, borderRadius: 999, padding: "6px 12px", fontWeight: 800, fontSize: 11, cursor: "pointer", fontFamily: F.ui, textTransform: "uppercase" }}
+          >
+            {member.role === "parent" ? "Parent" : "Kid"}
+          </button>
         </Card>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
@@ -187,6 +194,19 @@ export default function FamilyMember({
             </Row>
           ))}
         </Section>
+
+        {mPrivateProjects.length > 0 && (
+          <Section title="Private Projects">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {mPrivateProjects.map((p) => (
+                <div key={p.id} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12 }}>
+                  <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{p.title}</div>
+                  <ProgressBar pct={p.progress} color={member.color} />
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         <Section title="Activities & Schedule" onAdd={() => setModal({ type: "activity" })}>
           {mActivities.length === 0 && <div style={{ fontSize: 13, color: BASE.t3, fontFamily: F.ui }}>No recurring activities yet. Adding one syncs it to the calendar automatically.</div>}
