@@ -17,7 +17,7 @@ import Settings from "./pages/Settings.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage, PreferencesPage } from "./pages/SettingsPages.jsx";
-import { get, post, patch, del } from "./lib/db.js";
+import { get, getSafe, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
 import { notifyAssignment } from "./lib/push.js";
 
@@ -91,24 +91,24 @@ function AppInner() {
 
   const loadAll = useCallback(async () => {
     const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards] = await Promise.all([
-      get("sprinkles_family_members?order=sort_order.asc"),
-      get("sprinkles_contacts"),
-      get("sprinkles_activities"),
-      get("sprinkles_medications"),
-      get("sprinkles_food_prefs"),
-      get("sprinkles_links"),
-      get("sprinkles_chores"),
-      get("sprinkles_chore_completions"),
-      get("sprinkles_events?order=start_at.asc"),
-      get("sprinkles_settings?id=eq.1"),
-      get("recipes?order=name.asc"),
-      get(`meal_plan?week_start=eq.${weekStart}`),
-      get("shopping_list?status=eq.pending&order=name.asc"),
-      get("sprinkles_member_stats?order=sort_order.asc"),
-      get("sprinkles_projects?order=created_at.desc"),
-      get("sprinkles_coin_rules?order=sort_order.asc"),
-      get("sprinkles_coin_ledger?order=created_at.desc"),
-      get("sprinkles_coin_rewards?order=sort_order.asc"),
+      getSafe("sprinkles_family_members?order=sort_order.asc"),
+      getSafe("sprinkles_contacts"),
+      getSafe("sprinkles_activities"),
+      getSafe("sprinkles_medications"),
+      getSafe("sprinkles_food_prefs"),
+      getSafe("sprinkles_links"),
+      getSafe("sprinkles_chores"),
+      getSafe("sprinkles_chore_completions"),
+      getSafe("sprinkles_events?order=start_at.asc"),
+      getSafe("sprinkles_settings?id=eq.1"),
+      getSafe("recipes?order=name.asc"),
+      getSafe(`meal_plan?week_start=eq.${weekStart}`),
+      getSafe("shopping_list?status=eq.pending&order=name.asc"),
+      getSafe("sprinkles_member_stats?order=sort_order.asc"),
+      getSafe("sprinkles_projects?order=created_at.desc"),
+      getSafe("sprinkles_coin_rules?order=sort_order.asc"),
+      getSafe("sprinkles_coin_ledger?order=created_at.desc"),
+      getSafe("sprinkles_coin_rewards?order=sort_order.asc"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -241,7 +241,7 @@ function AppInner() {
     const saved = await onAdd("sprinkles_events", body);
     if (saved) {
       if (saved.member_ids?.length) notifyAssignment(saved.member_ids, "Added to an event", `${saved.title} · ${new Date(saved.start_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`, "/calendar");
-      fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(saved) })
+      fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...saved, attendee_emails: settings?.attendee_emails }) })
         .then((r) => r.json())
         .then((d) => {
           if (d?.ok && d.googleEventId) {
@@ -268,7 +268,7 @@ function AppInner() {
     }
   };
   const onSyncEventToGoogle = async (event) => {
-    const r = await fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(event) });
+    const r = await fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...event, attendee_emails: settings?.attendee_emails }) });
     const d = await r.json().catch(() => null);
     if (d?.ok && d.googleEventId) {
       setEvents((p) => p.map((e) => (e.id === event.id ? { ...e, google_event_id: d.googleEventId } : e)));
