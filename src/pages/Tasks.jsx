@@ -4,6 +4,7 @@ import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { BASE, F, DAY_NAMES, hardShadow } from "../lib/theme.js";
+import { isChoreDue, isChoreDone, choreScheduleLabel } from "../lib/chores.js";
 
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -26,6 +27,22 @@ function AssigneePicker({ members, value, onChange }) {
         </button>
       ))}
     </div>
+  );
+}
+
+function CompleteCheckbox({ done, onToggle }) {
+  return (
+    <button
+      type="button"
+      aria-label={done ? "Mark task not done" : "Mark task done"}
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      style={{
+        width: 28, height: 28, borderRadius: 8, border: `2.5px solid ${BASE.ink}`, flexShrink: 0, padding: 0,
+        background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+      }}
+    >
+      {done && <Icon name="check" size={16} color="#fff" />}
+    </button>
   );
 }
 
@@ -78,7 +95,7 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
 function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(chore?.title || "");
   const [memberId, setMemberId] = useState(chore?.member_id ?? null);
-  const [frequency, setFrequency] = useState(chore?.frequency || "daily");
+  const [frequency, setFrequency] = useState(chore?.frequency || "once");
   const [days, setDays] = useState(chore?.days || []);
   const toggleDay = (i) => setDays((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
 
@@ -90,7 +107,7 @@ function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
         <div><span style={label}>Assigned to</span><AssigneePicker members={members} value={memberId} onChange={setMemberId} /></div>
         <div><span style={label}>Frequency</span>
           <div style={{ display: "flex", gap: 6 }}>
-            {["daily", "custom"].map((f) => <button key={f} type="button" onClick={() => setFrequency(f)} style={btn(frequency === f ? BASE.teal : "#fff")}>{f}</button>)}
+            {["once", "daily", "custom"].map((f) => <button key={f} type="button" onClick={() => setFrequency(f)} style={btn(frequency === f ? BASE.teal : "#fff")}>{f === "once" ? "one-time" : f}</button>)}
           </div>
         </div>
         {frequency === "custom" && (
@@ -115,7 +132,7 @@ function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
   );
 }
 
-export default function Tasks({ members, chores, completions, projects, onAddChore, onUpdateChore, onDeleteChore, onAddProject, onUpdateProject, onDeleteProject }) {
+export default function Tasks({ members, chores, completions, projects, onAddChore, onUpdateChore, onDeleteChore, onToggleChore, onAddProject, onUpdateProject, onDeleteProject }) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [choreModal, setChoreModal] = useState(null);
   const [projectModal, setProjectModal] = useState(null);
@@ -155,19 +172,23 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
 
       <div style={{ padding: "16px 16px 40px", display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Recurring Tasks</div>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Tasks</div>
           {visibleChores.length === 0 ? (
-            <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No recurring tasks yet.</div>
+            <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No tasks yet.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {visibleChores.map((c) => {
-                const applicable = c.active && (c.frequency === "daily" || (c.days || []).includes(dow));
-                const done = completions.some((cm) => cm.chore_id === c.id && cm.date === todayStr);
+                const applicable = isChoreDue(c, dow);
+                const done = isChoreDone(c, completions, todayStr);
+                const scheduleLabel = c.frequency === "custom" ? (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "Custom" : choreScheduleLabel(c);
                 return (
                   <Card key={c.id} onClick={() => setChoreModal(c)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <div>
-                      <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14 }}>{c.title}</div>
-                      <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2, marginTop: 2 }}>{c.frequency === "daily" ? "Every day" : (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "Custom"}{applicable ? (done ? " · done today" : " · due today") : ""}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <CompleteCheckbox done={done} onToggle={() => onToggleChore(c)} />
+                      <div>
+                        <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14, textDecoration: done ? "line-through" : "none", opacity: done ? 0.6 : 1 }}>{c.title}</div>
+                        <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2, marginTop: 2 }}>{scheduleLabel}{c.frequency !== "once" && applicable ? (done ? " · done today" : " · due today") : ""}</div>
+                      </div>
                     </div>
                     <AssigneeBadge member={memberById(c.member_id)} />
                   </Card>

@@ -210,8 +210,25 @@ function AppInner() {
   // ── Chores / celebration ──
   const onToggleChore = async (chore) => {
     const date = new Date().toISOString().slice(0, 10);
+    const once = chore.frequency === "once";
+    const existing = once
+      ? completions.find((c) => c.chore_id === chore.id)
+      : completions.find((c) => c.chore_id === chore.id && c.date === date);
+    if (existing) {
+      setCompletions((p) => p.filter((c) => c.id !== existing.id));
+      await del("sprinkles_chore_completions", existing.id);
+      if (once) {
+        setChores((p) => p.map((c) => (c.id === chore.id ? { ...c, active: true } : c)));
+        await patch("sprinkles_chores", chore.id, { active: true });
+      }
+      return;
+    }
     const d = await post("sprinkles_chore_completions", { chore_id: chore.id, date });
     if (d?.[0]) setCompletions((p) => [...p, d[0]]);
+    if (once) {
+      setChores((p) => p.map((c) => (c.id === chore.id ? { ...c, active: false } : c)));
+      await patch("sprinkles_chores", chore.id, { active: false });
+    }
     celebrate("Good Job!");
   };
 
@@ -312,7 +329,7 @@ function AppInner() {
         await Promise.all((action.items || []).map((item) => onAddGrocery(item)));
       } else if (action.type === "chore") {
         const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase());
-        if (member) await onAdd("sprinkles_chores", { member_id: member.id, title: action.title, frequency: action.frequency || "daily", active: true });
+        if (member) await onAdd("sprinkles_chores", { member_id: member.id, title: action.title, frequency: action.frequency || "once", active: true });
       } else if (action.type === "event") {
         const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase());
         await onAddEvent({
@@ -359,6 +376,7 @@ function AppInner() {
         onAddChore={onAddChore}
         onUpdateChore={onUpdateChore}
         onDeleteChore={(id) => onDelete("sprinkles_chores", id)}
+        onToggleChore={onToggleChore}
         onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
       />
     );
