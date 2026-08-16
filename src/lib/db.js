@@ -27,6 +27,18 @@ export async function api(path, options = {}) {
 }
 
 export const get = (path) => api(path);
+
+// Same as get(), but never throws — resolves to [] on any failure (missing
+// table because a migration hasn't been run yet, network hiccup, etc).
+// Used for the initial bulk data load so one bad table doesn't take the
+// whole app down to a blank screen; write paths still use get/post/patch/del
+// directly so callers can react to real failures.
+export const getSafe = (path) =>
+  api(path).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error(`Failed to load ${path}:`, err);
+    return [];
+  });
 export const post = (table, body) => api(table, { method: "POST", body: JSON.stringify(body) });
 export const patch = (table, id, body) =>
   api(`${table}?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(body), prefer: "return=representation" });

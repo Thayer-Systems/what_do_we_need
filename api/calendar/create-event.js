@@ -59,14 +59,19 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const { title, start_at, end_at, location, notes } = req.body || {};
+    const { title, start_at, end_at, location, notes, attendee_emails } = req.body || {};
     if (!title || !start_at) {
       res.status(400).json({ ok: false, reason: "missing_fields" });
       return;
     }
-    const attendees = (process.env.GOOGLE_CALENDAR_ATTENDEES || "")
-      .split(",")
-      .map((e) => e.trim())
+    // Prefer the household's configured attendee emails (Preferences page)
+    // over the GOOGLE_CALENDAR_ATTENDEES env var, so parents can manage who
+    // gets invited without a redeploy.
+    const emailSource = Array.isArray(attendee_emails) && attendee_emails.length
+      ? attendee_emails
+      : (process.env.GOOGLE_CALENDAR_ATTENDEES || "").split(",");
+    const attendees = emailSource
+      .map((e) => (e || "").trim())
       .filter(Boolean)
       .map((email) => ({ email }));
     const timeZone = process.env.GOOGLE_CALENDAR_TIME_ZONE || "America/New_York";
