@@ -128,6 +128,6 @@ from (values
   (50, 'Lunch with a parent at school', 61),
 
   (65, 'Trip to Chuck E. Cheese', 70),
-  (65, "Sleepover at mimi's/Gogo's", 71)
+  (65, 'Sleepover at mimi''s/Gogo''s', 71)
 ) as v(coin_cost, label, sort_order)
 where not exists (select 1 from sprinkles_coin_rewards r where r.label = v.label);
