@@ -6,6 +6,7 @@ import { isToolsUnlocked } from "../lib/pin.js";
 
 export const TABS = [
   ["/", "home", "Today", BASE.yellow],
+  ["/family", "users", "Family", BASE.pink],
   ["/calendar", "calendar", "Calendar", BASE.teal],
   ["/food", "meals", "Food", BASE.lilac],
   ["/goals/kids", "star", "Kids Goals", BASE.pink],

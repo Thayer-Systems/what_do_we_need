@@ -5,7 +5,6 @@ import { BASE, F } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 
 const ITEMS = [
-  ["users", "Family", BASE.pink, "/settings/family"],
   ["home", "Household", BASE.yellow, "/settings/household"],
   ["settings", "Settings", BASE.green, "/settings/preferences"],
 ];

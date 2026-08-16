@@ -354,7 +354,7 @@ function AppInner() {
   };
 
   const memberFromPath = (p) => {
-    const m = p.match(/^\/settings\/family\/(\d+)$/);
+    const m = p.match(/^\/family\/(\d+)$/);
     return m ? members.find((x) => x.id === Number(m[1])) : null;
   };
 
@@ -385,7 +385,7 @@ function AppInner() {
         onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
       />
     );
-  } else if (path === "/settings/family") {
+  } else if (path === "/family") {
     page = <FamilyList members={members} />;
   } else if (memberFromPath(path)) {
     page = (
