@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader, Card, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon, EQUIPMENT_ICONS } from "../components/Icons.jsx";
 import { BarChart } from "../components/Charts.jsx";
-import { BASE, F, DAY_NAMES, hardShadow } from "../lib/theme.js";
+import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { FOLDERS, FOLDER_LABELS, WEEKLY_FOLDERS, WEEK_DAYS, getActiveWeekTag, folderForWeekTag, shuffle } from "../lib/weekPlan.js";
 
-const MEALS = ["Breakfast", "Lunch", "Dinner"];
 const RECIPE_TAGS = ["Quick", "Dinner", "Lunch", "Breakfast", "Crockpot", "Dump & Go"];
 const EQUIPMENT = Object.keys(EQUIPMENT_ICONS);
 const EST_TIMES = ["5 min", "10 min", "15 min", "30 min", "45 min", "1 hr", "2 hr", "3 hr", "4 hr", "5 hr", "6 hr"];
@@ -16,42 +15,14 @@ const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius:
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
-function todayFirstDays() {
-  const start = new Date().getDay();
-  return [...DAY_NAMES.slice(start), ...DAY_NAMES.slice(0, start)];
-}
-
-// ─── Food landing dash ─────────────────────────────────────────
-const HUB_ITEMS = [
-  ["meals", "Meals", BASE.lilac, "/food/meals"],
-  ["cart", "Grocery", BASE.orange, "/food/grocery"],
-  ["book", "Recipe Library", BASE.teal, "/food/recipes"],
-  ["grid", "Trends", BASE.pink, "/food/trends"],
-];
-
-export function FoodHub() {
-  const { navigate } = useRouter();
-  return (
-    <div>
-      <PageHeader title="Food" sprinkles="meals" />
-      <div style={{ padding: "20px 16px 40px", display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
-        {HUB_ITEMS.map(([icon, name, color, path]) => (
-          <button
-            key={path}
-            onClick={() => navigate(path)}
-            style={{
-              background: color, border: `2.5px solid ${BASE.ink}`, borderRadius: 18,
-              boxShadow: hardShadow(BASE.ink, 4, 4), padding: "26px 14px", cursor: "pointer",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
-            }}
-          >
-            <IconBadge icon={icon} bg="#fff" size={54} radius={16} />
-            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, color: BASE.ink }}>{name}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+function mondayOfThisWeek() {
+  const today = new Date();
+  const dow = today.getDay();
+  const diff = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
 }
 
 // ─── Recipe modals (shared) ────────────────────────────────────
@@ -276,14 +247,25 @@ function AlternativeMealsWidget({ recipes, onView }) {
   );
 }
 
-// ─── Meals (weekly plan grid) ───────────────────────────────────
-export function MealsPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
+// ─── Food (horizontal weekly plan grid) ─────────────────────────
+const FOOD_MEALS = ["Lunch", "Dinner"];
+const FOOD_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+export function FoodWeekPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
   const { navigate } = useRouter();
   const [recipeModal, setRecipeModal] = useState(null);
   const [viewRecipe, setViewRecipe] = useState(null);
   const [pickerSlot, setPickerSlot] = useState(null);
   const [createFromSlot, setCreateFromSlot] = useState(false);
-  const days = useMemo(todayFirstDays, []);
+
+  const weekDays = useMemo(() => {
+    const monday = mondayOfThisWeek();
+    return FOOD_DAYS.map((short, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return { short, date: d };
+    });
+  }, []);
 
   const slotFor = (day, meal) => mealPlan.find((s) => s.day === day && s.meal === meal);
 
@@ -301,51 +283,66 @@ export function MealsPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, onS
 
   return (
     <div>
-      <PageHeader title="Meals" sprinkles="meals" back={() => navigate("/food")} />
+      <PageHeader
+        title="Food"
+        sprinkles="meals"
+        right={
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => navigate("/food/recipes")} style={btn("#fff")}><Icon name="book" size={15} /></button>
+            <button onClick={() => navigate("/food/trends")} style={btn("#fff")}><Icon name="grid" size={15} /></button>
+          </div>
+        }
+      />
       <div style={{ padding: "18px 16px 32px" }}>
+        <div style={{ overflowX: "auto", marginBottom: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `74px repeat(${weekDays.length}, minmax(150px, 1fr))`, gap: 8, minWidth: 700 }}>
+            <div />
+            {weekDays.map(({ short, date }) => (
+              <div key={short} style={{ textAlign: "center", fontFamily: F.ui, fontWeight: 800, fontSize: 12, padding: "4px 0" }}>
+                {short} <span style={{ color: BASE.t2, fontWeight: 600 }}>{date.getMonth() + 1}/{date.getDate()}</span>
+              </div>
+            ))}
+            {FOOD_MEALS.map((meal) => (
+              <Fragment key={meal}>
+                <div style={{ display: "flex", alignItems: "center", fontFamily: F.ui, fontWeight: 800, fontSize: 12, color: BASE.t2 }}>
+                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: MEAL_COLOR[meal], marginRight: 6, border: `1px solid ${BASE.ink}` }} />
+                  {meal}
+                </div>
+                {weekDays.map(({ short }) => {
+                  const slot = slotFor(short, meal);
+                  return (
+                    <div key={short + meal} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, short, meal)}>
+                      {slot ? (
+                        <div
+                          draggable
+                          onDragStart={(e) => e.dataTransfer.setData("text/slot-id", String(slot.id))}
+                          onClick={() => { const r = recipes.find((x) => x.id === slot.recipe_id); if (r) setViewRecipe(r); }}
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "8px 10px", cursor: "grab", minHeight: 40 }}
+                        >
+                          <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{slot.recipe_name}</span>
+                          <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex", flexShrink: 0 }}><Icon name="close" size={12} /></button>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => setPickerSlot({ day: short, meal })}
+                          style={{ border: `1.5px dashed ${BASE.t3}`, borderRadius: 8, padding: "8px 10px", fontSize: 12, color: BASE.t3, fontFamily: F.ui, cursor: "pointer", minHeight: 40, display: "flex", alignItems: "center" }}
+                        >
+                          + Add
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </Fragment>
+            ))}
+          </div>
+        </div>
+
         <ThisWeeksDinners recipes={recipes} onView={setViewRecipe} />
         <AlternativeMealsWidget recipes={recipes} onView={setViewRecipe} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {days.map((day, i) => (
-            <Card key={day} style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "8px 14px", background: i === 0 ? BASE.yellow : BASE.muted, borderBottom: `2px solid ${BASE.ink}`, fontFamily: F.ui, fontWeight: 800, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                {i === 0 ? "Today" : day}
-                {i === 0 && <span style={{ fontWeight: 600, fontSize: 11, color: BASE.t2 }}>· {day}</span>}
-              </div>
-              {MEALS.map((meal) => {
-                const slot = slotFor(day, meal);
-                return (
-                  <div key={meal} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, day, meal)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderTop: `1px solid ${BASE.muted}` }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: BASE.t2, minWidth: 66, fontFamily: F.ui }}>
-                      <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: MEAL_COLOR[meal], marginRight: 6, border: `1px solid ${BASE.ink}` }} />
-                      {meal}
-                    </span>
-                    {slot ? (
-                      <div
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData("text/slot-id", String(slot.id))}
-                        onClick={() => { const r = recipes.find((x) => x.id === slot.recipe_id); if (r) setViewRecipe(r); }}
-                        style={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "5px 10px", cursor: "grab" }}
-                      >
-                        <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>{slot.recipe_name}</span>
-                        <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex" }}><Icon name="close" size={13} /></button>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => setPickerSlot({ day, meal })}
-                        style={{ flex: 1, border: `1.5px dashed ${BASE.t3}`, borderRadius: 8, padding: "5px 10px", fontSize: 12, color: BASE.t3, fontFamily: F.ui, cursor: "pointer" }}
-                      >
-                        + Add a recipe
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </Card>
-          ))}
-        </div>
-        <button onClick={() => navigate("/food/recipes")} style={{ ...btn(BASE.teal), width: "100%", marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <Icon name="book" size={15} /> Browse Recipe Library
+
+        <button onClick={() => navigate("/food/grocery")} style={{ ...btn(BASE.orange), width: "100%", marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px" }}>
+          <Icon name="cart" size={16} /> Grocery List
         </button>
       </div>
 
