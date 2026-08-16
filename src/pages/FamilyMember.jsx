@@ -138,7 +138,7 @@ export default function FamilyMember({
 
   return (
     <div>
-      <PageHeader title={member.name} sprinkles="family" back={() => navigate("/settings/family")} />
+      <PageHeader title={member.name} sprinkles="family" back={() => navigate("/family")} />
 
       <div style={{ background: theme.bg, padding: "20px 16px 40px", display: "flex", flexDirection: "column", gap: 14 }}>
         <Card bg={member.color} style={{ display: "flex", alignItems: "center", gap: 14, color: "#fff" }}>
