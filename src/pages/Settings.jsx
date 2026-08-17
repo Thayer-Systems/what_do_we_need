@@ -1,4 +1,4 @@
-import { PageHeader, Card } from "../components/ui.jsx";
+import { Card } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F } from "../lib/theme.js";
@@ -13,8 +13,7 @@ export default function Settings() {
   const { navigate } = useRouter();
   return (
     <div>
-      <PageHeader title="Tools" sprinkles="settings" />
-      <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 40px", display: "flex", flexDirection: "column", gap: 10 }}>
         {ITEMS.map(([icon, label, color, path]) => (
           <Card key={path} onClick={() => navigate(path)} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
             <IconBadge icon={icon} bg={color} size={40} />

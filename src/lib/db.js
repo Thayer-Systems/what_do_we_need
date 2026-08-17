@@ -33,10 +33,11 @@ export const get = (path) => api(path);
 // Used for the initial bulk data load so one bad table doesn't take the
 // whole app down to a blank screen; write paths still use get/post/patch/del
 // directly so callers can react to real failures.
-export const getSafe = (path) =>
+export const getSafe = (path, onError) =>
   api(path).catch((err) => {
     // eslint-disable-next-line no-console
     console.error(`Failed to load ${path}:`, err);
+    onError?.(err);
     return [];
   });
 export const post = (table, body) => api(table, { method: "POST", body: JSON.stringify(body) });

@@ -283,17 +283,11 @@ export function FoodWeekPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, 
 
   return (
     <div>
-      <PageHeader
-        title="Food"
-        sprinkles="meals"
-        right={
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => navigate("/food/recipes")} style={btn("#fff")}><Icon name="book" size={15} /></button>
-            <button onClick={() => navigate("/food/trends")} style={btn("#fff")}><Icon name="grid" size={15} /></button>
-          </div>
-        }
-      />
-      <div style={{ padding: "18px 16px 32px" }}>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 32px" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 12 }}>
+          <button onClick={() => navigate("/food/recipes")} style={btn("#fff")}><Icon name="book" size={15} /></button>
+          <button onClick={() => navigate("/food/trends")} style={btn("#fff")}><Icon name="grid" size={15} /></button>
+        </div>
         <div style={{ overflowX: "auto", marginBottom: 18 }}>
           <div style={{ display: "grid", gridTemplateColumns: `74px repeat(${weekDays.length}, minmax(150px, 1fr))`, gap: 8, minWidth: 700 }}>
             <div />

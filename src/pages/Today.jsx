@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { Icon } from "../components/Icons.jsx";
@@ -258,12 +257,10 @@ export default function Today({ members, events, chores, completions, mealPlan, 
 
   return (
     <div style={{ padding: "16px 16px 40px" }}>
-      <PageHeader
-        title="Today"
-        sprinkles="default"
-        right={<span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, color: BASE.t2 }}>{greetingForNow()}</span>}
-      />
-      <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, margin: "14px 0 4px" }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: "calc(env(safe-area-inset-top, 0px) + 6px)" }}>
+        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
+        <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, color: BASE.t2 }}>{greetingForNow()}</span>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginTop: 10 }} className="sprinkles-today-grid">
         <TodaysEventsCard events={events} navigate={navigate} />
         <DepartureCard events={events} />

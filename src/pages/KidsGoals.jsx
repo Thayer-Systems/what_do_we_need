@@ -104,7 +104,18 @@ function RedeemModal({ reward, kids, coinLedger, onSubmit, onClose }) {
   );
 }
 
-export function KidsGoalsRulesPage({ members, coinRules, coinLedger, onAddCoinTransaction }) {
+function LoadErrorBanner() {
+  return (
+    <div style={{ background: "#fff", border: `2px solid ${BASE.red}`, borderRadius: 10, padding: "10px 12px" }}>
+      <div style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 12, color: BASE.red, marginBottom: 4 }}>Couldn't load coin data</div>
+      <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t2 }}>
+        The coin tables didn't load — this usually means the Supabase migration hasn't finished, or the schema cache needs a nudge. In the Supabase SQL editor, try running <code>NOTIFY pgrst, 'reload schema';</code>, then reload this page.
+      </div>
+    </div>
+  );
+}
+
+export function KidsGoalsRulesPage({ members, coinRules, coinLedger, coinLoadError, onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [ruleModal, setRuleModal] = useState(null);
@@ -123,6 +134,7 @@ export function KidsGoalsRulesPage({ members, coinRules, coinLedger, onAddCoinTr
     <div>
       <PageHeader title="Coin Rules" sprinkles="settings" back={() => navigate("/goals/kids")} />
       <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 18 }}>
+        {coinLoadError && <LoadErrorBanner />}
         <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2 }}>Tap a rule to give or take coins from a kid right away.</div>
         <div>
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 8, color: BASE.green }}>Coins Given For</div>
@@ -140,7 +152,7 @@ export function KidsGoalsRulesPage({ members, coinRules, coinLedger, onAddCoinTr
   );
 }
 
-export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, onAddCoinTransaction }) {
+export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, coinLoadError, onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -150,7 +162,6 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
   if (kids.length === 0) {
     return (
       <div>
-        <PageHeader title="Kids Goals" sprinkles="default" />
         <EmptyState icon="star" text="No kids on the family list yet — add family members and mark them as kids." />
       </div>
     );
@@ -158,17 +169,12 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
 
   return (
     <div>
-      <PageHeader
-        title="Kids Goals"
-        sprinkles="default"
-        right={
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => navigate("/goals/kids/rules")} style={btn("#fff")}><Icon name="book" size={15} /></button>
-            <button onClick={() => setQuickOpen(true)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
-          </div>
-        }
-      />
-      <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 40px", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+          <button onClick={() => navigate("/goals/kids/rules")} style={btn("#fff")}><Icon name="book" size={15} /></button>
+          <button onClick={() => setQuickOpen(true)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
+        </div>
+        {coinLoadError && <LoadErrorBanner />}
         <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(150px, 1fr))`, gap: 12 }}>
           {kids.map((k) => (
             <div key={k.id} style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 18, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "18px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#fff" }}>
