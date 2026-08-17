@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, Modal, Chip, EmptyState } from "../components/ui.jsx";
-import { IconBadge } from "../components/Deco.jsx";
+import { Modal } from "../components/ui.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { BASE, F, CATEGORY_COLORS, hardShadow } from "../lib/theme.js";
+import { BASE, F, CATEGORY_COLORS, eventColor, hardShadow } from "../lib/theme.js";
 import { downloadICS } from "../lib/ics.js";
+import { useCalendarFilters } from "../lib/calendarFilters.jsx";
 
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "9px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
-const CATEGORIES = ["event", "appointment", "activity", "meal", "chore", "other"];
+const CATEGORIES = ["event", "appointment", "activity", "meal", "chore", "work", "other"];
 const RECURRENCE = ["none", "daily", "weekly", "monthly", "yearly"];
 const RECURRENCE_LABEL = { none: "One-time", daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
 const DAY_MS = 86400000;
@@ -92,13 +92,23 @@ function EventModal({ event, members, defaultDate, onSave, onClose }) {
   const allSelected = members.length > 0 && members.every((m) => memberIds.includes(m.id));
   const toggleFamily = () => setMemberIds(allSelected ? [] : members.map((m) => m.id));
 
+  // "work" events are always Courtney's — auto-assign her and lock her in
+  // as soon as that category is picked.
+  const setCategoryAndAssign = (c) => {
+    setCategory(c);
+    if (c === "work") {
+      const courtney = members.find((m) => m.name.toLowerCase() === "courtney");
+      if (courtney) setMemberIds((p) => (p.includes(courtney.id) ? p : [...p, courtney.id]));
+    }
+  };
+
   const lookupTravel = async () => {
     if (!location.trim()) return;
     setTravelLookup("loading");
     try {
       const r = await fetch(`/api/travel-time?destination=${encodeURIComponent(location.trim())}`);
       const d = await r.json();
-      if (d.available) { setTravel(String(d.minutes)); setTravelLookup("done"); } else setTravelLookup("unavailable");
+      if (d.available) { setTravel(String(d.minutes)); setTravelLookup("done"); } else setTravelLookup(d.reason || "unavailable");
     } catch (e) { setTravelLookup("unavailable"); }
   };
 
@@ -119,7 +129,7 @@ function EventModal({ event, members, defaultDate, onSave, onClose }) {
         <div><span style={label}>Title</span><input autoFocus style={inp} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Piper's dance recital" /></div>
         <div><span style={label}>Category</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {CATEGORIES.map((c) => <button key={c} onClick={() => setCategory(c)} style={btn(category === c ? CATEGORY_COLORS[c] : "#fff")}>{c}</button>)}
+            {CATEGORIES.map((c) => <button key={c} onClick={() => setCategoryAndAssign(c)} style={btn(category === c ? CATEGORY_COLORS[c] : "#fff")}>{c}</button>)}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -133,7 +143,9 @@ function EventModal({ event, members, defaultDate, onSave, onClose }) {
           <div style={{ fontSize: 11, color: BASE.t2, fontFamily: F.ui, marginTop: 4 }}>
             {travelLookup === "loading" && "Looking up drive time…"}
             {travelLookup === "done" && "Auto-filled from Google Maps — edit if needed"}
-            {travelLookup === "unavailable" && "Couldn't look it up — enter manually"}
+            {travelLookup === "not_configured" && "Google Maps isn't configured (missing GOOGLE_MAPS_KEY) — enter manually"}
+            {travelLookup === "missing_origin" && "Set a household address in Settings so travel time can be looked up"}
+            {(travelLookup === "unavailable" || travelLookup === "lookup_failed" || travelLookup === "exception") && "Couldn't look it up — enter manually"}
           </div>
         </div>
         <div><span style={label}>Who</span>
@@ -166,25 +178,6 @@ function EventModal({ event, members, defaultDate, onSave, onClose }) {
   );
 }
 
-function FilterPanel({ open, members, memberFilter, setMemberFilter, catFilter, setCatFilter }) {
-  if (!open) return null;
-  return (
-    <div style={{ padding: "0 16px 14px" }}>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8 }}>
-        <Chip active={memberFilter === "all"} onClick={() => setMemberFilter("all")}>Everyone</Chip>
-        {members.map((m) => (
-          <Chip key={m.id} active={memberFilter === m.id} onClick={() => setMemberFilter(m.id)} color={m.color}>{m.name}</Chip>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
-        <Chip active={catFilter === "all"} onClick={() => setCatFilter("all")}>All types</Chip>
-        {CATEGORIES.map((c) => <Chip key={c} active={catFilter === c} onClick={() => setCatFilter(c)} color={CATEGORY_COLORS[c]}>{c}</Chip>)}
-      </div>
-    </div>
-  );
-}
-
-// Google-Calendar-mobile-style agenda: date rail + event list, clean and dense.
 function forecastFor(forecast, date) {
   if (!forecast?.length) return null;
   return forecast.find((f) => new Date(f.date).toDateString() === date.toDateString());
@@ -200,7 +193,8 @@ function WeatherBadge({ day }) {
   );
 }
 
-function Agenda({ days, events, onOpen, forecast }) {
+// Google-Calendar-mobile-style agenda: date rail + event list, clean and dense.
+function Agenda({ days, events, members, onOpen, forecast }) {
   const today = new Date();
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -224,7 +218,7 @@ function Agenda({ days, events, onOpen, forecast }) {
                   <div
                     key={e.id}
                     onClick={() => onOpen(e)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#fff", border: `1.5px solid ${BASE.ink}`, borderLeft: `6px solid ${CATEGORY_COLORS[e.category] || BASE.pink}`, borderRadius: 8, padding: "6px 10px" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#fff", border: `1.5px solid ${BASE.ink}`, borderLeft: `6px solid ${eventColor(e, members)}`, borderRadius: 8, padding: "6px 10px" }}
                   >
                     <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2, minWidth: 52 }}>
                       {e.all_day ? "All day" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
@@ -242,7 +236,7 @@ function Agenda({ days, events, onOpen, forecast }) {
   );
 }
 
-function MonthView({ cursor, events, onDayClick, onOpenEvent }) {
+function MonthView({ cursor, events, members, onDayClick, onOpenEvent }) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const gridStart = startOfWeek(first);
   const days = Array.from({ length: 42 }, (_, i) => new Date(gridStart.getTime() + i * DAY_MS));
@@ -252,17 +246,22 @@ function MonthView({ cursor, events, onDayClick, onOpenEvent }) {
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, marginBottom: 10 }}>{cursor.toLocaleDateString([], { month: "long", year: "numeric" })}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
         {days.map((d) => {
-          const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
           const inMonth = d.getMonth() === cursor.getMonth();
+          // Cells outside the current month are left blank rather than
+          // showing the adjacent month's dates/events.
+          if (!inMonth) {
+            return <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 96, background: BASE.muted, opacity: 0.4 }} />;
+          }
+          const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
           return (
-            <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 96, padding: 5, background: sameDay(d, today) ? BASE.yellow : inMonth ? "#fff" : BASE.muted, opacity: inMonth ? 1 : 0.5, display: "flex", flexDirection: "column", gap: 3, overflow: "hidden" }}>
+            <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 96, padding: 5, background: sameDay(d, today) ? BASE.yellow : "#fff", display: "flex", flexDirection: "column", gap: 3, overflow: "hidden" }}>
               <div onClick={() => onDayClick(d)} style={{ fontSize: 11, fontWeight: 700, fontFamily: F.ui, cursor: "pointer" }}>{d.getDate()}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0 }}>
                 {dayEvents.slice(0, 3).map((e) => (
                   <div
                     key={e.id}
                     onClick={(ev) => { ev.stopPropagation(); onOpenEvent ? onOpenEvent(e) : onDayClick(d); }}
-                    style={{ background: CATEGORY_COLORS[e.category] || BASE.pink, border: `1px solid ${BASE.ink}`, borderRadius: 5, padding: "1px 4px", cursor: "pointer", overflow: "hidden" }}
+                    style={{ background: eventColor(e, members), border: `1px solid ${BASE.ink}`, borderRadius: 5, padding: "1px 4px", cursor: "pointer", overflow: "hidden" }}
                   >
                     <div style={{ fontSize: 9, fontWeight: 800, fontFamily: F.ui, color: BASE.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {e.all_day ? "" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} {e.title}
@@ -282,15 +281,13 @@ function MonthView({ cursor, events, onDayClick, onOpenEvent }) {
 }
 
 export default function CalendarPage({ members, events, settings, onAdd, onUpdate, onDelete, onSyncGoogle }) {
-  const [view, setView] = useState("3day");
+  const [view, setView] = useState("month");
   const [cursor, setCursor] = useState(new Date());
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [memberFilter, setMemberFilter] = useState("all");
-  const [catFilter, setCatFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(null);
   const [openEvent, setOpenEvent] = useState(null);
   const [editEvent, setEditEvent] = useState(null);
   const [forecast, setForecast] = useState([]);
+  const { memberFilter, catFilter } = useCalendarFilters();
 
   useEffect(() => {
     fetch("/api/weather?range=week").then((r) => r.json()).then((d) => setForecast(d?.days || [])).catch(() => setForecast([]));
@@ -300,7 +297,6 @@ export default function CalendarPage({ members, events, settings, onAdd, onUpdat
     () => events.filter((e) => (memberFilter === "all" || (e.member_ids || []).includes(memberFilter)) && (catFilter === "all" || e.category === catFilter)),
     [events, memberFilter, catFilter]
   );
-  const activeFilterCount = (memberFilter !== "all" ? 1 : 0) + (catFilter !== "all" ? 1 : 0);
 
   const shift = (dir) => {
     const d = new Date(cursor);
@@ -320,25 +316,20 @@ export default function CalendarPage({ members, events, settings, onAdd, onUpdat
 
   return (
     <div>
-      <FilterPanel open={filtersOpen} members={members} memberFilter={memberFilter} setMemberFilter={setMemberFilter} catFilter={catFilter} setCatFilter={setCatFilter} />
-
       <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", rowGap: 8 }}>
         {["3day", "week", "month"].map((v) => (
-          <Chip key={v} active={view === v} onClick={() => setView(v)} color={BASE.teal}>{v === "3day" ? "3 day" : v}</Chip>
+          <button key={v} onClick={() => setView(v)} style={{ ...btn(view === v ? BASE.teal : "#fff"), padding: "6px 14px" }}>{v === "3day" ? "3 day" : v}</button>
         ))}
         <div style={{ flex: 1 }} />
         <button onClick={() => shift(-1)} style={{ ...btn("#fff"), padding: "7px 10px" }}><Icon name="chevronLeft" size={15} /></button>
         <button onClick={() => setCursor(new Date())} style={{ ...btn(BASE.yellow), padding: "7px 12px" }}>Today</button>
         <button onClick={() => shift(1)} style={{ ...btn("#fff"), padding: "7px 10px" }}><Icon name="chevronRight" size={15} /></button>
-        <button onClick={() => setFiltersOpen((o) => !o)} style={{ ...btn(activeFilterCount ? BASE.yellow : "#fff"), padding: "7px 10px", display: "flex", alignItems: "center", gap: 6 }}>
-          <Icon name="filter" size={15} /> {activeFilterCount > 0 && activeFilterCount}
-        </button>
         <button onClick={() => setAddOpen(dateStr(cursor))} style={{ ...btn(BASE.pink), padding: "7px 10px" }}><Icon name="plus" size={15} /></button>
       </div>
 
       <div style={{ marginTop: 12 }}>
-        {view === "month" && <MonthView cursor={cursor} events={filtered} onDayClick={(d) => { setCursor(d); setView("3day"); }} onOpenEvent={setOpenEvent} />}
-        {(view === "week" || view === "3day") && <Agenda days={agendaDays} events={filtered} onOpen={setOpenEvent} forecast={forecast} />}
+        {view === "month" && <MonthView cursor={cursor} events={filtered} members={members} onDayClick={(d) => { setCursor(d); setView("3day"); }} onOpenEvent={setOpenEvent} />}
+        {(view === "week" || view === "3day") && <Agenda days={agendaDays} events={filtered} members={members} onOpen={setOpenEvent} forecast={forecast} />}
       </div>
 
       {addOpen && <EventModal members={members} defaultDate={addOpen} onSave={(v) => { onAdd(v); setAddOpen(null); }} onClose={() => setAddOpen(null)} />}

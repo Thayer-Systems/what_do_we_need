@@ -21,6 +21,7 @@ const HOUSEHOLD_LINKS = [
   ["question", "FAQ", BASE.orange, "/settings/faq"],
   ["book", "Instructions", BASE.green, "/settings/instructions"],
   ["cloudSun", "Weather", BASE.teal, "/settings/tools/weather"],
+  ["sun", "School Day Display", BASE.yellow, "/school-day"],
 ];
 
 export function HouseholdPage({ settings }) {
@@ -60,7 +61,15 @@ export function IntegrationsPage({ settings }) {
         <Card>
           <Field label="AI assistant" value={status ? s(status.assistant, "ready", "add ANTHROPIC_API_KEY") : "Checking..."} />
           <Field label="Weather" value={status ? s(status.weather, "ready", "add TOMORROW_IO_API_KEY") : "Checking..."} />
-          <Field label="Google Maps" value={status ? s(status.googleMapsConfigured, "ready", "enter travel time manually for now") : "Checking..."} />
+          <Field
+            label="Google Maps"
+            value={
+              !status ? "Checking..."
+                : !status.googleMapsConfigured ? "Not connected — add GOOGLE_MAPS_KEY"
+                : !status.googleMapsOriginConfigured ? "Key set, but no household address — add one in Household so travel time has an origin"
+                : "Connected — ready"
+            }
+          />
           <Field
             label="Google Calendar"
             value={settings?.google_calendar_connected ? "Connected" : status?.googleCalendarConfigured ? "Configured, not connected yet" : "Not configured"}

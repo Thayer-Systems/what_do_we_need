@@ -15,7 +15,7 @@ export default function FamilyList({ members }) {
               background: m.color,
               color: "#fff",
               border: `2.5px solid ${BASE.ink}`,
-              borderRadius: 18,
+              borderRadius: 12,
               boxShadow: hardShadow(BASE.ink, 4, 4),
               fontFamily: F.ui,
               display: "flex",

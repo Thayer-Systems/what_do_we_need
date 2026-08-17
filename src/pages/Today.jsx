@@ -2,16 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { IconBadge } from "../components/Deco.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow, mascotOfDay } from "../lib/theme.js";
+import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance } from "../lib/coins.js";
+import { choreAppliesToday } from "../lib/tasks.js";
 
 function useWeather() {
   const [weather, setWeather] = useState(null);
+  const [week, setWeek] = useState([]);
   useEffect(() => {
     fetch("/api/weather").then((r) => r.json()).then((d) => setWeather(d?.available ? d : null)).catch(() => setWeather(null));
+    fetch("/api/weather?range=week").then((r) => r.json()).then((d) => setWeek(d?.available ? d.days || [] : [])).catch(() => setWeek([]));
   }, []);
-  return weather;
+  return { weather, week };
 }
 
 function sameDay(a, b) {
@@ -27,8 +30,8 @@ function fmtCountdown(ms) {
 }
 
 const widgetCard = (bg) => ({
-  background: bg, border: `2.5px solid ${BASE.ink}`, borderRadius: 18,
-  boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, position: "relative", overflow: "hidden",
+  background: bg, border: `2.5px solid ${BASE.ink}`, borderRadius: 12,
+  boxShadow: hardShadow(BASE.ink, 4, 4), padding: 14, position: "relative", overflow: "hidden",
 });
 const eyebrow = { fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: F.ui };
 
@@ -39,7 +42,9 @@ function greetingForNow(now = new Date()) {
   return "Good evening";
 }
 
-function WeatherCard({ weather, navigate }) {
+function WeatherCard({ weather, week, navigate }) {
+  const today = new Date();
+  const restOfWeek = week.filter((d) => !sameDay(new Date(d.date), today)).slice(0, 6);
   return (
     <div style={{ ...widgetCard(BASE.teal), cursor: "pointer" }} onClick={() => navigate("/settings/tools/weather")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -50,6 +55,17 @@ function WeatherCard({ weather, navigate }) {
         </div>
         <Icon name={weather?.icon || "sun"} size={34} />
       </div>
+      {restOfWeek.length > 0 && (
+        <div style={{ display: "flex", gap: 6, marginTop: 12, overflowX: "auto" }}>
+          {restOfWeek.map((d) => (
+            <div key={d.date} style={{ background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "6px 8px", textAlign: "center", flexShrink: 0, minWidth: 44 }}>
+              <div style={{ fontFamily: F.ui, fontSize: 9, fontWeight: 800, color: BASE.t2, textTransform: "uppercase" }}>{new Date(d.date).toLocaleDateString([], { weekday: "short" })}</div>
+              <Icon name={d.icon} size={16} />
+              <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800 }}>{d.highF}°</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -128,44 +144,45 @@ function MealsCard({ mealPlan, navigate }) {
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Today's Meals</span>
         <IconBadge icon="meals" bg={BASE.lilac} size={32} />
       </div>
-      {[["Lunch", slot("Lunch")], ["Dinner", slot("Dinner")]].map(([lbl, s]) => (
-        <div key={lbl} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderTop: `1.5px solid ${BASE.muted}` }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, fontFamily: F.ui, textTransform: "uppercase" }}>{lbl}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: F.ui }}>{s ? s.recipe_name : "Not planned"}</span>
-        </div>
-      ))}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        {[["Lunch", slot("Lunch")], ["Dinner", slot("Dinner")]].map(([lbl, s]) => (
+          <div key={lbl} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: 10, aspectRatio: "1 / 1", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: BASE.t2, fontFamily: F.ui, textTransform: "uppercase" }}>{lbl}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, fontFamily: F.ui }}>{s ? s.recipe_name : "Not planned"}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 function TasksAndProjectsCard({ members, chores, completions, projects, onToggleChore, navigate }) {
   const todayStr = new Date().toISOString().slice(0, 10);
-  const dow = new Date().getDay();
   const doneToday = new Set(completions.filter((c) => c.date === todayStr).map((c) => c.chore_id));
-  const remainingChores = chores.filter((c) => c.active && (c.frequency === "daily" || (c.days || []).includes(dow)) && !doneToday.has(c.id));
+  const remainingChores = chores.filter((c) => c.active && (c.visibility || "public") === "public" && choreAppliesToday(c) && !doneToday.has(c.id));
   const openProjects = projects.filter((p) => (p.visibility || "public") === "public" && p.status !== "done");
 
   return (
     <div style={{ ...widgetCard(BASE.pink), gridColumn: "1 / -1" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }} className="sprinkles-today-tasks-split">
         <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Today's Tasks</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Today's Tasks</span>
             <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-              <IconBadge icon="check" bg="#fff" size={32} />
+              <IconBadge icon="check" bg="#fff" size={28} radius={8} />
             </button>
           </div>
           {remainingChores.length === 0 ? (
-            <div style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 700 }}>All done today!</div>
+            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>All done today!</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
               {remainingChores.map((c) => {
                 const member = members.find((m) => m.id === c.member_id);
                 return (
-                  <div key={c.id} onClick={() => onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "8px 12px", cursor: "pointer" }}>
-                    <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={26} radius={8} iconColor="#fff" />
-                    <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>{c.title}</span>
-                    <Icon name="close" size={16} style={{ opacity: 0.25 }} />
+                  <div key={c.id} onClick={() => onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
+                    <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={22} radius={7} iconColor="#fff" />
+                    <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{c.title}</span>
+                    <Icon name="close" size={14} style={{ opacity: 0.25 }} />
                   </div>
                 );
               })}
@@ -176,20 +193,20 @@ function TasksAndProjectsCard({ members, chores, completions, projects, onToggle
         <div style={{ width: 2, background: BASE.ink, opacity: 0.15, alignSelf: "stretch" }} className="sprinkles-today-tasks-divider" />
 
         <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Open Projects</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Open Projects</span>
             <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-              <IconBadge icon="grid" bg="#fff" size={32} />
+              <IconBadge icon="grid" bg="#fff" size={28} radius={8} />
             </button>
           </div>
           {openProjects.length === 0 ? (
-            <div style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 700 }}>Nothing in progress.</div>
+            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>Nothing in progress.</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
               {openProjects.map((p) => (
-                <div key={p.id} onClick={() => navigate("/tasks")} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "8px 12px", cursor: "pointer" }}>
-                  <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{p.title}</div>
-                  <ProgressBar pct={p.progress} color={BASE.pink} height={10} />
+                <div key={p.id} onClick={() => navigate("/tasks")} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
+                  <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, marginBottom: 5 }}>{p.title}</div>
+                  <ProgressBar pct={p.progress} color={BASE.pink} height={8} />
                 </div>
               ))}
             </div>
@@ -200,22 +217,34 @@ function TasksAndProjectsCard({ members, chores, completions, projects, onToggle
   );
 }
 
-function KidCoinsCard({ kids, coinLedger, navigate }) {
+function KidCoinsCard({ kids, coinLedger, coinRewards, navigate }) {
   if (!kids.length) return null;
+  const tiers = useMemo(() => [...new Set(coinRewards.map((r) => r.coin_cost))].sort((a, b) => a - b), [coinRewards]);
+  const nextTier = tiers[0];
   return (
-    <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/goals/kids")}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+    <div style={{ ...widgetCard("#fff") }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Kids' Coins</span>
         <IconBadge icon="star" bg={BASE.yellow} size={32} />
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
-        {kids.map((k) => (
-          <div key={k.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1 }}>
-            <IconBadge icon={k.icon} bg={k.color} size={34} radius={999} iconColor="#fff" />
-            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>{coinBalance(coinLedger, k.id)}</span>
-            <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 10, color: BASE.t2 }}>{k.name}</span>
-          </div>
-        ))}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${kids.length}, 1fr)`, gap: 8 }}>
+        {kids.map((k) => {
+          const balance = coinBalance(coinLedger, k.id);
+          const target = tiers.find((t) => t > balance) || nextTier || 1;
+          const pct = Math.min(100, Math.round((balance / target) * 100));
+          return (
+            <div
+              key={k.id}
+              onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
+              style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "10px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", aspectRatio: "1 / 1", justifyContent: "center" }}
+            >
+              <IconBadge icon={k.icon} bg={k.color} size={32} radius={999} iconColor="#fff" />
+              <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14 }}>{balance}</span>
+              <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 10, color: BASE.t2 }}>{k.name}</span>
+              {tiers.length > 0 && <div style={{ width: "100%" }}><ProgressBar pct={pct} color={k.color} height={6} /></div>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -249,9 +278,9 @@ function ParentsGoalsCard({ parents, stats, navigate }) {
   );
 }
 
-export default function Today({ members, events, chores, completions, mealPlan, projects, stats, coinLedger, onToggleChore }) {
+export default function Today({ members, events, chores, completions, mealPlan, projects, stats, coinLedger, coinRewards, onToggleChore }) {
   const { navigate } = useRouter();
-  const weather = useWeather();
+  const { weather, week } = useWeather();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const parents = useMemo(() => members.filter((m) => m.role === "parent"), [members]);
 
@@ -264,18 +293,12 @@ export default function Today({ members, events, chores, completions, mealPlan, 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginTop: 10 }} className="sprinkles-today-grid">
         <TodaysEventsCard events={events} navigate={navigate} />
         <DepartureCard events={events} />
-        <WeatherCard weather={weather} navigate={navigate} />
+        <WeatherCard weather={weather} week={week} navigate={navigate} />
         <MealsCard mealPlan={mealPlan} navigate={navigate} />
-        <KidCoinsCard kids={kids} coinLedger={coinLedger} navigate={navigate} />
+        <KidCoinsCard kids={kids} coinLedger={coinLedger} coinRewards={coinRewards} navigate={navigate} />
         <ParentsGoalsCard parents={parents} stats={stats} navigate={navigate} />
         <TasksAndProjectsCard members={members} chores={chores} completions={completions} projects={projects} onToggleChore={onToggleChore} navigate={navigate} />
       </div>
-
-      <img
-        src={mascotOfDay()}
-        alt=""
-        style={{ position: "fixed", right: 14, bottom: 14, width: 64, height: 64, objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(2px 2px 0 ${BASE.ink})` }}
-      />
 
       <style>{`
         @media (max-width: 640px) {

@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { PageHeader, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
+import { LineChart } from "../components/Charts.jsx";
 import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance } from "../lib/coins.js";
 
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
-const QUICK_AMOUNTS = [1, 2, 3];
+const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 
 function KidPicker({ kids, value, onChange }) {
   return (
@@ -30,18 +31,37 @@ function SubmitError({ error }) {
   return <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: BASE.red, marginTop: 10 }}>Couldn't save that: {error}</div>;
 }
 
-function QuickAdjustModal({ kids, onSubmit, onClose }) {
+// Custom-amount coin adjuster. The reason field doubles as a rule picker —
+// choosing a rule auto-fills the amount and +/- direction from it; picking
+// "Custom reason" clears that and lets the free-text field + amount box
+// take over.
+function QuickAdjustModal({ kids, coinRules, onSubmit, onClose }) {
   const [kidId, setKidId] = useState(kids[0]?.id ?? null);
   const [amount, setAmount] = useState(1);
   const [sign, setSign] = useState(1);
+  const [ruleId, setRuleId] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const gives = coinRules.filter((r) => r.delta > 0).sort((a, b) => a.delta - b.delta || a.sort_order - b.sort_order);
+  const takes = coinRules.filter((r) => r.delta < 0).sort((a, b) => b.delta - a.delta || a.sort_order - b.sort_order);
+
+  const handleRulePick = (value) => {
+    setRuleId(value);
+    if (!value) return;
+    const rule = coinRules.find((r) => String(r.id) === value);
+    if (rule) {
+      setAmount(Math.abs(rule.delta));
+      setSign(rule.delta > 0 ? 1 : -1);
+      setReason(rule.label);
+    }
+  };
+
   const submit = async () => {
     setBusy(true);
     setError(null);
-    const result = await onSubmit({ member_id: kidId, delta: amount * sign, reason: reason.trim() || null, rule_id: null });
+    const result = await onSubmit({ member_id: kidId, delta: amount * sign, reason: reason.trim() || null, rule_id: ruleId ? Number(ruleId) : null });
     setBusy(false);
     if (result?.ok) onClose();
     else setError(result?.error || "Unknown error");
@@ -56,15 +76,36 @@ function QuickAdjustModal({ kids, onSubmit, onClose }) {
           <button onClick={() => setSign(1)} style={btn(sign === 1 ? BASE.green : "#fff")}>+ Give</button>
           <button onClick={() => setSign(-1)} style={btn(sign === -1 ? BASE.red : "#fff")}>− Take</button>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {QUICK_AMOUNTS.map((a) => <button key={a} onClick={() => setAmount(a)} style={btn(amount === a ? BASE.yellow : "#fff")}>{a}</button>)}
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" }}>Amount</span>
+          <input
+            type="number"
+            min={1}
+            style={inp}
+            value={amount}
+            onChange={(e) => setAmount(Math.max(1, Math.round(Math.abs(Number(e.target.value)) || 1)))}
+          />
         </div>
-        <input
-          style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui }}
-          placeholder="Reason (optional)"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" }}>Reason</span>
+          <select style={inp} value={ruleId} onChange={(e) => handleRulePick(e.target.value)}>
+            <option value="">Custom reason…</option>
+            <optgroup label="Coins Given For">
+              {gives.map((r) => <option key={r.id} value={r.id}>+{r.delta} · {r.label}</option>)}
+            </optgroup>
+            <optgroup label="Coins Taken For">
+              {takes.map((r) => <option key={r.id} value={r.id}>{r.delta} · {r.label}</option>)}
+            </optgroup>
+          </select>
+          {!ruleId && (
+            <input
+              style={{ ...inp, marginTop: 8 }}
+              placeholder="Type a reason (optional)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          )}
+        </div>
         <button disabled={!kidId || busy} style={{ ...btn(BASE.green), width: "100%", opacity: busy ? 0.6 : 1 }} onClick={submit}>
           {busy ? "Saving..." : `${sign === 1 ? "Give" : "Take"} ${amount} Coin${amount > 1 ? "s" : ""}`}
         </button>
@@ -159,7 +200,7 @@ function LoadErrorBanner() {
     <div style={{ background: "#fff", border: `2px solid ${BASE.red}`, borderRadius: 10, padding: "10px 12px" }}>
       <div style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 12, color: BASE.red, marginBottom: 4 }}>Couldn't load coin data</div>
       <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t2 }}>
-        The coin tables didn't load — this usually means the Supabase migration hasn't finished, or the schema cache needs a nudge. In the Supabase SQL editor, try running <code>NOTIFY pgrst, 'reload schema';</code>, then reload this page.
+        The coin tables didn't load — this usually means the Supabase migration hasn't finished, or the schema cache needs a nudge. In the Supabase SQL editor, run the latest <code>coin_tables_grants</code> migration (or just <code>NOTIFY pgrst, 'reload schema';</code> if it's already applied), then reload this page.
       </div>
     </div>
   );
@@ -210,7 +251,7 @@ function RewardTierBar({ kid, balance, tiers, onTierClick }) {
   const max = tiers[tiers.length - 1] || 1;
   return (
     <div>
-      <div style={{ display: "flex", height: 18, borderRadius: 9, overflow: "hidden", border: `2px solid ${BASE.ink}`, background: "#fff" }}>
+      <div style={{ display: "flex", height: 16, borderRadius: 8, overflow: "hidden", border: `2px solid ${BASE.ink}`, background: "#fff" }}>
         {tiers.map((cost, i) => {
           const prev = i === 0 ? 0 : tiers[i - 1];
           const segPct = ((cost - prev) / max) * 100;
@@ -219,7 +260,7 @@ function RewardTierBar({ kid, balance, tiers, onTierClick }) {
           return (
             <div
               key={cost}
-              onClick={() => onTierClick(cost)}
+              onClick={(e) => { e.stopPropagation(); onTierClick(cost); }}
               title={`${cost} coins`}
               style={{ width: `${segPct}%`, position: "relative", background: BASE.muted, cursor: "pointer", borderRight: i < tiers.length - 1 ? `2px solid ${BASE.ink}` : "none" }}
             >
@@ -228,12 +269,62 @@ function RewardTierBar({ kid, balance, tiers, onTierClick }) {
           );
         })}
       </div>
-      <div style={{ display: "flex", marginTop: 2 }}>
-        {tiers.map((cost, i) => (
-          <div key={cost} style={{ width: `${((cost - (i === 0 ? 0 : tiers[i - 1])) / max) * 100}%`, textAlign: "right", fontSize: 9, fontWeight: 700, color: BASE.t2, fontFamily: F.ui }}>
-            {cost}
+    </div>
+  );
+}
+
+// Per-kid coin history — cumulative balance over time, from the raw ledger.
+export function KidCoinTrendsPage({ member, coinLedger }) {
+  const { navigate } = useRouter();
+  const entries = useMemo(
+    () => coinLedger.filter((l) => l.member_id === member?.id).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
+    [coinLedger, member]
+  );
+  let running = 0;
+  const points = entries.map((l) => {
+    running += l.delta;
+    return { label: new Date(l.created_at).toLocaleDateString([], { month: "numeric", day: "numeric" }), value: running };
+  });
+
+  if (!member) return null;
+
+  return (
+    <div>
+      <PageHeader title={`${member.name}'s Coins`} sprinkles="settings" back={() => navigate("/goals/kids")} />
+      <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ background: member.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 16px", color: "#fff", display: "flex", alignItems: "center", gap: 12 }}>
+          <IconBadge icon={member.icon} bg="#fff" size={40} radius={12} />
+          <div>
+            <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>Current balance</div>
+            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26 }}>{coinBalance(coinLedger, member.id)} coins</div>
           </div>
-        ))}
+        </div>
+
+        {points.length < 2 ? (
+          <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>Not enough history yet to chart a trend.</div>
+        ) : (
+          <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Balance over time</div>
+            <LineChart data={points} color={member.color} labelEvery={Math.max(1, Math.round(points.length / 8))} />
+          </div>
+        )}
+
+        <div>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>All Activity</div>
+          {entries.length === 0 ? (
+            <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No coins given or taken yet.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[...entries].reverse().map((l) => (
+                <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "6px 10px" }}>
+                  <span style={{ flex: 1, fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>{l.reason || (l.delta > 0 ? "Coins given" : "Coins taken")}</span>
+                  <span style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t3 }}>{new Date(l.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                  <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 13, color: l.delta > 0 ? BASE.green : BASE.red }}>{l.delta > 0 ? "+" : ""}{l.delta}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -269,6 +360,33 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
 
         {coinLoadError && <LoadErrorBanner />}
 
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(kids.length, 4)}, 1fr)`, gap: 12 }} className="sprinkles-kid-coin-row">
+          {kids.map((k) => {
+            const balance = coinBalance(coinLedger, k.id);
+            return (
+              <div
+                key={k.id}
+                onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
+                style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 12px", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, aspectRatio: "1 / 1", justifyContent: "center" }}
+              >
+                <IconBadge icon={k.icon} bg="#fff" size={38} radius={12} />
+                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>{k.name}</span>
+                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 24 }}>{balance} <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>coins</span></span>
+                {tiers.length > 0 && (
+                  <div style={{ background: "#fff", borderRadius: 10, padding: "6px 8px", width: "100%" }}>
+                    <RewardTierBar kid={k} balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <style>{`
+          @media (max-width: 640px) {
+            .sprinkles-kid-coin-row { grid-template-columns: repeat(2, 1fr) !important; }
+          }
+        `}</style>
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
           <div>
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, marginBottom: 6, color: BASE.green }}>Coins Given For</div>
@@ -278,27 +396,6 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, marginBottom: 6, color: BASE.red }}>Coins Taken For</div>
             <div style={rulesListStyle}>{takes.map((r) => <RuleRow key={r.id} rule={r} onOpen={setRuleModal} />)}</div>
           </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {kids.map((k) => {
-            const balance = coinBalance(coinLedger, k.id);
-            return (
-              <div key={k.id} style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 18, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 16px", color: "#fff" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: tiers.length ? 10 : 0 }}>
-                  <IconBadge icon={k.icon} bg="#fff" size={36} radius={12} />
-                  <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, flex: 1 }}>{k.name}</span>
-                  <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{balance}</span>
-                  <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>coins</span>
-                </div>
-                {tiers.length > 0 && (
-                  <div style={{ background: "#fff", borderRadius: 12, padding: "8px 10px" }}>
-                    <RewardTierBar kid={k} balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
 
         <div>
@@ -322,7 +419,7 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
         </div>
       </div>
 
-      {quickOpen && <QuickAdjustModal kids={kids} onSubmit={onAddCoinTransaction} onClose={() => setQuickOpen(false)} />}
+      {quickOpen && <QuickAdjustModal kids={kids} coinRules={coinRules} onSubmit={onAddCoinTransaction} onClose={() => setQuickOpen(false)} />}
       {ruleModal && <RuleApplyModal rule={ruleModal} kids={kids} onSubmit={onAddCoinTransaction} onClose={() => setRuleModal(null)} />}
       {tierModal != null && <TierRewardsModal tier={tierModal} rewards={coinRewards} kids={kids} coinLedger={coinLedger} onSubmit={onAddCoinTransaction} onClose={() => setTierModal(null)} />}
     </div>

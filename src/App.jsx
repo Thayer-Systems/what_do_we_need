@@ -4,6 +4,7 @@ import PinGate from "./components/PinGate.jsx";
 import AssistantPopover from "./components/AssistantPopover.jsx";
 import { CelebrationProvider, useCelebrate } from "./components/Celebration.jsx";
 import { RouterProvider, useRouter } from "./lib/router.jsx";
+import { CalendarFiltersProvider } from "./lib/calendarFilters.jsx";
 import Today from "./pages/Today.jsx";
 import FamilyList from "./pages/FamilyList.jsx";
 import FamilyMember from "./pages/FamilyMember.jsx";
@@ -11,15 +12,18 @@ import CalendarPage from "./pages/CalendarPage.jsx";
 import { FoodWeekPage, RecipeLibraryPage, TrendsPage } from "./pages/Food.jsx";
 import Grocery from "./pages/Grocery.jsx";
 import Tasks from "./pages/Tasks.jsx";
-import KidsGoals, { KidsGoalsRulesPage } from "./pages/KidsGoals.jsx";
+import KidsGoals, { KidsGoalsRulesPage, KidCoinTrendsPage } from "./pages/KidsGoals.jsx";
 import ParentsGoals from "./pages/ParentsGoals.jsx";
 import Settings from "./pages/Settings.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage, PreferencesPage } from "./pages/SettingsPages.jsx";
+import SchoolDay from "./pages/SchoolDay.jsx";
 import { get, getSafe, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
 import { notifyAssignment } from "./lib/push.js";
+import { useIsTVMode } from "./lib/useMediaQuery.js";
+import { isSchoolMorningWindow } from "./lib/schoolDay.js";
 
 const DAY_MS = 86400000;
 
@@ -89,11 +93,12 @@ function AppInner() {
   const [coinLedger, setCoinLedger] = useState([]);
   const [coinRewards, setCoinRewards] = useState([]);
   const [coinLoadError, setCoinLoadError] = useState(false);
+  const [morningRoutine, setMorningRoutine] = useState([]);
 
   const loadAll = useCallback(async () => {
     let coinFailed = false;
     const trackCoinFailure = () => { coinFailed = true; };
-    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning] = await Promise.all([
       getSafe("sprinkles_family_members?order=sort_order.asc"),
       getSafe("sprinkles_contacts"),
       getSafe("sprinkles_activities"),
@@ -112,6 +117,7 @@ function AppInner() {
       getSafe("sprinkles_coin_rules?order=sort_order.asc", trackCoinFailure),
       getSafe("sprinkles_coin_ledger?order=created_at.desc", trackCoinFailure),
       getSafe("sprinkles_coin_rewards?order=sort_order.asc", trackCoinFailure),
+      getSafe("sprinkles_morning_routine_items?order=sort_order.asc"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -132,9 +138,24 @@ function AppInner() {
     setCoinLedger(ledger || []);
     setCoinRewards(rewards || []);
     setCoinLoadError(coinFailed);
+    setMorningRoutine(morning || []);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On a TV/kiosk device, the School Day display becomes the main screen
+  // during the school-morning window (6:45–8:30am ET on a school day) —
+  // it only auto-switches away from Today, never interrupts another page.
+  const isTV = useIsTVMode();
+  useEffect(() => {
+    if (!isTV) return;
+    const check = () => {
+      if (isSchoolMorningWindow() && window.location.pathname === "/") navigate("/school-day");
+    };
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
+  }, [isTV]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const allEvents = useMemo(() => [...events, ...buildActivityEvents(activities, members)], [events, activities, members]);
 
@@ -146,6 +167,7 @@ function AppInner() {
   const SETTERS = {
     sprinkles_contacts: setContacts, sprinkles_activities: setActivities, sprinkles_medications: setMedications,
     sprinkles_links: setLinks, sprinkles_chores: setChores, sprinkles_events: setEvents,
+    sprinkles_morning_routine_items: setMorningRoutine,
   };
   const onAdd = async (table, body) => {
     const d = await post(table, body);
@@ -267,7 +289,8 @@ function AppInner() {
   const onDeleteEvent = (id) => onDelete("sprinkles_events", id);
   const onUpdateEvent = async (id, ch) => {
     const before = events.find((e) => e.id === id);
-    setEvents((p) => p.map((e) => (e.id === id ? { ...e, ...ch } : e)));
+    const after = { ...before, ...ch };
+    setEvents((p) => p.map((e) => (e.id === id ? after : e)));
     await patch("sprinkles_events", id, ch);
     if (ch.member_ids && before) {
       const newlyAdded = ch.member_ids.filter((mid) => !(before.member_ids || []).includes(mid));
@@ -277,6 +300,17 @@ function AppInner() {
         notifyAssignment(newlyAdded, "Added to an event", `${title} · ${new Date(startAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`, "/calendar");
       }
     }
+    // Editing an event re-shares it automatically — hitting Save is the
+    // only action a user needs, no separate "sync to Google" click.
+    fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...after, google_event_id: after.google_event_id, attendee_emails: settings?.attendee_emails }) })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && d.googleEventId) {
+          setEvents((p) => p.map((e) => (e.id === id ? { ...e, google_event_id: d.googleEventId } : e)));
+          if (d.googleEventId !== after.google_event_id) patch("sprinkles_events", id, { google_event_id: d.googleEventId });
+        }
+      })
+      .catch(() => {});
   };
   const onSyncEventToGoogle = async (event) => {
     const r = await fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...event, attendee_emails: settings?.attendee_emails }) });
@@ -374,9 +408,17 @@ function AppInner() {
     const m = p.match(/^\/family\/(\d+)$/);
     return m ? members.find((x) => x.id === Number(m[1])) : null;
   };
+  const coinTrendsMemberFromPath = (p) => {
+    const m = p.match(/^\/goals\/kids\/trends\/(\d+)$/);
+    return m ? members.find((x) => x.id === Number(m[1])) : null;
+  };
 
   let page;
-  if (path === "/calendar") {
+  if (path === "/school-day") {
+    page = <SchoolDay members={members} morningRoutine={morningRoutine} />;
+  } else if (coinTrendsMemberFromPath(path)) {
+    page = <KidCoinTrendsPage member={coinTrendsMemberFromPath(path)} coinLedger={coinLedger} />;
+  } else if (path === "/calendar") {
     page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} onSyncGoogle={onSyncEventToGoogle} />;
   } else if (path === "/food") {
     page = <FoodWeekPage recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
@@ -409,6 +451,7 @@ function AppInner() {
       <FamilyMember
         member={memberFromPath(path)} contacts={contacts} activities={activities} medications={medications}
         foodPrefs={foodPrefs} links={links} chores={chores} completions={completions} stats={stats} projects={projects}
+        morningRoutine={morningRoutine}
         onUpdateMember={onUpdateMember} onAdd={onAdd} onDelete={onDelete} onUpdateFoodPrefs={onUpdateFoodPrefs}
         onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat}
       />
@@ -428,13 +471,13 @@ function AppInner() {
   } else if (path === "/settings") {
     page = <Settings />;
   } else {
-    page = <Today members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} projects={projects} stats={stats} coinLedger={coinLedger} onToggleChore={onToggleChore} />;
+    page = <Today members={members} events={allEvents} chores={chores} completions={completions} mealPlan={mealPlan} projects={projects} stats={stats} coinLedger={coinLedger} coinRewards={coinRewards} onToggleChore={onToggleChore} />;
   }
 
   if (path.startsWith("/settings")) page = <PinGate>{page}</PinGate>;
 
   return (
-    <Shell>
+    <Shell members={members}>
       {page}
       <AssistantPopover onSend={onAssistantSend} />
     </Shell>
@@ -445,7 +488,9 @@ export default function App() {
   return (
     <RouterProvider>
       <CelebrationProvider>
-        <AppInner />
+        <CalendarFiltersProvider>
+          <AppInner />
+        </CalendarFiltersProvider>
       </CelebrationProvider>
     </RouterProvider>
   );

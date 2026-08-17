@@ -59,7 +59,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const { title, start_at, end_at, location, notes, attendee_emails } = req.body || {};
+    const { title, start_at, end_at, location, notes, attendee_emails, google_event_id } = req.body || {};
     if (!title || !start_at) {
       res.status(400).json({ ok: false, reason: "missing_fields" });
       return;
@@ -77,10 +77,31 @@ module.exports = async function handler(req, res) {
     const timeZone = process.env.GOOGLE_CALENDAR_TIME_ZONE || "America/New_York";
     const end = end_at || new Date(new Date(start_at).getTime() + 60 * 60000).toISOString();
 
+    // If this event was already pushed to Google (has a google_event_id),
+    // update that event in place instead of creating a duplicate — this is
+    // what lets "Save" on an edit also re-share it with no extra step.
     const calendarId = resolveCalendarId();
-    const evRes = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
-      {
+    const isUpdate = !!google_event_id;
+    const url = isUpdate
+      ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(google_event_id)}?sendUpdates=all`
+      : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`;
+    let evRes = await fetch(url, {
+      method: isUpdate ? "PATCH" : "POST",
+      headers: { Authorization: `Bearer ${refreshData.access_token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        summary: title,
+        location: location || undefined,
+        description: notes || undefined,
+        start: { dateTime: start_at, timeZone },
+        end: { dateTime: end, timeZone },
+        attendees,
+      }),
+    });
+    let evData = await evRes.json();
+    // The linked Google event may have been deleted on the Google side —
+    // fall back to creating a fresh one rather than failing the save.
+    if (isUpdate && (evRes.status === 404 || evRes.status === 410)) {
+      evRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`, {
         method: "POST",
         headers: { Authorization: `Bearer ${refreshData.access_token}`, "content-type": "application/json" },
         body: JSON.stringify({
@@ -91,9 +112,9 @@ module.exports = async function handler(req, res) {
           end: { dateTime: end, timeZone },
           attendees,
         }),
-      }
-    );
-    const evData = await evRes.json();
+      });
+      evData = await evRes.json();
+    }
     if (!evRes.ok) {
       console.error("create-event: create_failed", { status: evRes.status, calendarId, error: evData.error });
       res.status(200).json({ ok: false, reason: "create_failed", detail: evData.error?.message });

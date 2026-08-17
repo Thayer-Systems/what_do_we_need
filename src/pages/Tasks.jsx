@@ -4,6 +4,7 @@ import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { BASE, F, DAY_NAMES, hardShadow } from "../lib/theme.js";
+import { choreAppliesToday } from "../lib/tasks.js";
 
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -85,33 +86,65 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
 function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(chore?.title || "");
   const [memberId, setMemberId] = useState(chore?.member_id ?? null);
-  const [frequency, setFrequency] = useState(chore?.frequency || "daily");
+  const [visibility, setVisibility] = useState(chore?.visibility || "public");
+  // New tasks default to no timeline; a schedule (recurring days) and/or a
+  // due date are both optional add-ons rather than a forced choice.
+  const [scheduled, setScheduled] = useState((chore?.frequency && chore.frequency !== "none") || false);
+  const [frequency, setFrequency] = useState(chore?.frequency && chore.frequency !== "none" ? chore.frequency : "daily");
   const [days, setDays] = useState(chore?.days || []);
+  const [hasDueDate, setHasDueDate] = useState(!!chore?.due_date);
+  const [dueDate, setDueDate] = useState(chore?.due_date || "");
   const toggleDay = (i) => setDays((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
 
   return (
     <Modal onClose={onClose}>
-      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 14 }}>{chore?.id ? "Edit Task" : "New Recurring Task"}</div>
+      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 14 }}>{chore?.id ? "Edit Task" : "New Task"}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div><span style={label}>Task</span><input autoFocus style={inp} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Feed the dog" /></div>
         <div><span style={label}>Assigned to</span><AssigneePicker members={members} value={memberId} onChange={setMemberId} /></div>
-        <div><span style={label}>Frequency</span>
+        <div><span style={label}>Visibility</span>
           <div style={{ display: "flex", gap: 6 }}>
-            {["daily", "custom"].map((f) => <button key={f} type="button" onClick={() => setFrequency(f)} style={btn(frequency === f ? BASE.teal : "#fff")}>{f}</button>)}
+            <button type="button" onClick={() => setVisibility("public")} style={btn(visibility === "public" ? BASE.teal : "#fff")}>Public — on Today's board</button>
+            <button type="button" onClick={() => setVisibility("private")} style={btn(visibility === "private" ? BASE.lilac : "#fff")}>Private — profile only</button>
           </div>
         </div>
-        {frequency === "custom" && (
-          <div><span style={label}>Days</span>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {DAY_NAMES.map((d, i) => <button key={d} type="button" onClick={() => toggleDay(i)} style={btn(days.includes(i) ? BASE.teal : "#fff")}>{d}</button>)}
+        <div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input type="checkbox" checked={scheduled} onChange={(e) => setScheduled(e.target.checked)} />
+            <span style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 700 }}>Set a schedule</span>
+          </label>
+          <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t3, marginTop: 2 }}>Off by default — the task just stays open with no timeline.</div>
+          {scheduled && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 6 }}>
+                {["daily", "custom"].map((f) => <button key={f} type="button" onClick={() => setFrequency(f)} style={btn(frequency === f ? BASE.teal : "#fff")}>{f}</button>)}
+              </div>
+              {frequency === "custom" && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  {DAY_NAMES.map((d, i) => <button key={d} type="button" onClick={() => toggleDay(i)} style={btn(days.includes(i) ? BASE.teal : "#fff")}>{d}</button>)}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        <div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input type="checkbox" checked={hasDueDate} onChange={(e) => setHasDueDate(e.target.checked)} />
+            <span style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 700 }}>Set a due date</span>
+          </label>
+          {hasDueDate && <input type="date" style={{ ...inp, marginTop: 8 }} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />}
+        </div>
         <button
           style={{ ...btn(BASE.green), width: "100%" }}
           onClick={() => {
             if (!title.trim() || !memberId) return;
-            onSave({ id: chore?.id, title: title.trim(), member_id: memberId, frequency, days, active: true });
+            onSave({
+              id: chore?.id, title: title.trim(), member_id: memberId, visibility,
+              frequency: scheduled ? frequency : "none",
+              days: scheduled && frequency === "custom" ? days : [],
+              due_date: hasDueDate ? dueDate || null : null,
+              active: true,
+            });
           }}
         >
           Save Task
@@ -130,7 +163,6 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
 
   const memberById = (id) => members.find((m) => m.id === id);
   const todayStr = new Date().toISOString().slice(0, 10);
-  const dow = new Date().getDay();
 
   const visibleChores = chores.filter((c) => assigneeFilter === "all" || c.member_id === assigneeFilter);
   const visibleProjects = projects.filter((p) => (p.visibility || "public") === "public" && (assigneeFilter === "all" || p.member_id === assigneeFilter));
@@ -142,7 +174,7 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
           <button onClick={() => setAddMenuOpen((o) => !o)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
           {addMenuOpen && (
             <div style={{ position: "absolute", right: 0, top: 44, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), overflow: "hidden", zIndex: 30, minWidth: 160 }}>
-              <button onClick={() => { setChoreModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Recurring Task</button>
+              <button onClick={() => { setChoreModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Task</button>
               <button onClick={() => { setProjectModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", borderTop: `1.5px solid ${BASE.muted}`, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Project</button>
             </div>
           )}
@@ -158,19 +190,26 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
 
       <div style={{ padding: "16px 16px 40px", display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Recurring Tasks</div>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Tasks</div>
           {visibleChores.length === 0 ? (
-            <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No recurring tasks yet.</div>
+            <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No tasks yet.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {visibleChores.map((c) => {
-                const applicable = c.active && (c.frequency === "daily" || (c.days || []).includes(dow));
+                const applicable = c.active && choreAppliesToday(c);
                 const done = completions.some((cm) => cm.chore_id === c.id && cm.date === todayStr);
+                const timeline = c.frequency === "daily" ? "Every day"
+                  : c.frequency === "custom" ? ((c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "Custom")
+                  : "No timeline";
                 return (
                   <Card key={c.id} onClick={() => setChoreModal(c)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                     <div>
                       <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14 }}>{c.title}</div>
-                      <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2, marginTop: 2 }}>{c.frequency === "daily" ? "Every day" : (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "Custom"}{applicable ? (done ? " · done today" : " · due today") : ""}</div>
+                      <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2, marginTop: 2 }}>
+                        {timeline}{applicable ? (done ? " · done today" : " · due today") : ""}
+                        {c.due_date ? ` · due ${new Date(c.due_date + "T00:00:00").toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}
+                        {(c.visibility || "public") === "private" ? " · private" : ""}
+                      </div>
                     </div>
                     <AssigneeBadge member={memberById(c.member_id)} />
                   </Card>
