@@ -224,11 +224,18 @@ function AppInner() {
   };
 
   // ── Kids Goals (coins) ──
+  // Returns { ok, error } instead of throwing so callers (modals) can show
+  // the failure inline — a silent throw here previously meant "nothing
+  // happens" with no indication anything went wrong.
   const onAddCoinTransaction = async (body) => {
-    const d = await post("sprinkles_coin_ledger", body);
-    if (d?.[0]) {
+    try {
+      const d = await post("sprinkles_coin_ledger", body);
+      if (!d?.[0]) return { ok: false, error: "No row was created." };
       setCoinLedger((p) => [d[0], ...p]);
       if (d[0].delta > 0) celebrate("Coins earned!");
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || "Request failed." };
     }
   };
 
