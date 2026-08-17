@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { PageHeader, Card, Modal, EmptyState } from "../components/ui.jsx";
+import { PageHeader, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F, hardShadow } from "../lib/theme.js";
@@ -25,11 +25,27 @@ function KidPicker({ kids, value, onChange }) {
   );
 }
 
+function SubmitError({ error }) {
+  if (!error) return null;
+  return <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: BASE.red, marginTop: 10 }}>Couldn't save that: {error}</div>;
+}
+
 function QuickAdjustModal({ kids, onSubmit, onClose }) {
   const [kidId, setKidId] = useState(kids[0]?.id ?? null);
   const [amount, setAmount] = useState(1);
   const [sign, setSign] = useState(1);
   const [reason, setReason] = useState("");
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await onSubmit({ member_id: kidId, delta: amount * sign, reason: reason.trim() || null, rule_id: null });
+    setBusy(false);
+    if (result?.ok) onClose();
+    else setError(result?.error || "Unknown error");
+  };
 
   return (
     <Modal onClose={onClose}>
@@ -49,13 +65,10 @@ function QuickAdjustModal({ kids, onSubmit, onClose }) {
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
-        <button
-          disabled={!kidId}
-          style={{ ...btn(BASE.green), width: "100%" }}
-          onClick={() => { onSubmit({ member_id: kidId, delta: amount * sign, reason: reason.trim() || null, rule_id: null }); onClose(); }}
-        >
-          {sign === 1 ? "Give" : "Take"} {amount} Coin{amount > 1 ? "s" : ""}
+        <button disabled={!kidId || busy} style={{ ...btn(BASE.green), width: "100%", opacity: busy ? 0.6 : 1 }} onClick={submit}>
+          {busy ? "Saving..." : `${sign === 1 ? "Give" : "Take"} ${amount} Coin${amount > 1 ? "s" : ""}`}
         </button>
+        <SubmitError error={error} />
       </div>
     </Modal>
   );
@@ -63,7 +76,19 @@ function QuickAdjustModal({ kids, onSubmit, onClose }) {
 
 function RuleApplyModal({ rule, kids, onSubmit, onClose }) {
   const [kidId, setKidId] = useState(kids[0]?.id ?? null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
   const positive = rule.delta > 0;
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await onSubmit({ member_id: kidId, delta: rule.delta, reason: rule.label, rule_id: rule.id });
+    setBusy(false);
+    if (result?.ok) onClose();
+    else setError(result?.error || "Unknown error");
+  };
+
   return (
     <Modal onClose={onClose}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
@@ -72,34 +97,59 @@ function RuleApplyModal({ rule, kids, onSubmit, onClose }) {
       </div>
       <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 14 }}>Who does this apply to?</div>
       <KidPicker kids={kids} value={kidId} onChange={setKidId} />
-      <button
-        disabled={!kidId}
-        style={{ ...btn(positive ? BASE.green : BASE.red), width: "100%", marginTop: 16 }}
-        onClick={() => { onSubmit({ member_id: kidId, delta: rule.delta, reason: rule.label, rule_id: rule.id }); onClose(); }}
-      >
-        {positive ? "Give" : "Take"} {Math.abs(rule.delta)} Coin{Math.abs(rule.delta) > 1 ? "s" : ""}
+      <button disabled={!kidId || busy} style={{ ...btn(positive ? BASE.green : BASE.red), width: "100%", marginTop: 16, opacity: busy ? 0.6 : 1 }} onClick={submit}>
+        {busy ? "Saving..." : `${positive ? "Give" : "Take"} ${Math.abs(rule.delta)} Coin${Math.abs(rule.delta) > 1 ? "s" : ""}`}
       </button>
+      <SubmitError error={error} />
+    </Modal>
+  );
+}
+
+function TierRewardsModal({ tier, rewards, kids, coinLedger, onSubmit, onClose }) {
+  const [picked, setPicked] = useState(null);
+  const items = rewards.filter((r) => r.coin_cost === tier);
+  if (picked) return <RedeemModal reward={picked} kids={kids} coinLedger={coinLedger} onSubmit={onSubmit} onClose={onClose} />;
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{tier} Coins</div>
+      <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 14 }}>Pick a reward to redeem</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map((r) => (
+          <div key={r.id} onClick={() => setPicked(r)} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
+            {r.label}
+          </div>
+        ))}
+      </div>
     </Modal>
   );
 }
 
 function RedeemModal({ reward, kids, coinLedger, onSubmit, onClose }) {
   const [kidId, setKidId] = useState(kids[0]?.id ?? null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
   const balance = kidId ? coinBalance(coinLedger, kidId) : 0;
   const canAfford = balance >= reward.coin_cost;
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await onSubmit({ member_id: kidId, delta: -reward.coin_cost, reason: `Redeemed: ${reward.label}`, rule_id: null });
+    setBusy(false);
+    if (result?.ok) onClose();
+    else setError(result?.error || "Unknown error");
+  };
+
   return (
     <Modal onClose={onClose}>
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{reward.label}</div>
       <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 14 }}>Costs {reward.coin_cost} coins</div>
       <KidPicker kids={kids} value={kidId} onChange={setKidId} />
       {kidId && <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: canAfford ? BASE.green : BASE.red, marginTop: 10 }}>{canAfford ? `Enough coins (${balance} available)` : `Not enough coins yet — has ${balance}`}</div>}
-      <button
-        disabled={!kidId || !canAfford}
-        style={{ ...btn(BASE.green), width: "100%", marginTop: 14, opacity: !kidId || !canAfford ? 0.5 : 1 }}
-        onClick={() => { onSubmit({ member_id: kidId, delta: -reward.coin_cost, reason: `Redeemed: ${reward.label}`, rule_id: null }); onClose(); }}
-      >
-        Redeem
+      <button disabled={!kidId || !canAfford || busy} style={{ ...btn(BASE.green), width: "100%", marginTop: 14, opacity: !kidId || !canAfford || busy ? 0.5 : 1 }} onClick={submit}>
+        {busy ? "Saving..." : "Redeem"}
       </button>
+      <SubmitError error={error} />
     </Modal>
   );
 }
@@ -115,20 +165,21 @@ function LoadErrorBanner() {
   );
 }
 
+function RuleRow({ rule, onOpen }) {
+  return (
+    <div onClick={() => onOpen(rule)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
+      <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 13, color: rule.delta > 0 ? BASE.green : BASE.red, minWidth: 22 }}>{rule.delta > 0 ? "+" : ""}{rule.delta}</span>
+      <span style={{ fontFamily: F.ui, fontWeight: 600, fontSize: 12, flex: 1 }}>{rule.label}</span>
+    </div>
+  );
+}
+
 export function KidsGoalsRulesPage({ members, coinRules, coinLedger, coinLoadError, onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [ruleModal, setRuleModal] = useState(null);
   const gives = coinRules.filter((r) => r.delta > 0).sort((a, b) => a.delta - b.delta || a.sort_order - b.sort_order);
   const takes = coinRules.filter((r) => r.delta < 0).sort((a, b) => b.delta - a.delta || a.sort_order - b.sort_order);
-
-  const RuleRow = ({ rule }) => (
-    <div onClick={() => setRuleModal(rule)} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "8px 12px", cursor: "pointer" }}>
-      <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 16, color: rule.delta > 0 ? BASE.green : BASE.red, minWidth: 28 }}>{rule.delta > 0 ? "+" : ""}{rule.delta}</span>
-      <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, flex: 1 }}>{rule.label}</span>
-      <Icon name="chevronRight" size={14} />
-    </div>
-  );
 
   return (
     <div>
@@ -138,11 +189,11 @@ export function KidsGoalsRulesPage({ members, coinRules, coinLedger, coinLoadErr
         <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2 }}>Tap a rule to give or take coins from a kid right away.</div>
         <div>
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 8, color: BASE.green }}>Coins Given For</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{gives.map((r) => <RuleRow key={r.id} rule={r} />)}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{gives.map((r) => <RuleRow key={r.id} rule={r} onOpen={setRuleModal} />)}</div>
         </div>
         <div>
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 8, color: BASE.red }}>Coins Taken For</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{takes.map((r) => <RuleRow key={r.id} rule={r} />)}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{takes.map((r) => <RuleRow key={r.id} rule={r} onOpen={setRuleModal} />)}</div>
         </div>
       </div>
       {ruleModal && kids.length > 0 && (
@@ -152,12 +203,51 @@ export function KidsGoalsRulesPage({ members, coinRules, coinLedger, coinLoadErr
   );
 }
 
+// One tiered bar per kid — each segment is a reward tier, filled solid once
+// the kid's balance clears it and partially filled for the tier currently
+// being worked toward. Tapping a tier shows what's redeemable there.
+function RewardTierBar({ kid, balance, tiers, onTierClick }) {
+  const max = tiers[tiers.length - 1] || 1;
+  return (
+    <div>
+      <div style={{ display: "flex", height: 18, borderRadius: 9, overflow: "hidden", border: `2px solid ${BASE.ink}`, background: "#fff" }}>
+        {tiers.map((cost, i) => {
+          const prev = i === 0 ? 0 : tiers[i - 1];
+          const segPct = ((cost - prev) / max) * 100;
+          const achieved = balance >= cost;
+          const fillPct = achieved ? 100 : balance > prev ? ((balance - prev) / (cost - prev)) * 100 : 0;
+          return (
+            <div
+              key={cost}
+              onClick={() => onTierClick(cost)}
+              title={`${cost} coins`}
+              style={{ width: `${segPct}%`, position: "relative", background: BASE.muted, cursor: "pointer", borderRight: i < tiers.length - 1 ? `2px solid ${BASE.ink}` : "none" }}
+            >
+              <div style={{ position: "absolute", inset: 0, width: `${fillPct}%`, background: achieved ? BASE.green : BASE.yellow, transition: "width 0.2s" }} />
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", marginTop: 2 }}>
+        {tiers.map((cost, i) => (
+          <div key={cost} style={{ width: `${((cost - (i === 0 ? 0 : tiers[i - 1])) / max) * 100}%`, textAlign: "right", fontSize: 9, fontWeight: 700, color: BASE.t2, fontFamily: F.ui }}>
+            {cost}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, coinLoadError, onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [redeemModal, setRedeemModal] = useState(null);
-  const rewards = [...coinRewards].sort((a, b) => a.coin_cost - b.coin_cost || a.sort_order - b.sort_order);
+  const [ruleModal, setRuleModal] = useState(null);
+  const [tierModal, setTierModal] = useState(null);
+  const gives = coinRules.filter((r) => r.delta > 0).sort((a, b) => a.delta - b.delta || a.sort_order - b.sort_order);
+  const takes = coinRules.filter((r) => r.delta < 0).sort((a, b) => b.delta - a.delta || a.sort_order - b.sort_order);
+  const tiers = useMemo(() => [...new Set(coinRewards.map((r) => r.coin_cost))].sort((a, b) => a - b), [coinRewards]);
 
   if (kids.length === 0) {
     return (
@@ -167,6 +257,8 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
     );
   }
 
+  const rulesListStyle = { display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto", paddingRight: 4 };
+
   return (
     <div>
       <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 40px", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -174,32 +266,39 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
           <button onClick={() => navigate("/goals/kids/rules")} style={btn("#fff")}><Icon name="book" size={15} /></button>
           <button onClick={() => setQuickOpen(true)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
         </div>
+
         {coinLoadError && <LoadErrorBanner />}
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(150px, 1fr))`, gap: 12 }}>
-          {kids.map((k) => (
-            <div key={k.id} style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 18, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "18px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#fff" }}>
-              <IconBadge icon={k.icon} bg="#fff" size={44} radius={14} />
-              <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>{k.name}</div>
-              <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 28 }}>{coinBalance(coinLedger, k.id)}</div>
-              <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>coins</div>
-            </div>
-          ))}
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+          <div>
+            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, marginBottom: 6, color: BASE.green }}>Coins Given For</div>
+            <div style={rulesListStyle}>{gives.map((r) => <RuleRow key={r.id} rule={r} onOpen={setRuleModal} />)}</div>
+          </div>
+          <div>
+            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, marginBottom: 6, color: BASE.red }}>Coins Taken For</div>
+            <div style={rulesListStyle}>{takes.map((r) => <RuleRow key={r.id} rule={r} onOpen={setRuleModal} />)}</div>
+          </div>
         </div>
 
-        <button onClick={() => navigate("/goals/kids/rules")} style={{ ...btn(BASE.teal), width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px" }}>
-          <Icon name="book" size={15} /> View Coin Rules
-        </button>
-
-        <div>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Rewards</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {rewards.map((r) => (
-              <Card key={r.id} onClick={() => setRedeemModal(r)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>{r.label}</span>
-                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, color: BASE.t2 }}>{r.coin_cost} coins</span>
-              </Card>
-            ))}
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {kids.map((k) => {
+            const balance = coinBalance(coinLedger, k.id);
+            return (
+              <div key={k.id} style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 18, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 16px", color: "#fff" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: tiers.length ? 10 : 0 }}>
+                  <IconBadge icon={k.icon} bg="#fff" size={36} radius={12} />
+                  <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, flex: 1 }}>{k.name}</span>
+                  <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{balance}</span>
+                  <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>coins</span>
+                </div>
+                {tiers.length > 0 && (
+                  <div style={{ background: "#fff", borderRadius: 12, padding: "8px 10px" }}>
+                    <RewardTierBar kid={k} balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div>
@@ -224,7 +323,8 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
       </div>
 
       {quickOpen && <QuickAdjustModal kids={kids} onSubmit={onAddCoinTransaction} onClose={() => setQuickOpen(false)} />}
-      {redeemModal && <RedeemModal reward={redeemModal} kids={kids} coinLedger={coinLedger} onSubmit={onAddCoinTransaction} onClose={() => setRedeemModal(null)} />}
+      {ruleModal && <RuleApplyModal rule={ruleModal} kids={kids} onSubmit={onAddCoinTransaction} onClose={() => setRuleModal(null)} />}
+      {tierModal != null && <TierRewardsModal tier={tierModal} rewards={coinRewards} kids={kids} coinLedger={coinLedger} onSubmit={onAddCoinTransaction} onClose={() => setTierModal(null)} />}
     </div>
   );
 }
