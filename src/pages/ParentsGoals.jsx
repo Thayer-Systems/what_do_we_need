@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { PageHeader, Card, Modal, EmptyState } from "../components/ui.jsx";
+import { Card, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { Icon } from "../components/Icons.jsx";
@@ -83,7 +83,6 @@ export default function ParentsGoals({ members, stats, onAddStat, onUpdateStat, 
   if (parents.length === 0) {
     return (
       <div>
-        <PageHeader title="Parents Goals" sprinkles="default" />
         <EmptyState icon="star" text="No parents marked yet — mark family members as parents on the Family list to see their goals here." />
       </div>
     );
@@ -91,8 +90,7 @@ export default function ParentsGoals({ members, stats, onAddStat, onUpdateStat, 
 
   return (
     <div>
-      <PageHeader title="Parents Goals" sprinkles="default" />
-      <div style={{ padding: "18px 16px 40px", display: "flex", gap: 24, flexWrap: "wrap" }}>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 40px", display: "flex", gap: 24, flexWrap: "wrap" }}>
         {parents.map((p) => (
           <ParentColumn
             key={p.id}

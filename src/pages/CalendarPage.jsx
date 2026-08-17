@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader, Card, Modal, Chip, EmptyState } from "../components/ui.jsx";
+import { Card, Modal, Chip, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F, CATEGORY_COLORS, hardShadow } from "../lib/theme.js";
@@ -320,22 +320,9 @@ export default function CalendarPage({ members, events, settings, onAdd, onUpdat
 
   return (
     <div>
-      <PageHeader
-        title="Calendar"
-        sprinkles="calendar"
-        right={
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => setFiltersOpen((o) => !o)} style={{ ...btn(activeFilterCount ? BASE.yellow : "#fff"), padding: "9px 12px", display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="filter" size={15} /> {activeFilterCount > 0 && activeFilterCount}
-            </button>
-            <button onClick={() => setAddOpen(dateStr(cursor))} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
-          </div>
-        }
-      />
-
       <FilterPanel open={filtersOpen} members={members} memberFilter={memberFilter} setMemberFilter={setMemberFilter} catFilter={catFilter} setCatFilter={setCatFilter} />
 
-      <div style={{ padding: "12px 16px 0", display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", rowGap: 8 }}>
         {["3day", "week", "month"].map((v) => (
           <Chip key={v} active={view === v} onClick={() => setView(v)} color={BASE.teal}>{v === "3day" ? "3 day" : v}</Chip>
         ))}
@@ -343,6 +330,10 @@ export default function CalendarPage({ members, events, settings, onAdd, onUpdat
         <button onClick={() => shift(-1)} style={{ ...btn("#fff"), padding: "7px 10px" }}><Icon name="chevronLeft" size={15} /></button>
         <button onClick={() => setCursor(new Date())} style={{ ...btn(BASE.yellow), padding: "7px 12px" }}>Today</button>
         <button onClick={() => shift(1)} style={{ ...btn("#fff"), padding: "7px 10px" }}><Icon name="chevronRight" size={15} /></button>
+        <button onClick={() => setFiltersOpen((o) => !o)} style={{ ...btn(activeFilterCount ? BASE.yellow : "#fff"), padding: "7px 10px", display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="filter" size={15} /> {activeFilterCount > 0 && activeFilterCount}
+        </button>
+        <button onClick={() => setAddOpen(dateStr(cursor))} style={{ ...btn(BASE.pink), padding: "7px 10px" }}><Icon name="plus" size={15} /></button>
       </div>
 
       <div style={{ marginTop: 12 }}>

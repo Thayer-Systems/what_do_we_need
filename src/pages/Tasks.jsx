@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PageHeader, Card, Modal, Chip } from "../components/ui.jsx";
+import { Card, Modal, Chip } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
@@ -137,21 +137,17 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
 
   return (
     <div>
-      <PageHeader
-        title="Tasks"
-        sprinkles="settings"
-        right={
-          <div style={{ position: "relative" }}>
-            <button onClick={() => setAddMenuOpen((o) => !o)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
-            {addMenuOpen && (
-              <div style={{ position: "absolute", right: 0, top: 44, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), overflow: "hidden", zIndex: 30, minWidth: 160 }}>
-                <button onClick={() => { setChoreModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Recurring Task</button>
-                <button onClick={() => { setProjectModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", borderTop: `1.5px solid ${BASE.muted}`, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Project</button>
-              </div>
-            )}
-          </div>
-        }
-      />
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0", display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setAddMenuOpen((o) => !o)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
+          {addMenuOpen && (
+            <div style={{ position: "absolute", right: 0, top: 44, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), overflow: "hidden", zIndex: 30, minWidth: 160 }}>
+              <button onClick={() => { setChoreModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Recurring Task</button>
+              <button onClick={() => { setProjectModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", borderTop: `1.5px solid ${BASE.muted}`, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Project</button>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div style={{ padding: "12px 16px 0", display: "flex", gap: 6, overflowX: "auto" }}>
         <Chip active={assigneeFilter === "all"} onClick={() => setAssigneeFilter("all")}>Everyone</Chip>

@@ -88,8 +88,11 @@ function AppInner() {
   const [coinRules, setCoinRules] = useState([]);
   const [coinLedger, setCoinLedger] = useState([]);
   const [coinRewards, setCoinRewards] = useState([]);
+  const [coinLoadError, setCoinLoadError] = useState(false);
 
   const loadAll = useCallback(async () => {
+    let coinFailed = false;
+    const trackCoinFailure = () => { coinFailed = true; };
     const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards] = await Promise.all([
       getSafe("sprinkles_family_members?order=sort_order.asc"),
       getSafe("sprinkles_contacts"),
@@ -106,9 +109,9 @@ function AppInner() {
       getSafe("shopping_list?status=eq.pending&order=name.asc"),
       getSafe("sprinkles_member_stats?order=sort_order.asc"),
       getSafe("sprinkles_projects?order=created_at.desc"),
-      getSafe("sprinkles_coin_rules?order=sort_order.asc"),
-      getSafe("sprinkles_coin_ledger?order=created_at.desc"),
-      getSafe("sprinkles_coin_rewards?order=sort_order.asc"),
+      getSafe("sprinkles_coin_rules?order=sort_order.asc", trackCoinFailure),
+      getSafe("sprinkles_coin_ledger?order=created_at.desc", trackCoinFailure),
+      getSafe("sprinkles_coin_rewards?order=sort_order.asc", trackCoinFailure),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -128,6 +131,7 @@ function AppInner() {
     setCoinRules(rules || []);
     setCoinLedger(ledger || []);
     setCoinRewards(rewards || []);
+    setCoinLoadError(coinFailed);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -347,6 +351,12 @@ function AppInner() {
       } else if (action.type === "meal") {
         const d = await post("meal_plan", { day: action.day, meal: action.meal, recipe_id: null, recipe_name: action.name, week_start: weekStart, eat_out: false });
         if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+      } else if (action.type === "coin") {
+        const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase() && m.role !== "parent");
+        const delta = Number(action.delta);
+        if (member && Number.isFinite(delta) && delta !== 0) {
+          await onAddCoinTransaction({ member_id: member.id, delta, reason: action.reason || null, rule_id: null });
+        }
       }
       // "call" actions: not supported yet, no-op — the model's reply already says so.
     }
@@ -370,9 +380,9 @@ function AppInner() {
   } else if (path === "/food/trends") {
     page = <TrendsPage recipes={recipes} mealPlan={mealPlan} shopping={shopping} />;
   } else if (path === "/goals/kids/rules") {
-    page = <KidsGoalsRulesPage members={members} coinRules={coinRules} coinLedger={coinLedger} onAddCoinTransaction={onAddCoinTransaction} />;
+    page = <KidsGoalsRulesPage members={members} coinRules={coinRules} coinLedger={coinLedger} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/kids") {
-    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} onAddCoinTransaction={onAddCoinTransaction} />;
+    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/parents") {
     page = <ParentsGoals members={members} stats={stats} onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat} />;
   } else if (path === "/tasks") {

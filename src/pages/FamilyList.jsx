@@ -1,4 +1,3 @@
-import { PageHeader } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
@@ -7,8 +6,7 @@ export default function FamilyList({ members }) {
   const { navigate } = useRouter();
   return (
     <div>
-      <PageHeader title="Family" sprinkles="family" />
-      <div style={{ padding: "20px 16px 40px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 14 }}>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 20px) 16px 40px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 14 }}>
         {members.map((m) => (
           <button
             key={m.id}

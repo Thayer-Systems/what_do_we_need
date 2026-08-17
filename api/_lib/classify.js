@@ -20,6 +20,7 @@ Action object shapes:
 {"type":"event","title":"Piper: Gym","start":"2026-08-12T17:00:00","location":"Franklin Dance Studio","member":"Piper","category":"activity"}
 {"type":"meal","day":"Mon","meal":"Dinner","name":"Tacos"}
 {"type":"call","target":"pharmacy","request":"refill prescription"}
+{"type":"coin","member":"Piper","delta":2,"reason":"cleaning her room"}
 
 Rules for actions:
 - One message can ask for MULTIPLE things at once (e.g. "add milk, schedule practice Thursday at 5, and what's for dinner tonight") — include one action object per actionable request, in the order mentioned. Pure questions that don't change any data (schedule, availability, "what's needed for X") don't need an action object at all — just answer them directly in "reply".
@@ -28,6 +29,7 @@ Rules for actions:
 - Anything with a date/time/place stated as fact (not asked as a question) -> event action. Infer a reasonable ISO start datetime from context (today's date is given below). Category is one of event, appointment, activity, meal, chore, other.
 - Anything about cooking or scheduling a specific meal -> meal action.
 - Requests to call/phone someone (pharmacy, doctor, etc.) -> a "call" action. Outbound phone calls are NOT built yet — never claim in "reply" that a call was made, a prescription was filled, or anything similar. Say plainly and briefly that calling isn't supported yet.
+- Giving or taking away coins from a kid ("give Piper 2 coins for cleaning her room", "take a coin from Jack for whining") -> a "coin" action. "delta" is the signed number of coins (positive to give, negative to take) — infer the amount from what's said, defaulting to 1 if unspecified. "member" must be a kid (see Family members list below), never a parent. "reason" is a short phrase for what it was for. If the member named isn't a kid on the family list, don't emit a coin action — say so in "reply" instead.
 - If the latest message is a short confirmation ("add it", "yes", "do it", "sounds good") and the recent conversation below already proposed a specific action, include that action now using the previously discussed details, and confirm it in "reply".
 - Use the household context to resolve names, recurring activities, and existing chores (e.g. match "gym" to whoever already has a gym activity, reuse their usual time/location if not repeated).
 
@@ -74,16 +76,19 @@ async function fetchHouseholdContext(askingPhone) {
     const now = new Date();
     const past = new Date(now.getTime() - 3 * 86400000).toISOString();
     const future = new Date(now.getTime() + 45 * 86400000).toISOString();
-    const [membersRes, activitiesRes, choresRes, eventsRes, mealsRes, shoppingRes] = await Promise.all([
+    const [membersRes, activitiesRes, choresRes, eventsRes, mealsRes, shoppingRes, coinRulesRes, coinLedgerRes] = await Promise.all([
       fetch(`${url}/rest/v1/sprinkles_family_members?select=id,name,role,birthday,phone`, { headers }),
       fetch(`${url}/rest/v1/sprinkles_activities?select=member_id,name,days,start_time,location&active=eq.true`, { headers }),
       fetch(`${url}/rest/v1/sprinkles_chores?select=member_id,title,frequency&active=eq.true`, { headers }),
       fetch(`${url}/rest/v1/sprinkles_events?select=title,start_at,end_at,location,category,member_ids&start_at=gte.${past}&start_at=lte.${future}&order=start_at.asc`, { headers }),
       fetch(`${url}/rest/v1/meal_plan?select=day,meal,recipe_id,recipe_name,eat_out&week_start=eq.${getWeekStart()}`, { headers }),
       fetch(`${url}/rest/v1/shopping_list?select=name&status=eq.pending`, { headers }),
+      fetch(`${url}/rest/v1/sprinkles_coin_rules?select=delta,label&order=sort_order.asc`, { headers }),
+      fetch(`${url}/rest/v1/sprinkles_coin_ledger?select=member_id,delta`, { headers }),
     ]);
-    const [members, activities, chores, events, meals, shopping] = await Promise.all([
+    const [members, activities, chores, events, meals, shopping, coinRules, coinLedger] = await Promise.all([
       membersRes.json(), activitiesRes.json(), choresRes.json(), eventsRes.json(), mealsRes.json(), shoppingRes.json(),
+      coinRulesRes.json(), coinLedgerRes.json(),
     ]);
     const nameOf = (id) => members.find((m) => m.id === id)?.name || "?";
     const askingMember = askingPhone ? members.find((m) => m.phone && normalizePhone(m.phone) === normalizePhone(askingPhone)) : null;
@@ -123,6 +128,18 @@ async function fetchHouseholdContext(askingPhone) {
     }
     if (shopping?.length) {
       lines.push("Current grocery list (not yet on hand): " + shopping.map((s) => s.name).join(", "));
+    }
+    // Coin tables may not exist yet on every deployment (migration-gated) —
+    // guard so a missing/erroring table doesn't blank out the rest of the
+    // household context.
+    if (Array.isArray(coinRules) && coinRules.length) {
+      lines.push("Coin rules (kids only): " + coinRules.map((r) => `${r.delta > 0 ? "+" : ""}${r.delta} ${r.label}`).join("; "));
+    }
+    if (Array.isArray(coinLedger) && coinLedger.length) {
+      const balances = {};
+      coinLedger.forEach((l) => { balances[l.member_id] = (balances[l.member_id] || 0) + l.delta; });
+      const kidBalances = Object.entries(balances).map(([id, bal]) => `${nameOf(Number(id))}: ${bal} coins`).join(", ");
+      if (kidBalances) lines.push("Current coin balances: " + kidBalances);
     }
     return lines.join("\n");
   } catch (e) {
