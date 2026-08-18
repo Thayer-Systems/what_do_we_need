@@ -23,17 +23,43 @@ export const BASE = {
   muted: "#f0ece2",
   t2: "#5c5348",
   t3: "#948a7c",
+  navy: "#4a6fa5",
 };
 
 // Hard offset "neobrutalism" shadow — no blur, just an offset block.
 export const hardShadow = (color = BASE.ink, x = 4, y = 4) => `${x}px ${y}px 0 0 ${color}`;
 
+// Squared-off corners everywhere except the calendar grid, which keeps a
+// slightly softer radius so the month grid doesn't read as a spreadsheet.
 export const cardStyle = (bg = BASE.surface, opts = {}) => ({
   background: bg,
   border: `2.5px solid ${BASE.ink}`,
-  borderRadius: opts.radius ?? 18,
+  borderRadius: opts.radius ?? 12,
   boxShadow: hardShadow(BASE.ink, opts.sx ?? 4, opts.sy ?? 4),
 });
+
+// Repeating sprinkle-dot pattern used as the page background so white/cream
+// surfaces don't read as bare — tiled behind every screen.
+function svgDataUri(svg) {
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+const SPRINKLE_DOTS = [
+  [16, 22, 24], [64, 10, -20], [104, 46, 60], [30, 78, -45],
+  [86, 96, 15], [128, 74, 75], [8, 118, 35], [110, 130, -10],
+];
+export function sprinklesBackground({ colors = [BASE.pink, BASE.teal, BASE.yellow, BASE.lilac, BASE.orange, BASE.green], opacity = 0.55 } = {}) {
+  const shapes = SPRINKLE_DOTS.map(([x, y, r], i) => {
+    const c = colors[i % colors.length];
+    const cx = x + 7, cy = y + 2.5;
+    return `<rect x="${x}" y="${y}" width="14" height="5" rx="2.5" fill="${c}" stroke="${BASE.ink}" stroke-width="1" opacity="${opacity}" transform="rotate(${r} ${cx} ${cy})"/>`;
+  }).join("");
+  return svgDataUri(`<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140">${shapes}</svg>`);
+}
+export const SPRINKLE_BG_STYLE = {
+  backgroundImage: sprinklesBackground(),
+  backgroundSize: "140px 140px",
+  backgroundRepeat: "repeat",
+};
 
 export const pillBtn = (bg = BASE.pink, fg = "#181410") => ({
   background: bg,
@@ -139,5 +165,18 @@ export const CATEGORY_COLORS = {
   activity: BASE.teal,
   meal: BASE.yellow,
   chore: BASE.green,
+  work: BASE.navy,
   other: BASE.lilac,
 };
+
+// Calendar events are colored by the person they're assigned to; this is
+// only the fallback for events with nobody (or more than one person)
+// assigned.
+export function eventColor(event, members) {
+  const ids = event.member_ids || [];
+  if (ids.length === 1) {
+    const m = members.find((x) => x.id === ids[0]);
+    if (m?.color) return m.color;
+  }
+  return CATEGORY_COLORS[event.category] || BASE.pink;
+}

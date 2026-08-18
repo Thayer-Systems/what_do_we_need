@@ -100,7 +100,7 @@ function StatRow({ stat, color, onEdit, onTogglePause, onDelete }) {
 }
 
 export default function FamilyMember({
-  member, contacts, activities, medications, foodPrefs, links, chores, completions, stats, projects = [],
+  member, contacts, activities, medications, foodPrefs, links, chores, completions, stats, projects = [], morningRoutine = [],
   onUpdateMember, onAdd, onDelete, onUpdateFoodPrefs, onAddStat, onUpdateStat, onDeleteStat,
 }) {
   const { navigate } = useRouter();
@@ -115,6 +115,7 @@ export default function FamilyMember({
   const mMeds = medications.filter((m) => m.member_id === member.id);
   const mLinks = links.filter((l) => l.member_id === member.id);
   const mChores = chores.filter((c) => c.member_id === member.id);
+  const mMorningRoutine = morningRoutine.filter((r) => r.member_id === member.id);
   const mStats = stats.filter((s) => s.member_id === member.id);
   const mPrivateProjects = projects.filter((p) => p.member_id === member.id && p.visibility === "private");
   const mFood = foodPrefs.find((f) => f.member_id === member.id) || { likes: [], dislikes: [], allergies: [] };
@@ -190,7 +191,16 @@ export default function FamilyMember({
           {mChores.length === 0 && <div style={{ fontSize: 13, color: BASE.t3, fontFamily: F.ui }}>No tasks yet.</div>}
           {mChores.map((c) => (
             <Row key={c.id} onDelete={() => onDelete("sprinkles_chores", c.id)}>
-              <b>{c.title}</b> · {c.frequency === "daily" ? "every day" : (c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "custom"}
+              <b>{c.title}</b> · {c.frequency === "daily" ? "every day" : c.frequency === "custom" ? ((c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "custom") : "no timeline"}
+            </Row>
+          ))}
+        </Section>
+
+        <Section title="Morning Routine" onAdd={() => setModal({ type: "morning" })}>
+          {mMorningRoutine.length === 0 && <div style={{ fontSize: 13, color: BASE.t3, fontFamily: F.ui }}>No morning routine yet — set it once and it repeats on every School Day it applies to.</div>}
+          {mMorningRoutine.map((r) => (
+            <Row key={r.id} onDelete={() => onDelete("sprinkles_morning_routine_items", r.id)}>
+              {r.title}
             </Row>
           ))}
         </Section>
@@ -285,9 +295,14 @@ export default function FamilyMember({
       {modal?.type === "chore" && (
         <SimpleAddModal title="Add Task" fields={[
           { key: "title", label: "Task", placeholder: "Feed the dog", autoFocus: true },
-          { key: "frequency", label: "Frequency", type: "select", options: ["daily", "custom"], default: "daily" },
+          { key: "frequency", label: "Timeline", type: "select", options: ["none", "daily", "custom"], default: "none" },
           { key: "days", label: "Days (if custom)", type: "days", default: [] },
         ]} onSave={(v) => { onAdd("sprinkles_chores", { member_id: member.id, active: true, ...v }); setModal(null); }} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === "morning" && (
+        <SimpleAddModal title="Add Morning Routine Item" fields={[
+          { key: "title", label: "Item", placeholder: "Brush teeth", autoFocus: true },
+        ]} onSave={(v) => { onAdd("sprinkles_morning_routine_items", { member_id: member.id, active: true, sort_order: mMorningRoutine.length, ...v }); setModal(null); }} onClose={() => setModal(null)} />
       )}
       {statModal && (
         <SimpleAddModal
