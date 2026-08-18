@@ -47,7 +47,19 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
   const [dueDate, setDueDate] = useState(project?.due_date || "");
   const [memberId, setMemberId] = useState(project?.member_id ?? null);
   const [visibility, setVisibility] = useState(project?.visibility || "public");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
   const status = progress >= 100 ? "done" : progress > 0 ? "in_progress" : "not_started";
+
+  const submit = async () => {
+    if (!title.trim()) return;
+    setBusy(true);
+    setError(null);
+    const result = await onSave({ id: project?.id, title: title.trim(), description: description.trim() || null, progress, status, due_date: dueDate || null, member_id: memberId, visibility });
+    setBusy(false);
+    if (result?.ok === false) setError(result.error || "Unknown error");
+    else onClose();
+  };
 
   return (
     <Modal onClose={onClose}>
@@ -68,15 +80,10 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
           <input type="range" min="0" max="100" value={progress} onChange={(e) => setProgress(Number(e.target.value))} style={{ width: "100%" }} />
           <ProgressBar pct={progress} color={STATUS_COLOR[status]} />
         </div>
-        <button
-          style={{ ...btn(BASE.green), width: "100%" }}
-          onClick={() => {
-            if (!title.trim()) return;
-            onSave({ id: project?.id, title: title.trim(), description: description.trim() || null, progress, status, due_date: dueDate || null, member_id: memberId, visibility });
-          }}
-        >
-          Save Project
+        <button disabled={busy} style={{ ...btn(BASE.green), width: "100%", opacity: busy ? 0.6 : 1 }} onClick={submit}>
+          {busy ? "Saving..." : "Save Project"}
         </button>
+        {error && <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: BASE.red }}>Couldn't save that: {error}</div>}
         {project?.id && <button style={{ ...btn(BASE.red), width: "100%" }} onClick={() => { onDelete(project.id); onClose(); }}>Delete Project</button>}
       </div>
     </Modal>
@@ -94,7 +101,25 @@ function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
   const [days, setDays] = useState(chore?.days || []);
   const [hasDueDate, setHasDueDate] = useState(!!chore?.due_date);
   const [dueDate, setDueDate] = useState(chore?.due_date || "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
   const toggleDay = (i) => setDays((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
+
+  const submit = async () => {
+    if (!title.trim() || !memberId) return;
+    setBusy(true);
+    setError(null);
+    const result = await onSave({
+      id: chore?.id, title: title.trim(), member_id: memberId, visibility,
+      frequency: scheduled ? frequency : "none",
+      days: scheduled && frequency === "custom" ? days : [],
+      due_date: hasDueDate ? dueDate || null : null,
+      active: true,
+    });
+    setBusy(false);
+    if (result?.ok === false) setError(result.error || "Unknown error");
+    else onClose();
+  };
 
   return (
     <Modal onClose={onClose}>
@@ -134,24 +159,37 @@ function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
           </label>
           {hasDueDate && <input type="date" style={{ ...inp, marginTop: 8 }} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />}
         </div>
-        <button
-          style={{ ...btn(BASE.green), width: "100%" }}
-          onClick={() => {
-            if (!title.trim() || !memberId) return;
-            onSave({
-              id: chore?.id, title: title.trim(), member_id: memberId, visibility,
-              frequency: scheduled ? frequency : "none",
-              days: scheduled && frequency === "custom" ? days : [],
-              due_date: hasDueDate ? dueDate || null : null,
-              active: true,
-            });
-          }}
-        >
-          Save Task
+        <button disabled={busy} style={{ ...btn(BASE.green), width: "100%", opacity: busy ? 0.6 : 1 }} onClick={submit}>
+          {busy ? "Saving..." : "Save Task"}
         </button>
+        {error && <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: BASE.red }}>Couldn't save that: {error}</div>}
         {chore?.id && <button style={{ ...btn(BASE.red), width: "100%" }} onClick={() => { onDelete(chore.id); onClose(); }}>Delete Task</button>}
       </div>
     </Modal>
+  );
+}
+
+// "Everyone" view: instead of one flat list of everybody's items, show a
+// row of square per-person boxes with a count — tapping a box filters down
+// to that person's full list.
+function MemberCountBoxes({ members, items, onPick }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(110px, 1fr))`, gap: 10 }}>
+      {members.map((m) => {
+        const count = items.filter((i) => i.member_id === m.id).length;
+        return (
+          <div
+            key={m.id}
+            onClick={() => onPick(m.id)}
+            style={{ background: m.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), color: "#fff", cursor: "pointer", aspectRatio: "1 / 1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: 10 }}
+          >
+            <IconBadge icon={m.icon} bg="#fff" size={30} radius={9} />
+            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{count}</span>
+            <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 11 }}>{m.name}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -191,8 +229,10 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
       <div style={{ padding: "16px 16px 40px", display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Tasks</div>
-          {visibleChores.length === 0 ? (
+          {chores.length === 0 ? (
             <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No tasks yet.</div>
+          ) : assigneeFilter === "all" ? (
+            <MemberCountBoxes members={members} items={chores} onPick={setAssigneeFilter} />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {visibleChores.map((c) => {
@@ -221,8 +261,10 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
 
         <div>
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Projects</div>
-          {visibleProjects.length === 0 ? (
+          {projects.filter((p) => (p.visibility || "public") === "public").length === 0 ? (
             <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No projects yet — add one to track family trips, house projects, and more.</div>
+          ) : assigneeFilter === "all" ? (
+            <MemberCountBoxes members={members} items={projects.filter((p) => (p.visibility || "public") === "public")} onPick={setAssigneeFilter} />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {visibleProjects.map((p) => (
@@ -248,7 +290,7 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
         <ChoreModal
           chore={choreModal.id ? choreModal : null}
           members={members}
-          onSave={(v) => { if (v.id) onUpdateChore(v.id, v); else onAddChore(v); setChoreModal(null); }}
+          onSave={(v) => (v.id ? onUpdateChore(v.id, v) : onAddChore(v))}
           onDelete={onDeleteChore}
           onClose={() => setChoreModal(null)}
         />
@@ -257,7 +299,7 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
         <ProjectModal
           project={projectModal.id ? projectModal : null}
           members={members}
-          onSave={(v) => { if (v.id) onUpdateProject(v.id, v); else onAddProject(v); setProjectModal(null); }}
+          onSave={(v) => (v.id ? onUpdateProject(v.id, v) : onAddProject(v))}
           onDelete={onDeleteProject}
           onClose={() => setProjectModal(null)}
         />

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { IconBadge } from "../components/Deco.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
+import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow, MASCOT } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance } from "../lib/coins.js";
 import { choreAppliesToday } from "../lib/tasks.js";
+import { effectiveGoalValue } from "../lib/goals.js";
 
 function useWeather() {
   const [weather, setWeather] = useState(null);
@@ -32,36 +33,38 @@ function fmtCountdown(ms) {
 const widgetCard = (bg) => ({
   background: bg, border: `2.5px solid ${BASE.ink}`, borderRadius: 12,
   boxShadow: hardShadow(BASE.ink, 4, 4), padding: 14, position: "relative", overflow: "hidden",
+  display: "flex", flexDirection: "column",
 });
 const eyebrow = { fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: F.ui };
 
-function greetingForNow(now = new Date()) {
-  const h = now.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
+function estClock(now) {
+  return now.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) + " EST";
 }
 
 function WeatherCard({ weather, week, navigate }) {
   const today = new Date();
+  const todayForecast = week.find((d) => sameDay(new Date(d.date), today));
   const restOfWeek = week.filter((d) => !sameDay(new Date(d.date), today)).slice(0, 6);
   return (
-    <div style={{ ...widgetCard(BASE.teal), cursor: "pointer" }} onClick={() => navigate("/settings/tools/weather")}>
+    <div style={{ ...widgetCard(BASE.teal), cursor: "pointer", justifyContent: "space-between" }} onClick={() => navigate("/settings/tools/weather")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div style={eyebrow}>Weather</div>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 30, marginTop: 2 }}>{weather ? `${weather.temperatureF}°F` : "—"}</div>
-          <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>{weather ? weather.summary : "Not connected"}</div>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 40, marginTop: 4 }}>{weather ? `${weather.temperatureF}°F` : "—"}</div>
+          <div style={{ fontFamily: F.ui, fontSize: 14, fontWeight: 700 }}>{weather ? weather.summary : "Not connected"}</div>
+          {todayForecast && (
+            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, opacity: 0.85, marginTop: 4 }}>H:{todayForecast.highF}° L:{todayForecast.lowF}°</div>
+          )}
         </div>
-        <Icon name={weather?.icon || "sun"} size={34} />
+        <Icon name={weather?.icon || "sun"} size={56} />
       </div>
       {restOfWeek.length > 0 && (
-        <div style={{ display: "flex", gap: 6, marginTop: 12, overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 16, overflowX: "auto" }}>
           {restOfWeek.map((d) => (
-            <div key={d.date} style={{ background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "6px 8px", textAlign: "center", flexShrink: 0, minWidth: 44 }}>
-              <div style={{ fontFamily: F.ui, fontSize: 9, fontWeight: 800, color: BASE.t2, textTransform: "uppercase" }}>{new Date(d.date).toLocaleDateString([], { weekday: "short" })}</div>
-              <Icon name={d.icon} size={16} />
-              <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800 }}>{d.highF}°</div>
+            <div key={d.date} style={{ background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "8px 10px", textAlign: "center", flexShrink: 0, minWidth: 56 }}>
+              <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase" }}>{new Date(d.date).toLocaleDateString([], { weekday: "short" })}</div>
+              <Icon name={d.icon} size={22} />
+              <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800 }}>{d.highF}°</div>
             </div>
           ))}
         </div>
@@ -70,9 +73,8 @@ function WeatherCard({ weather, week, navigate }) {
   );
 }
 
-function TodaysEventsCard({ events, navigate }) {
-  const today = new Date();
-  const todays = events.filter((e) => sameDay(new Date(e.start_at), today)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+function TodaysEventsCard({ events, now, navigate }) {
+  const todays = events.filter((e) => sameDay(new Date(e.start_at), now)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
   return (
     <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/calendar")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -101,8 +103,7 @@ function TodaysEventsCard({ events, navigate }) {
   );
 }
 
-function DepartureCard({ events }) {
-  const now = new Date();
+function DepartureCard({ events, now }) {
   const next = events.filter((e) => e.location && new Date(e.start_at) > now).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))[0];
   if (!next) {
     return (
@@ -156,6 +157,25 @@ function MealsCard({ mealPlan, navigate }) {
   );
 }
 
+// Mr. Sprinkles' own square box, sitting in-flow as the third box on this
+// row (rather than a floating overlay) — tapping it opens the same
+// assistant popover as the nav button.
+function MascotBox() {
+  return (
+    <button
+      onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
+      style={{
+        background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, cursor: "pointer",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+        padding: 12, minWidth: 140, aspectRatio: "1 / 1",
+      }}
+    >
+      <img src={MASCOT.main} alt="" style={{ width: 56, height: 56, objectFit: "contain", pointerEvents: "none" }} />
+      <span style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 12, textAlign: "center" }}>Ask Mr. Sprinkles</span>
+    </button>
+  );
+}
+
 function TasksAndProjectsCard({ members, chores, completions, projects, onToggleChore, navigate }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const doneToday = new Set(completions.filter((c) => c.date === todayStr).map((c) => c.chore_id));
@@ -165,7 +185,7 @@ function TasksAndProjectsCard({ members, chores, completions, projects, onToggle
   return (
     <div style={{ ...widgetCard(BASE.pink), gridColumn: "1 / -1" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }} className="sprinkles-today-tasks-split">
-        <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ flex: 2, minWidth: 220 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Today's Tasks</span>
             <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
@@ -192,7 +212,7 @@ function TasksAndProjectsCard({ members, chores, completions, projects, onToggle
 
         <div style={{ width: 2, background: BASE.ink, opacity: 0.15, alignSelf: "stretch" }} className="sprinkles-today-tasks-divider" />
 
-        <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ flex: 2, minWidth: 220 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Open Projects</span>
             <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
@@ -212,6 +232,12 @@ function TasksAndProjectsCard({ members, chores, completions, projects, onToggle
             </div>
           )}
         </div>
+
+        <div style={{ width: 2, background: BASE.ink, opacity: 0.15, alignSelf: "stretch" }} className="sprinkles-today-tasks-divider" />
+
+        <div style={{ flex: 1, minWidth: 140, display: "flex", alignItems: "center" }}>
+          <MascotBox />
+        </div>
       </div>
     </div>
   );
@@ -227,7 +253,7 @@ function KidCoinsCard({ kids, coinLedger, coinRewards, navigate }) {
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Kids' Coins</span>
         <IconBadge icon="star" bg={BASE.yellow} size={32} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${kids.length}, 1fr)`, gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${kids.length}, 1fr)`, gap: 10, flex: 1 }}>
         {kids.map((k) => {
           const balance = coinBalance(coinLedger, k.id);
           const target = tiers.find((t) => t > balance) || nextTier || 1;
@@ -236,12 +262,12 @@ function KidCoinsCard({ kids, coinLedger, coinRewards, navigate }) {
             <div
               key={k.id}
               onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
-              style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "10px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", aspectRatio: "1 / 1", justifyContent: "center" }}
+              style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "12px 8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", height: "100%" }}
             >
-              <IconBadge icon={k.icon} bg={k.color} size={32} radius={999} iconColor="#fff" />
-              <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14 }}>{balance}</span>
-              <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 10, color: BASE.t2 }}>{k.name}</span>
-              {tiers.length > 0 && <div style={{ width: "100%" }}><ProgressBar pct={pct} color={k.color} height={6} /></div>}
+              <IconBadge icon={k.icon} bg={k.color} size={46} radius={999} iconColor="#fff" />
+              <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{balance}</span>
+              <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, color: BASE.t2 }}>{k.name}</span>
+              {tiers.length > 0 && <div style={{ width: "100%" }}><ProgressBar pct={pct} color={k.color} height={8} /></div>}
             </div>
           );
         })}
@@ -258,18 +284,35 @@ function ParentsGoalsCard({ parents, stats, navigate }) {
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Parents' Goals</span>
         <IconBadge icon="users" bg={BASE.orange} size={32} />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, justifyContent: "center" }}>
         {parents.map((p) => {
-          const goal = stats.find((s) => s.member_id === p.id);
-          const pct = goal?.target ? Math.round((goal.value / goal.target) * 100) : 0;
+          const goals = stats.filter((s) => s.member_id === p.id);
           return (
             <div key={p.id}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: goal ? 4 : 0 }}>
-                <IconBadge icon={p.icon} bg={p.color} size={24} radius={8} iconColor="#fff" />
-                <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, flex: 1 }}>{p.name}</span>
-                {goal && <span style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 11, color: BASE.t2 }}>{goal.value}{goal.unit}/{goal.target}{goal.unit}</span>}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: goals.length ? 6 : 0 }}>
+                <IconBadge icon={p.icon} bg={p.color} size={28} radius={9} iconColor="#fff" />
+                <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, flex: 1 }}>{p.name}</span>
               </div>
-              {goal ? <ProgressBar pct={pct} color={p.color} height={8} /> : <span style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t3 }}>No goals set</span>}
+              {goals.length === 0 ? (
+                <span style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t3 }}>No goals set</span>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {goals.map((goal) => {
+                    const value = effectiveGoalValue(goal);
+                    const pct = goal.target ? Math.round((value / goal.target) * 100) : 0;
+                    const readout = goal.goal_type === "count" ? `${value}/${goal.target} this ${goal.period}` : `${goal.value}${goal.unit}/${goal.target}${goal.unit}`;
+                    return (
+                      <div key={goal.id}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F.ui, fontSize: 11, fontWeight: 700, color: BASE.t2, marginBottom: 3 }}>
+                          <span>{goal.label}</span>
+                          <span>{readout}</span>
+                        </div>
+                        <ProgressBar pct={pct} color={p.color} height={8} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
@@ -284,15 +327,23 @@ export default function Today({ members, events, chores, completions, mealPlan, 
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const parents = useMemo(() => members.filter((m) => m.role === "parent"), [members]);
 
+  // A ticking clock so "Next Event" / countdowns and the header time stay
+  // correct without needing to leave and revisit the page.
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div style={{ padding: "16px 16px 40px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: "calc(env(safe-area-inset-top, 0px) + 6px)" }}>
-        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
-        <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, color: BASE.t2 }}>{greetingForNow()}</span>
+        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
+        <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, color: BASE.t2 }}>{estClock(now)}</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginTop: 10 }} className="sprinkles-today-grid">
-        <TodaysEventsCard events={events} navigate={navigate} />
-        <DepartureCard events={events} />
+        <TodaysEventsCard events={events} now={now} navigate={navigate} />
+        <DepartureCard events={events} now={now} />
         <WeatherCard weather={weather} week={week} navigate={navigate} />
         <MealsCard mealPlan={mealPlan} navigate={navigate} />
         <KidCoinsCard kids={kids} coinLedger={coinLedger} coinRewards={coinRewards} navigate={navigate} />

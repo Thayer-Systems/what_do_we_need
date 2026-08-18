@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHeader, Card } from "../components/ui.jsx";
+import { PageHeader, Card, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F } from "../lib/theme.js";
@@ -255,6 +255,18 @@ export function PreferencesPage({ settings, onUpdateSettings, members = [] }) {
             )}
           </div>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+export function GamesPage() {
+  const { navigate } = useRouter();
+  return (
+    <div>
+      <PageHeader title="Games" sprinkles="settings" back={() => navigate("/settings")} />
+      <div style={{ padding: "18px 16px 40px" }}>
+        <EmptyState icon="star" text="Coming soon — nothing to play here yet." />
       </div>
     </div>
   );

@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { PageHeader, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { LineChart } from "../components/Charts.jsx";
+import { LineChart, ProgressBar } from "../components/Charts.jsx";
 import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
-import { coinBalance } from "../lib/coins.js";
+import { coinBalance, daysUntilCashIn } from "../lib/coins.js";
 
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -206,6 +206,22 @@ function LoadErrorBanner() {
   );
 }
 
+// A slowly, continuously spinning gold coin badge for the corner of each
+// kid's box — a flat circle rotated on the Y axis so it reads as a coin
+// flipping in place rather than a flat wheel spin.
+function SpinningCoin() {
+  return (
+    <div
+      style={{
+        position: "absolute", top: 10, right: 10, width: 36, height: 36, borderRadius: "50%",
+        background: "radial-gradient(circle at 35% 35%, #fff6c8, #ffd23f 55%, #c8951f 100%)",
+        border: `2px solid ${BASE.ink}`, boxShadow: hardShadow(BASE.ink, 2, 2),
+        animation: "sprinkles-coin-spin 3s linear infinite",
+      }}
+    />
+  );
+}
+
 function RuleRow({ rule, onOpen }) {
   return (
     <div onClick={() => onOpen(rule)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
@@ -244,31 +260,27 @@ export function KidsGoalsRulesPage({ members, coinRules, coinLedger, coinLoadErr
   );
 }
 
-// One tiered bar per kid — each segment is a reward tier, filled solid once
-// the kid's balance clears it and partially filled for the tier currently
-// being worked toward. Tapping a tier shows what's redeemable there.
-function RewardTierBar({ kid, balance, tiers, onTierClick }) {
-  const max = tiers[tiers.length - 1] || 1;
+// One full-width bar per reward tier, stacked vertically — each bar shows
+// progress toward that specific reward on its own scale (0 → tier cost),
+// so it's obvious at a glance how close a kid is to each one, rather than
+// squinting at segments inside a single skinny bar. Tapping a tier shows
+// what's redeemable there.
+function RewardTierBar({ balance, tiers, onTierClick }) {
   return (
-    <div>
-      <div style={{ display: "flex", height: 16, borderRadius: 8, overflow: "hidden", border: `2px solid ${BASE.ink}`, background: "#fff" }}>
-        {tiers.map((cost, i) => {
-          const prev = i === 0 ? 0 : tiers[i - 1];
-          const segPct = ((cost - prev) / max) * 100;
-          const achieved = balance >= cost;
-          const fillPct = achieved ? 100 : balance > prev ? ((balance - prev) / (cost - prev)) * 100 : 0;
-          return (
-            <div
-              key={cost}
-              onClick={(e) => { e.stopPropagation(); onTierClick(cost); }}
-              title={`${cost} coins`}
-              style={{ width: `${segPct}%`, position: "relative", background: BASE.muted, cursor: "pointer", borderRight: i < tiers.length - 1 ? `2px solid ${BASE.ink}` : "none" }}
-            >
-              <div style={{ position: "absolute", inset: 0, width: `${fillPct}%`, background: achieved ? BASE.green : BASE.yellow, transition: "width 0.2s" }} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {tiers.map((cost) => {
+        const achieved = balance >= cost;
+        const pct = Math.min(100, Math.round((balance / cost) * 100));
+        return (
+          <div key={cost} onClick={(e) => { e.stopPropagation(); onTierClick(cost); }} style={{ cursor: "pointer" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F.ui, fontSize: 13, fontWeight: 800, color: BASE.t2, marginBottom: 4 }}>
+              <span>{achieved ? "✓ " : ""}{cost} coins</span>
+              {!achieved && <span>{cost - balance} to go</span>}
             </div>
-          );
-        })}
-      </div>
+            <ProgressBar pct={pct} color={achieved ? BASE.green : BASE.yellow} height={16} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -339,6 +351,7 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
   const gives = coinRules.filter((r) => r.delta > 0).sort((a, b) => a.delta - b.delta || a.sort_order - b.sort_order);
   const takes = coinRules.filter((r) => r.delta < 0).sort((a, b) => b.delta - a.delta || a.sort_order - b.sort_order);
   const tiers = useMemo(() => [...new Set(coinRewards.map((r) => r.coin_cost))].sort((a, b) => a - b), [coinRewards]);
+  const cashInDays = daysUntilCashIn();
 
   if (kids.length === 0) {
     return (
@@ -360,21 +373,29 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
 
         {coinLoadError && <LoadErrorBanner />}
 
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(kids.length, 4)}, 1fr)`, gap: 12 }} className="sprinkles-kid-coin-row">
+        <div style={{ background: BASE.ink, color: "#fff", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: F.ui }}>
+          <Icon name="star" size={16} color={BASE.yellow} />
+          <span style={{ fontWeight: 800, fontSize: 14 }}>
+            {cashInDays === 0 ? "Coins cash in today!" : `Coins cash in Friday — ${cashInDays} day${cashInDays === 1 ? "" : "s"} left`}
+          </span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(kids.length, 4)}, 1fr)`, gap: 12, alignItems: "start" }} className="sprinkles-kid-coin-row">
           {kids.map((k) => {
             const balance = coinBalance(coinLedger, k.id);
             return (
               <div
                 key={k.id}
                 onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
-                style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 12px", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, aspectRatio: "1 / 1", justifyContent: "center" }}
+                style={{ position: "relative", background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "18px 14px", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
               >
-                <IconBadge icon={k.icon} bg="#fff" size={38} radius={12} />
-                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>{k.name}</span>
-                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 24 }}>{balance} <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>coins</span></span>
+                <SpinningCoin />
+                <IconBadge icon={k.icon} bg="#fff" size={56} radius={16} />
+                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{k.name}</span>
+                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 34 }}>{balance} <span style={{ fontFamily: F.ui, fontSize: 14, fontWeight: 700, opacity: 0.85 }}>coins</span></span>
                 {tiers.length > 0 && (
-                  <div style={{ background: "#fff", borderRadius: 10, padding: "6px 8px", width: "100%" }}>
-                    <RewardTierBar kid={k} balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
+                  <div style={{ background: "#fff", borderRadius: 10, padding: "10px", width: "100%", boxSizing: "border-box" }}>
+                    <RewardTierBar balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
                   </div>
                 )}
               </div>
@@ -384,6 +405,10 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
         <style>{`
           @media (max-width: 640px) {
             .sprinkles-kid-coin-row { grid-template-columns: repeat(2, 1fr) !important; }
+          }
+          @keyframes sprinkles-coin-spin {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
           }
         `}</style>
 

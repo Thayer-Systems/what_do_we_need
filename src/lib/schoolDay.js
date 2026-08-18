@@ -1,7 +1,7 @@
 // School Day display logic: which kids it's for on a given weekday, and
-// whether "now" falls in the morning window where a TV should auto-switch
-// to it. Always computed in America/New_York regardless of the device's
-// own timezone, since that's the household's timezone.
+// whether "now" falls in the configured main-display window. Always
+// computed in America/New_York regardless of the device's own timezone,
+// since that's the household's timezone.
 const TZ = "America/New_York";
 
 function partsInTZ(date, tz) {
@@ -22,11 +22,18 @@ export function schoolKidsForDate(members, date = new Date()) {
   return [];
 }
 
-// The display is "live" (main-display) from 6:45am until 8:30am ET on a
-// school morning — outside that window it's just a page you can visit.
-export function isSchoolMorningWindow(date = new Date()) {
+const DEFAULT_SCHEDULE = { days: [1, 2, 3, 4, 5], start_time: "06:45", end_time: "08:30", enabled: true };
+
+// Whether "now" falls inside the configured display window (Tools >
+// Routines) — falls back to the original 6:45-8:30am weekday default if no
+// schedule has been configured/loaded yet.
+export function isInDisplayWindow(schedule, date = new Date()) {
+  const s = schedule || DEFAULT_SCHEDULE;
+  if (s.enabled === false) return false;
   const { dow, hour, minute } = partsInTZ(date, TZ);
-  if (![1, 2, 3, 4, 5].includes(dow)) return false;
+  if (!(s.days || DEFAULT_SCHEDULE.days).includes(dow)) return false;
   const mins = hour * 60 + minute;
-  return mins >= 6 * 60 + 45 && mins < 8 * 60 + 30;
+  const [sh, sm] = (s.start_time || DEFAULT_SCHEDULE.start_time).split(":").map(Number);
+  const [eh, em] = (s.end_time || DEFAULT_SCHEDULE.end_time).split(":").map(Number);
+  return mins >= sh * 60 + sm && mins < eh * 60 + em;
 }

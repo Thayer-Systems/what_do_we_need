@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { BASE, F, MASCOT, hardShadow, SPRINKLE_BG_STYLE, CATEGORY_COLORS } from "../lib/theme.js";
 import { IconBadge } from "./Deco.jsx";
 import { Icon } from "./Icons.jsx";
@@ -19,17 +19,33 @@ export const TABS = [
 
 const CATEGORIES = ["event", "appointment", "activity", "meal", "chore", "work", "other"];
 
+// Renders via position:fixed (anchored from the button's own bounding
+// rect) rather than position:absolute — the nav bar scrolls horizontally
+// (overflow-x:auto), which per the CSS spec also clips overflow-y, so an
+// absolutely-positioned dropdown inside it was getting cut off instead of
+// showing.
 function CalendarFilterControl({ members }) {
   const filters = useCalendarFilters();
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
   if (!filters) return null;
   const { memberFilter, setMemberFilter, catFilter, setCatFilter } = filters;
   const activeCount = (memberFilter !== "all" ? 1 : 0) + (catFilter !== "all" ? 1 : 0);
 
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) });
+    }
+    setOpen((o) => !o);
+  };
+
   return (
-    <div style={{ position: "relative", flexShrink: 0 }}>
+    <div style={{ flexShrink: 0 }}>
       <button
-        onClick={() => setOpen((o) => !o)}
+        ref={btnRef}
+        onClick={toggle}
         style={{
           display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 12,
           border: `2px solid ${BASE.ink}`, background: activeCount ? BASE.yellow : "#fff", cursor: "pointer",
@@ -38,34 +54,40 @@ function CalendarFilterControl({ members }) {
       >
         <Icon name="filter" size={14} /> Filters{activeCount > 0 ? ` (${activeCount})` : ""}
       </button>
-      {open && (
-        <div
-          style={{
-            position: "absolute", right: 0, top: 44, background: "#fff", border: `2.5px solid ${BASE.ink}`,
-            borderRadius: 14, boxShadow: hardShadow(BASE.ink, 3, 3), zIndex: 50, padding: 12, width: 260,
-          }}
-        >
-          <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>Who</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            <Chip active={memberFilter === "all"} onClick={() => setMemberFilter("all")}>Everyone</Chip>
-            {members.map((m) => (
-              <Chip key={m.id} active={memberFilter === m.id} onClick={() => setMemberFilter(m.id)} color={m.color}>{m.name}</Chip>
-            ))}
+      {open && pos && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+          <div
+            style={{
+              position: "fixed", top: pos.top, right: pos.right, background: "#fff", border: `2.5px solid ${BASE.ink}`,
+              borderRadius: 14, boxShadow: hardShadow(BASE.ink, 3, 3), zIndex: 50, padding: 12, width: 280, maxWidth: "calc(100vw - 16px)",
+            }}
+          >
+            <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>Who</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+              <Chip active={memberFilter === "all"} onClick={() => setMemberFilter("all")}>Everyone</Chip>
+              {members.map((m) => (
+                <Chip key={m.id} active={memberFilter === m.id} onClick={() => setMemberFilter(m.id)} color={m.color}>{m.name}</Chip>
+              ))}
+            </div>
+            <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>Type</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <Chip active={catFilter === "all"} onClick={() => setCatFilter("all")}>All types</Chip>
+              {CATEGORIES.map((c) => <Chip key={c} active={catFilter === c} onClick={() => setCatFilter(c)} color={CATEGORY_COLORS[c]}>{c}</Chip>)}
+            </div>
           </div>
-          <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>Type</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Chip active={catFilter === "all"} onClick={() => setCatFilter("all")}>All types</Chip>
-            {CATEGORIES.map((c) => <Chip key={c} active={catFilter === c} onClick={() => setCatFilter(c)} color={CATEGORY_COLORS[c]}>{c}</Chip>)}
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
 }
 
-// Mr. Sprinkles gets his own fixed box in the bottom-right corner of every
-// page — tapping it opens the same assistant popover as the nav button.
+// Mr. Sprinkles gets his own fixed box in the bottom-right corner — except
+// on Today, which already embeds an in-flow version of the same box
+// alongside Today's Tasks / Open Projects, so it isn't duplicated there.
 function MascotCorner() {
+  const { path } = useRouter();
+  if (path === "/") return null;
   return (
     <button
       onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
@@ -105,7 +127,6 @@ export default function Shell({ children, members = [] }) {
           overflowX: "auto",
         }}
       >
-        <img src={MASCOT.main} alt="" style={{ width: 30, height: 30, objectFit: "contain", flexShrink: 0, marginRight: 6 }} />
         {TABS.map(([p, icon, label, color]) => (
           <button
             key={p}
