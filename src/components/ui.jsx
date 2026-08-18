@@ -69,21 +69,20 @@ function pillFrom(bg) {
 export function Modal({ onClose, children, maxWidth = 460 }) {
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}
+      style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16, boxSizing: "border-box" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         style={{
           background: BASE.surface,
-          borderRadius: "22px 22px 0 0",
+          borderRadius: 22,
           border: `2.5px solid ${BASE.ink}`,
-          borderBottom: "none",
           width: "100%",
           maxWidth,
           maxHeight: "88vh",
           overflowY: "auto",
-          padding: "22px 20px 36px",
-          boxShadow: `0 -4px 0 0 ${BASE.ink}`,
+          padding: "22px 20px 28px",
+          boxShadow: hardShadow(BASE.ink, 5, 5),
         }}
       >
         {children}

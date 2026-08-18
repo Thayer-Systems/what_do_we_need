@@ -38,6 +38,21 @@ function Row({ children, onDelete }) {
 
 function SimpleAddModal({ title, fields, onSave, onClose }) {
   const [vals, setVals] = useState(Object.fromEntries(fields.map((f) => [f.key, f.default ?? ""])));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await onSave(vals);
+    setBusy(false);
+    // onSave may be a plain fire-and-forget callback (returns undefined) —
+    // only treat it as a failure when it explicitly reports one, so this
+    // doesn't require every call site to be updated.
+    if (result && result.ok === false) setError(result.error || "Unknown error");
+    else onClose();
+  };
+
   return (
     <Modal onClose={onClose}>
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 14 }}>{title}</div>
@@ -65,7 +80,8 @@ function SimpleAddModal({ title, fields, onSave, onClose }) {
             )}
           </div>
         ))}
-        <button onClick={() => onSave(vals)} style={{ ...btn(BASE.green), width: "100%", marginTop: 6 }}>Save</button>
+        <button disabled={busy} onClick={submit} style={{ ...btn(BASE.green), width: "100%", marginTop: 6, opacity: busy ? 0.6 : 1 }}>{busy ? "Saving..." : "Save"}</button>
+        {error && <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: BASE.red }}>Couldn't save that: {error}</div>}
       </div>
     </Modal>
   );
@@ -267,7 +283,7 @@ export default function FamilyMember({
           { key: "name", label: "Name", placeholder: "Dr. Smith" },
           { key: "phone", label: "Phone", placeholder: "(555) 555-5555" },
           { key: "notes", label: "Notes" },
-        ]} onSave={(v) => { onAdd("sprinkles_contacts", { member_id: member.id, ...v }); setModal(null); }} onClose={() => setModal(null)} />
+        ]} onSave={(v) => onAdd("sprinkles_contacts", { member_id: member.id, ...v })} onClose={() => setModal(null)} />
       )}
       {modal?.type === "activity" && (
         <SimpleAddModal title="Add Activity" fields={[
@@ -276,7 +292,7 @@ export default function FamilyMember({
           { key: "start_time", label: "Start time", type: "time" },
           { key: "end_time", label: "End time", type: "time" },
           { key: "location", label: "Location", placeholder: "Studio address" },
-        ]} onSave={(v) => { onAdd("sprinkles_activities", { member_id: member.id, active: true, ...v }); setModal(null); }} onClose={() => setModal(null)} />
+        ]} onSave={(v) => onAdd("sprinkles_activities", { member_id: member.id, active: true, ...v })} onClose={() => setModal(null)} />
       )}
       {modal?.type === "medication" && (
         <SimpleAddModal title="Add Medication" fields={[
@@ -284,25 +300,25 @@ export default function FamilyMember({
           { key: "dosage", label: "Dosage", placeholder: "5mg" },
           { key: "schedule", label: "Schedule", placeholder: "Every morning" },
           { key: "notes", label: "Notes" },
-        ]} onSave={(v) => { onAdd("sprinkles_medications", { member_id: member.id, ...v }); setModal(null); }} onClose={() => setModal(null)} />
+        ]} onSave={(v) => onAdd("sprinkles_medications", { member_id: member.id, ...v })} onClose={() => setModal(null)} />
       )}
       {modal?.type === "link" && (
         <SimpleAddModal title="Add Link" fields={[
           { key: "label", label: "Label", placeholder: "School portal", autoFocus: true },
           { key: "url", label: "URL", placeholder: "https://..." },
-        ]} onSave={(v) => { onAdd("sprinkles_links", { member_id: member.id, ...v }); setModal(null); }} onClose={() => setModal(null)} />
+        ]} onSave={(v) => onAdd("sprinkles_links", { member_id: member.id, ...v })} onClose={() => setModal(null)} />
       )}
       {modal?.type === "chore" && (
         <SimpleAddModal title="Add Task" fields={[
           { key: "title", label: "Task", placeholder: "Feed the dog", autoFocus: true },
           { key: "frequency", label: "Timeline", type: "select", options: ["none", "daily", "custom"], default: "none" },
           { key: "days", label: "Days (if custom)", type: "days", default: [] },
-        ]} onSave={(v) => { onAdd("sprinkles_chores", { member_id: member.id, active: true, ...v }); setModal(null); }} onClose={() => setModal(null)} />
+        ]} onSave={(v) => onAdd("sprinkles_chores", { member_id: member.id, active: true, ...v })} onClose={() => setModal(null)} />
       )}
       {modal?.type === "morning" && (
         <SimpleAddModal title="Add Morning Routine Item" fields={[
           { key: "title", label: "Item", placeholder: "Brush teeth", autoFocus: true },
-        ]} onSave={(v) => { onAdd("sprinkles_morning_routine_items", { member_id: member.id, active: true, sort_order: mMorningRoutine.length, ...v }); setModal(null); }} onClose={() => setModal(null)} />
+        ]} onSave={(v) => onAdd("sprinkles_morning_routine_items", { member_id: member.id, active: true, sort_order: mMorningRoutine.length, ...v })} onClose={() => setModal(null)} />
       )}
       {statModal && (
         <SimpleAddModal
@@ -315,9 +331,7 @@ export default function FamilyMember({
           ]}
           onSave={(v) => {
             const body = { label: v.label, value: Number(v.value), target: Number(v.target) || 1, unit: v.unit };
-            if (statModal.id) onUpdateStat(statModal.id, body);
-            else onAddStat(member.id, body);
-            setStatModal(null);
+            return statModal.id ? onUpdateStat(statModal.id, body) : onAddStat(member.id, body);
           }}
           onClose={() => setStatModal(null)}
         />

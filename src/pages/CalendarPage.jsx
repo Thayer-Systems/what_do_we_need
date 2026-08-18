@@ -205,7 +205,7 @@ function Agenda({ days, events, members, onOpen, forecast }) {
         return (
           <div key={d.toISOString()} style={{ display: "flex", borderBottom: `1.5px solid ${BASE.muted}`, minHeight: 64 }}>
             <div style={{ width: 56, flexShrink: 0, padding: "12px 6px", textAlign: "center", borderRight: `1.5px solid ${BASE.muted}` }}>
-              <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase" }}>{d.toLocaleDateString([], { weekday: "short" })}</div>
+              <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2, textTransform: "uppercase" }}>{d.toLocaleDateString([], { weekday: "short" })}</div>
               <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "2px auto 0", background: isToday ? BASE.yellow : "transparent", border: isToday ? `2px solid ${BASE.ink}` : "none" }}>
                 {d.getDate()}
               </div>
@@ -220,10 +220,10 @@ function Agenda({ days, events, members, onOpen, forecast }) {
                     onClick={() => onOpen(e)}
                     style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#fff", border: `1.5px solid ${BASE.ink}`, borderLeft: `6px solid ${eventColor(e, members)}`, borderRadius: 8, padding: "6px 10px" }}
                   >
-                    <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2, minWidth: 52 }}>
+                    <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.t2, minWidth: 56 }}>
                       {e.all_day ? "All day" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                     </span>
-                    <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, flex: 1 }}>{e.title}</span>
+                    <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14, flex: 1 }}>{e.title}</span>
                     <WeatherBadge day={dayForecast} />
                   </div>
                 ))
@@ -236,6 +236,8 @@ function Agenda({ days, events, members, onOpen, forecast }) {
   );
 }
 
+const WEEKDAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 function MonthView({ cursor, events, members, onDayClick, onOpenEvent }) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const gridStart = startOfWeek(first);
@@ -243,33 +245,38 @@ function MonthView({ cursor, events, members, onDayClick, onOpenEvent }) {
   const today = new Date();
   return (
     <div style={{ padding: "0 16px 24px" }}>
-      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, marginBottom: 10 }}>{cursor.toLocaleDateString([], { month: "long", year: "numeric" })}</div>
+      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 10 }}>{cursor.toLocaleDateString([], { month: "long", year: "numeric" })}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 6 }}>
+        {WEEKDAY_HEADERS.map((d) => (
+          <div key={d} style={{ textAlign: "center", fontFamily: F.ui, fontWeight: 800, fontSize: 12, color: BASE.t2, textTransform: "uppercase" }}>{d}</div>
+        ))}
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
         {days.map((d) => {
           const inMonth = d.getMonth() === cursor.getMonth();
           // Cells outside the current month are left blank rather than
           // showing the adjacent month's dates/events.
           if (!inMonth) {
-            return <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 96, background: BASE.muted, opacity: 0.4 }} />;
+            return <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 110, background: BASE.muted, opacity: 0.4 }} />;
           }
           const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
           return (
-            <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 96, padding: 5, background: sameDay(d, today) ? BASE.yellow : "#fff", display: "flex", flexDirection: "column", gap: 3, overflow: "hidden" }}>
-              <div onClick={() => onDayClick(d)} style={{ fontSize: 11, fontWeight: 700, fontFamily: F.ui, cursor: "pointer" }}>{d.getDate()}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0 }}>
+            <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 110, padding: 6, background: sameDay(d, today) ? BASE.yellow : "#fff", display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+              <div onClick={() => onDayClick(d)} style={{ fontSize: 14, fontWeight: 800, fontFamily: F.ui, cursor: "pointer" }}>{d.getDate()}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minHeight: 0 }}>
                 {dayEvents.slice(0, 3).map((e) => (
                   <div
                     key={e.id}
                     onClick={(ev) => { ev.stopPropagation(); onOpenEvent ? onOpenEvent(e) : onDayClick(d); }}
-                    style={{ background: eventColor(e, members), border: `1px solid ${BASE.ink}`, borderRadius: 5, padding: "1px 4px", cursor: "pointer", overflow: "hidden" }}
+                    style={{ background: eventColor(e, members), border: `1px solid ${BASE.ink}`, borderRadius: 5, padding: "2px 5px", cursor: "pointer", overflow: "hidden" }}
                   >
-                    <div style={{ fontSize: 9, fontWeight: 800, fontFamily: F.ui, color: BASE.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, fontFamily: F.ui, color: "#fff", textShadow: "0 1px 1px rgba(0,0,0,0.35)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {e.all_day ? "" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} {e.title}
                     </div>
                   </div>
                 ))}
                 {dayEvents.length > 3 && (
-                  <div onClick={() => onDayClick(d)} style={{ fontSize: 9, fontWeight: 800, fontFamily: F.ui, color: BASE.t2, cursor: "pointer" }}>+{dayEvents.length - 3} more</div>
+                  <div onClick={() => onDayClick(d)} style={{ fontSize: 11, fontWeight: 800, fontFamily: F.ui, color: BASE.t2, cursor: "pointer" }}>+{dayEvents.length - 3} more</div>
                 )}
               </div>
             </div>

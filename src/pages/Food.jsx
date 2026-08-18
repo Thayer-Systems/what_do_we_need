@@ -177,43 +177,9 @@ function SlotPickerModal({ day, meal, recipes, onPick, onCreateNew, onClose }) {
   );
 }
 
-// This week's dinner lineup, pulled from the recipe library's weekly
-// rotation folders (week-1..4) based on day-of-month — cycles back to
-// week 1 on a month's 5th week rather than leaving a blank week.
-function ThisWeeksDinners({ recipes, onView }) {
-  const activeWeekTag = getActiveWeekTag();
-  const folder = folderForWeekTag(activeWeekTag);
-  const byDay = WEEK_DAYS.map((day) => ({ day, recipe: recipes.find((r) => r.folder === folder && r.day_of_week === day) }));
-  const hasAny = byDay.some((d) => d.recipe);
-
-  return (
-    <Card style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>This Week's Dinners</span>
-        <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, fontFamily: F.ui, textTransform: "uppercase" }}>{FOLDER_LABELS[folder]}</span>
-      </div>
-      {!hasAny ? (
-        <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No recipes tagged for {FOLDER_LABELS[folder]} yet — add some from the Recipe Library.</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {byDay.map(({ day, recipe }) => (
-            <div key={day} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "6px 10px" }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, minWidth: 66, fontFamily: F.ui }}>{day}</span>
-              {recipe ? (
-                <span onClick={() => onView(recipe)} style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{recipe.name}</span>
-              ) : (
-                <span style={{ flex: 1, fontFamily: F.ui, fontSize: 12, color: BASE.t3, fontStyle: "italic" }}>Not set</span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 // A pool of 10 fallback dinners — 3 random picks, re-rolled whenever this
 // view is loaded (no persistence, so navigating away and back re-rolls).
+// Square box so it can sit next to the grocery list box.
 function AlternativeMealsWidget({ recipes, onView }) {
   const pool = useMemo(() => recipes.filter((r) => r.folder === "alternative-meals"), [recipes]);
   const [picks, setPicks] = useState([]);
@@ -229,20 +195,34 @@ function AlternativeMealsWidget({ recipes, onView }) {
   if (!pool.length) return null;
 
   return (
-    <Card style={{ marginBottom: 14 }}>
+    <Card style={{ aspectRatio: "1 / 1", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Need Something Different?</span>
         <button onClick={() => setPicks(shuffle(pool).slice(0, 3))} style={{ ...btn("#fff"), display: "flex", alignItems: "center", gap: 6, padding: "6px 12px" }}>
           <Icon name="star" size={13} /> Shuffle
         </button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, justifyContent: "center" }}>
         {picks.map((r) => (
-          <div key={r.id} onClick={() => onView(r)} style={{ background: BASE.muted, borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
+          <div key={r.id} onClick={() => onView(r)} style={{ background: BASE.muted, borderRadius: 8, padding: "10px 12px", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
             {r.name}
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+// Square box mirroring AlternativeMealsWidget, sitting next to it on the
+// same row, replacing the old full-width "Grocery List" button.
+function GroceryListBox({ shopping, navigate }) {
+  return (
+    <Card onClick={() => navigate("/food/grocery")} style={{ aspectRatio: "1 / 1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", textAlign: "center" }}>
+      <IconBadge icon="cart" bg={BASE.orange} size={48} />
+      <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>Grocery List</span>
+      <span style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, fontWeight: 700 }}>
+        {shopping.length === 0 ? "Nothing on the list" : `${shopping.length} item${shopping.length === 1 ? "" : "s"} pending`}
+      </span>
     </Card>
   );
 }
@@ -281,7 +261,7 @@ function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView }) {
 const FOOD_MEALS = ["Lunch", "Dinner"];
 const FOOD_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
-export function FoodWeekPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
+export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
   const { navigate } = useRouter();
   const [recipeModal, setRecipeModal] = useState(null);
   const [viewRecipe, setViewRecipe] = useState(null);
@@ -298,6 +278,26 @@ export function FoodWeekPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, 
   }, []);
 
   const slotFor = (day, meal) => mealPlan.find((s) => s.day === day && s.meal === meal);
+
+  // The weekly-add grid used to duplicate "This Week's Dinners" (a separate
+  // read-only view of the recipe library's rotation folder) — instead,
+  // auto-schedule that rotation straight into meal_plan for any Dinner slot
+  // that's still empty, so there's one place to see and edit it.
+  const attemptedAutofill = useRef(new Set());
+  useEffect(() => {
+    if (!recipes.length) return;
+    const activeWeekTag = getActiveWeekTag();
+    const folder = folderForWeekTag(activeWeekTag);
+    weekDays.forEach(({ short }) => {
+      if (attemptedAutofill.current.has(short)) return;
+      if (slotFor(short, "Dinner")) return;
+      const recipe = recipes.find((r) => r.folder === folder && r.day_of_week === short);
+      if (recipe) {
+        attemptedAutofill.current.add(short);
+        onScheduleRecipe(short, "Dinner", recipe);
+      }
+    });
+  }, [recipes, mealPlan, weekDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDrop = (e, day, meal) => {
     e.preventDefault();
@@ -369,12 +369,10 @@ export function FoodWeekPage({ recipes, mealPlan, onSaveRecipe, onDeleteRecipe, 
           </div>
         </div>
 
-        <ThisWeeksDinners recipes={recipes} onView={setViewRecipe} />
-        <AlternativeMealsWidget recipes={recipes} onView={setViewRecipe} />
-
-        <button onClick={() => navigate("/food/grocery")} style={{ ...btn(BASE.orange), width: "100%", marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px" }}>
-          <Icon name="cart" size={16} /> Grocery List
-        </button>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          <AlternativeMealsWidget recipes={recipes} onView={setViewRecipe} />
+          <GroceryListBox shopping={shopping} navigate={navigate} />
+        </div>
       </div>
 
       {viewRecipe && <RecipeViewModal recipe={viewRecipe} onClose={() => setViewRecipe(null)} onEdit={(r) => { setViewRecipe(null); setRecipeModal(r); }} />}

@@ -17,13 +17,14 @@ import ParentsGoals from "./pages/ParentsGoals.jsx";
 import Settings from "./pages/Settings.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
 import Privacy from "./pages/Privacy.jsx";
-import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage, PreferencesPage } from "./pages/SettingsPages.jsx";
+import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage, PreferencesPage, GamesPage } from "./pages/SettingsPages.jsx";
 import SchoolDay from "./pages/SchoolDay.jsx";
+import RoutinesPage from "./pages/RoutinesPage.jsx";
 import { get, getSafe, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
 import { notifyAssignment } from "./lib/push.js";
 import { useIsTVMode } from "./lib/useMediaQuery.js";
-import { isSchoolMorningWindow } from "./lib/schoolDay.js";
+import { isInDisplayWindow } from "./lib/schoolDay.js";
 
 const DAY_MS = 86400000;
 
@@ -94,11 +95,12 @@ function AppInner() {
   const [coinRewards, setCoinRewards] = useState([]);
   const [coinLoadError, setCoinLoadError] = useState(false);
   const [morningRoutine, setMorningRoutine] = useState([]);
+  const [displaySchedule, setDisplaySchedule] = useState(null);
 
   const loadAll = useCallback(async () => {
     let coinFailed = false;
     const trackCoinFailure = () => { coinFailed = true; };
-    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning, schedule] = await Promise.all([
       getSafe("sprinkles_family_members?order=sort_order.asc"),
       getSafe("sprinkles_contacts"),
       getSafe("sprinkles_activities"),
@@ -118,6 +120,7 @@ function AppInner() {
       getSafe("sprinkles_coin_ledger?order=created_at.desc", trackCoinFailure),
       getSafe("sprinkles_coin_rewards?order=sort_order.asc", trackCoinFailure),
       getSafe("sprinkles_morning_routine_items?order=sort_order.asc"),
+      getSafe("sprinkles_display_schedule?id=eq.1"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -139,23 +142,35 @@ function AppInner() {
     setCoinRewards(rewards || []);
     setCoinLoadError(coinFailed);
     setMorningRoutine(morning || []);
+    setDisplaySchedule((schedule || [])[0] || null);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On a TV/kiosk device, the School Day display becomes the main screen
-  // during the school-morning window (6:45–8:30am ET on a school day) —
-  // it only auto-switches away from Today, never interrupts another page.
+  // during the window configured on Tools > Routines — it only
+  // auto-switches away from Today, never interrupts another page, and
+  // keeps using that schedule until the user changes it there.
   const isTV = useIsTVMode();
   useEffect(() => {
     if (!isTV) return;
     const check = () => {
-      if (isSchoolMorningWindow() && window.location.pathname === "/") navigate("/school-day");
+      if (isInDisplayWindow(displaySchedule) && window.location.pathname === "/") navigate("/school-day");
     };
     check();
     const id = setInterval(check, 60000);
     return () => clearInterval(id);
-  }, [isTV]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isTV, displaySchedule]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onUpdateDisplaySchedule = async (ch) => {
+    setDisplaySchedule((p) => ({ ...p, ...ch }));
+    try {
+      await patch("sprinkles_display_schedule", 1, ch);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || "Request failed." };
+    }
+  };
 
   const allEvents = useMemo(() => [...events, ...buildActivityEvents(activities, members)], [events, activities, members]);
 
@@ -169,27 +184,47 @@ function AppInner() {
     sprinkles_links: setLinks, sprinkles_chores: setChores, sprinkles_events: setEvents,
     sprinkles_morning_routine_items: setMorningRoutine,
   };
+  // Returns { ok, error, data } instead of throwing so every modal that
+  // calls this can show the failure inline and keep the form open — a bare
+  // throw here previously meant "nothing happens, nothing saved, no sign
+  // anything went wrong" for chores, projects, morning-routine items, etc.
   const onAdd = async (table, body) => {
-    const d = await post(table, body);
-    if (d?.[0] && SETTERS[table]) SETTERS[table]((p) => [...p, d[0]]);
-    return d?.[0];
+    try {
+      const d = await post(table, body);
+      if (!d?.[0]) return { ok: false, error: "No row was created." };
+      if (SETTERS[table]) SETTERS[table]((p) => [...p, d[0]]);
+      return { ok: true, data: d[0] };
+    } catch (e) {
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const onDelete = async (table, id) => {
     SETTERS[table]?.((p) => p.filter((x) => x.id !== id));
-    await del(table, id);
+    try {
+      await del(table, id);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const onAddChore = async (body) => {
-    const d = await onAdd("sprinkles_chores", { active: true, ...body });
-    if (d && body.member_id) notifyAssignment([body.member_id], "New task assigned", d.title, "/tasks");
-    return d;
+    const result = await onAdd("sprinkles_chores", { active: true, ...body });
+    if (result.ok && body.member_id) notifyAssignment([body.member_id], "New task assigned", result.data.title, "/tasks");
+    return result;
   };
   const onUpdateChore = async (id, ch) => {
     const before = chores.find((c) => c.id === id);
     setChores((p) => p.map((c) => (c.id === id ? { ...c, ...ch } : c)));
-    await patch("sprinkles_chores", id, ch);
+    try {
+      await patch("sprinkles_chores", id, ch);
+    } catch (e) {
+      if (before) setChores((p) => p.map((c) => (c.id === id ? before : c)));
+      return { ok: false, error: e.message || "Request failed." };
+    }
     if (ch.member_id && before && ch.member_id !== before.member_id) {
       notifyAssignment([ch.member_id], "Task assigned to you", ch.title || before.title, "/tasks");
     }
+    return { ok: true };
   };
   const onUpdateSettings = async (ch) => {
     setSettings((p) => ({ ...p, ...ch }));
@@ -208,15 +243,27 @@ function AppInner() {
 
   // ── Member stats (wins/goals) ──
   const onAddStat = async (memberId, body) => {
-    const d = await post("sprinkles_member_stats", { member_id: memberId, active: true, ...body });
-    if (d?.[0]) setStats((p) => [...p, d[0]]);
+    try {
+      const d = await post("sprinkles_member_stats", { member_id: memberId, active: true, ...body });
+      if (!d?.[0]) return { ok: false, error: "No row was created." };
+      setStats((p) => [...p, d[0]]);
+      return { ok: true, data: d[0] };
+    } catch (e) {
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const onUpdateStat = async (id, ch) => {
     const before = stats.find((s) => s.id === id);
     setStats((p) => p.map((s) => (s.id === id ? { ...s, ...ch } : s)));
-    await patch("sprinkles_member_stats", id, ch);
+    try {
+      await patch("sprinkles_member_stats", id, ch);
+    } catch (e) {
+      if (before) setStats((p) => p.map((s) => (s.id === id ? before : s)));
+      return { ok: false, error: e.message || "Request failed." };
+    }
     const after = { ...before, ...ch };
     if (before && ch.value != null && after.value >= after.target && before.value < before.target) celebrate("Goal reached!");
+    return { ok: true };
   };
   const onDeleteStat = async (id) => {
     setStats((p) => p.filter((s) => s.id !== id));
@@ -225,20 +272,30 @@ function AppInner() {
 
   // ── Projects ──
   const onAddProject = async (body) => {
-    const d = await post("sprinkles_projects", body);
-    if (d?.[0]) {
+    try {
+      const d = await post("sprinkles_projects", body);
+      if (!d?.[0]) return { ok: false, error: "No row was created." };
       setProjects((p) => [d[0], ...p]);
       if (body.member_id) notifyAssignment([body.member_id], "New project assigned", d[0].title, "/tasks");
+      return { ok: true, data: d[0] };
+    } catch (e) {
+      return { ok: false, error: e.message || "Request failed." };
     }
   };
   const onUpdateProject = async (id, ch) => {
     const before = projects.find((x) => x.id === id);
     setProjects((p) => p.map((x) => (x.id === id ? { ...x, ...ch } : x)));
-    await patch("sprinkles_projects", id, ch);
+    try {
+      await patch("sprinkles_projects", id, ch);
+    } catch (e) {
+      if (before) setProjects((p) => p.map((x) => (x.id === id ? before : x)));
+      return { ok: false, error: e.message || "Request failed." };
+    }
     if (ch.progress === 100 || ch.status === "done") celebrate("Project done!");
     if (ch.member_id && before && ch.member_id !== before.member_id) {
       notifyAssignment([ch.member_id], "Project assigned to you", ch.title || before.title, "/tasks");
     }
+    return { ok: true };
   };
   const onDeleteProject = async (id) => {
     setProjects((p) => p.filter((x) => x.id !== id));
@@ -271,7 +328,8 @@ function AppInner() {
 
   // ── Calendar ──
   const onAddEvent = async (body) => {
-    const saved = await onAdd("sprinkles_events", body);
+    const result = await onAdd("sprinkles_events", body);
+    const saved = result.data;
     if (saved) {
       if (saved.member_ids?.length) notifyAssignment(saved.member_ids, "Added to an event", `${saved.title} · ${new Date(saved.start_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`, "/calendar");
       fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...saved, attendee_emails: settings?.attendee_emails }) })
@@ -415,13 +473,13 @@ function AppInner() {
 
   let page;
   if (path === "/school-day") {
-    page = <SchoolDay members={members} morningRoutine={morningRoutine} />;
+    page = <SchoolDay members={members} morningRoutine={morningRoutine} schedule={displaySchedule} events={allEvents} coinLedger={coinLedger} />;
   } else if (coinTrendsMemberFromPath(path)) {
     page = <KidCoinTrendsPage member={coinTrendsMemberFromPath(path)} coinLedger={coinLedger} />;
   } else if (path === "/calendar") {
     page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} onSyncGoogle={onSyncEventToGoogle} />;
   } else if (path === "/food") {
-    page = <FoodWeekPage recipes={recipes} mealPlan={mealPlan} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
+    page = <FoodWeekPage recipes={recipes} mealPlan={mealPlan} shopping={shopping} onSaveRecipe={onSaveRecipe} onDeleteRecipe={onDeleteRecipe} onScheduleRecipe={onScheduleRecipe} onMoveSlot={onMoveSlot} onRemoveSlot={onRemoveSlot} />;
   } else if (path === "/food/grocery") {
     page = <Grocery shopping={shopping} onAssistantSend={onAssistantSend} onAdd={onAddGrocery} onRemove={onRemoveGrocery} />;
   } else if (path === "/food/recipes") {
@@ -466,6 +524,10 @@ function AppInner() {
     page = <FaqPage />;
   } else if (path === "/settings/instructions") {
     page = <InstructionsPage />;
+  } else if (path === "/settings/games") {
+    page = <GamesPage />;
+  } else if (path === "/settings/routines") {
+    page = <RoutinesPage schedule={displaySchedule} onUpdateSchedule={onUpdateDisplaySchedule} />;
   } else if (path === "/settings/preferences") {
     page = <PreferencesPage settings={settings} onUpdateSettings={onUpdateSettings} members={members} />;
   } else if (path === "/settings") {

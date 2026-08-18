@@ -206,6 +206,22 @@ function LoadErrorBanner() {
   );
 }
 
+// A slowly, continuously spinning gold coin badge for the corner of each
+// kid's box — a flat circle rotated on the Y axis so it reads as a coin
+// flipping in place rather than a flat wheel spin.
+function SpinningCoin() {
+  return (
+    <div
+      style={{
+        position: "absolute", top: 10, right: 10, width: 36, height: 36, borderRadius: "50%",
+        background: "radial-gradient(circle at 35% 35%, #fff6c8, #ffd23f 55%, #c8951f 100%)",
+        border: `2px solid ${BASE.ink}`, boxShadow: hardShadow(BASE.ink, 2, 2),
+        animation: "sprinkles-coin-spin 3s linear infinite",
+      }}
+    />
+  );
+}
+
 function RuleRow({ rule, onOpen }) {
   return (
     <div onClick={() => onOpen(rule)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
@@ -257,11 +273,11 @@ function RewardTierBar({ balance, tiers, onTierClick }) {
         const pct = Math.min(100, Math.round((balance / cost) * 100));
         return (
           <div key={cost} onClick={(e) => { e.stopPropagation(); onTierClick(cost); }} style={{ cursor: "pointer" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2, marginBottom: 3 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F.ui, fontSize: 13, fontWeight: 800, color: BASE.t2, marginBottom: 4 }}>
               <span>{achieved ? "✓ " : ""}{cost} coins</span>
               {!achieved && <span>{cost - balance} to go</span>}
             </div>
-            <ProgressBar pct={pct} color={achieved ? BASE.green : BASE.yellow} height={14} />
+            <ProgressBar pct={pct} color={achieved ? BASE.green : BASE.yellow} height={16} />
           </div>
         );
       })}
@@ -371,11 +387,12 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
               <div
                 key={k.id}
                 onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
-                style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 12px", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}
+                style={{ position: "relative", background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "18px 14px", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
               >
-                <IconBadge icon={k.icon} bg="#fff" size={38} radius={12} />
-                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>{k.name}</span>
-                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 24 }}>{balance} <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>coins</span></span>
+                <SpinningCoin />
+                <IconBadge icon={k.icon} bg="#fff" size={56} radius={16} />
+                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{k.name}</span>
+                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 34 }}>{balance} <span style={{ fontFamily: F.ui, fontSize: 14, fontWeight: 700, opacity: 0.85 }}>coins</span></span>
                 {tiers.length > 0 && (
                   <div style={{ background: "#fff", borderRadius: 10, padding: "10px", width: "100%", boxSizing: "border-box" }}>
                     <RewardTierBar balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
@@ -388,6 +405,10 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
         <style>{`
           @media (max-width: 640px) {
             .sprinkles-kid-coin-row { grid-template-columns: repeat(2, 1fr) !important; }
+          }
+          @keyframes sprinkles-coin-spin {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
           }
         `}</style>
 
