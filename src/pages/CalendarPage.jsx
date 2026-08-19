@@ -288,55 +288,53 @@ function MonthView({ cursor, events, members, onDayClick, onOpenEvent }) {
 }
 
 export default function CalendarPage({ members, events, settings, onAdd, onUpdate, onDelete, onSyncGoogle }) {
-  const [view, setView] = useState("month");
-  const [cursor, setCursor] = useState(new Date());
   const [addOpen, setAddOpen] = useState(null);
   const [openEvent, setOpenEvent] = useState(null);
   const [editEvent, setEditEvent] = useState(null);
   const [forecast, setForecast] = useState([]);
-  const { memberFilter, catFilter } = useCalendarFilters();
+  const { memberFilter, catFilter, view, setView, cursor, setCursor, addRequestToken } = useCalendarFilters();
 
   useEffect(() => {
     fetch("/api/weather?range=week").then((r) => r.json()).then((d) => setForecast(d?.days || [])).catch(() => setForecast([]));
   }, []);
+
+  // The "+" button lives in the top-nav hamburger menu now — it bumps
+  // addRequestToken, which this page listens for to open the modal for
+  // whatever date the calendar is currently on.
+  useEffect(() => {
+    if (addRequestToken) setAddOpen(dateStr(cursor));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addRequestToken]);
 
   const filtered = useMemo(
     () => events.filter((e) => (memberFilter === "all" || (e.member_ids || []).includes(memberFilter)) && (catFilter === "all" || e.category === catFilter)),
     [events, memberFilter, catFilter]
   );
 
-  const shift = (dir) => {
-    const d = new Date(cursor);
-    if (view === "month") d.setMonth(d.getMonth() + dir);
-    else if (view === "week") d.setDate(d.getDate() + dir * 7);
-    else if (view === "3day") d.setDate(d.getDate() + dir * 3);
-    else d.setDate(d.getDate() + dir);
-    setCursor(d);
-  };
   const dateStr = (d) => d.toISOString().slice(0, 10);
 
   const agendaDays = useMemo(() => {
     if (view === "week") return Array.from({ length: 7 }, (_, i) => new Date(startOfWeek(cursor).getTime() + i * DAY_MS));
     if (view === "3day") return Array.from({ length: 3 }, (_, i) => new Date(cursor.getTime() + i * DAY_MS));
+    if (view === "day") return [new Date(cursor)];
     return [];
   }, [view, cursor]);
 
+  const headerLabel = view === "month"
+    ? cursor.toLocaleDateString([], { month: "long", year: "numeric" })
+    : cursor.toLocaleDateString([], { weekday: view === "day" ? "long" : undefined, month: "long", day: "numeric", year: "numeric" });
+
   return (
     <div>
-      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", rowGap: 8 }}>
-        {["3day", "week", "month"].map((v) => (
-          <button key={v} onClick={() => setView(v)} style={{ ...btn(view === v ? BASE.teal : "#fff"), padding: "6px 14px" }}>{v === "3day" ? "3 day" : v}</button>
-        ))}
-        <div style={{ flex: 1 }} />
-        <button onClick={() => shift(-1)} style={{ ...btn("#fff"), padding: "7px 10px" }}><Icon name="chevronLeft" size={15} /></button>
-        <button onClick={() => setCursor(new Date())} style={{ ...btn(BASE.yellow), padding: "7px 12px" }}>Today</button>
-        <button onClick={() => shift(1)} style={{ ...btn("#fff"), padding: "7px 10px" }}><Icon name="chevronRight" size={15} /></button>
-        <button onClick={() => setAddOpen(dateStr(cursor))} style={{ ...btn(BASE.pink), padding: "7px 10px" }}><Icon name="plus" size={15} /></button>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0" }}>
+        <div style={{ display: "inline-block", background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 10, boxShadow: hardShadow(BASE.ink, 3, 3), padding: "6px 12px" }}>
+          <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>{headerLabel}</span>
+        </div>
       </div>
 
       <div style={{ marginTop: 12 }}>
-        {view === "month" && <MonthView cursor={cursor} events={filtered} members={members} onDayClick={(d) => { setCursor(d); setView("3day"); }} onOpenEvent={setOpenEvent} />}
-        {(view === "week" || view === "3day") && <Agenda days={agendaDays} events={filtered} members={members} onOpen={setOpenEvent} forecast={forecast} />}
+        {view === "month" && <MonthView cursor={cursor} events={filtered} members={members} onDayClick={(d) => { setCursor(d); setView("day"); }} onOpenEvent={setOpenEvent} />}
+        {(view === "week" || view === "3day" || view === "day") && <Agenda days={agendaDays} events={filtered} members={members} onOpen={setOpenEvent} forecast={forecast} />}
       </div>
 
       {addOpen && <EventModal members={members} defaultDate={addOpen} onSave={(v) => { onAdd(v); setAddOpen(null); }} onClose={() => setAddOpen(null)} />}

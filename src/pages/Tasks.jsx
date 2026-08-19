@@ -84,7 +84,7 @@ function ProjectModal({ project, members, onSave, onDelete, onClose }) {
           {busy ? "Saving..." : "Save Project"}
         </button>
         {error && <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: BASE.red }}>Couldn't save that: {error}</div>}
-        {project?.id && <button style={{ ...btn(BASE.red), width: "100%" }} onClick={() => { onDelete(project.id); onClose(); }}>Delete Project</button>}
+        {project?.id && <button style={{ ...btn(BASE.red), width: "100%" }} onClick={() => { if (window.confirm(`Delete "${project.title}"?`)) { onDelete(project.id); onClose(); } }}>Delete Project</button>}
       </div>
     </Modal>
   );
@@ -193,7 +193,7 @@ function MemberCountBoxes({ members, items, onPick }) {
   );
 }
 
-export default function Tasks({ members, chores, completions, projects, onAddChore, onUpdateChore, onDeleteChore, onAddProject, onUpdateProject, onDeleteProject }) {
+export default function Tasks({ members, chores, completions, projects, onAddChore, onUpdateChore, onDeleteChore, onToggleChore, onAddProject, onUpdateProject, onDeleteProject }) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [choreModal, setChoreModal] = useState(null);
   const [projectModal, setProjectModal] = useState(null);
@@ -242,8 +242,15 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
                   : c.frequency === "custom" ? ((c.days || []).map((d) => DAY_NAMES[d]).join(", ") || "Custom")
                   : "No timeline";
                 return (
-                  <Card key={c.id} onClick={() => setChoreModal(c)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <div>
+                  <Card key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onToggleChore && onToggleChore(c); }}
+                      title={done ? "Completed" : "Mark complete"}
+                      style={{ width: 26, height: 26, borderRadius: 8, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}
+                    >
+                      {done && <Icon name="check" size={15} color="#fff" />}
+                    </button>
+                    <div onClick={() => setChoreModal(c)} style={{ flex: 1, cursor: "pointer", minWidth: 0 }}>
                       <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 14 }}>{c.title}</div>
                       <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2, marginTop: 2 }}>
                         {timeline}{applicable ? (done ? " · done today" : " · due today") : ""}
@@ -252,6 +259,13 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
                       </div>
                     </div>
                     <AssigneeBadge member={memberById(c.member_id)} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete "${c.title}"?`)) onDeleteChore(c.id); }}
+                      title="Delete task"
+                      style={{ width: 26, height: 26, borderRadius: 8, border: `2px solid ${BASE.ink}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}
+                    >
+                      <Icon name="close" size={14} />
+                    </button>
                   </Card>
                 );
               })}

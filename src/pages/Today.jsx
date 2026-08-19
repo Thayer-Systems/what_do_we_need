@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { IconBadge } from "../components/Deco.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow, MASCOT } from "../lib/theme.js";
+import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow, MASCOT, mascotOfDay } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance } from "../lib/coins.js";
 import { choreAppliesToday } from "../lib/tasks.js";
@@ -105,6 +105,20 @@ function TodaysEventsCard({ events, now, navigate }) {
 
 function DepartureCard({ events, now }) {
   const next = events.filter((e) => e.location && new Date(e.start_at) > now).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))[0];
+
+  // Synthetic activity-based events (recurring activities) never carry a
+  // stored travel_minutes since they aren't real DB rows — look it up
+  // client-side instead of leaving the card blank.
+  const [lookedUp, setLookedUp] = useState({});
+  useEffect(() => {
+    if (!next || next.travel_minutes != null) return;
+    if (lookedUp[next.location] !== undefined) return;
+    fetch(`/api/travel-time?destination=${encodeURIComponent(next.location)}`)
+      .then((r) => r.json())
+      .then((d) => setLookedUp((p) => ({ ...p, [next.location]: d.available ? d.minutes : null })))
+      .catch(() => setLookedUp((p) => ({ ...p, [next.location]: null })));
+  }, [next?.location, next?.travel_minutes]);
+
   if (!next) {
     return (
       <div style={widgetCard(BASE.orange)}>
@@ -114,7 +128,7 @@ function DepartureCard({ events, now }) {
     );
   }
   const start = new Date(next.start_at);
-  const travelMin = next.travel_minutes;
+  const travelMin = next.travel_minutes != null ? next.travel_minutes : lookedUp[next.location];
   const leaveBy = travelMin != null ? new Date(start.getTime() - travelMin * 60000) : null;
   const msUntilLeave = leaveBy ? leaveBy - now : null;
   return (
@@ -130,7 +144,9 @@ function DepartureCard({ events, now }) {
           <span>{msUntilLeave > 0 ? `${fmtCountdown(msUntilLeave)} left` : "Go now!"}</span>
         </div>
       ) : (
-        <div style={{ fontFamily: F.ui, fontSize: 12, fontStyle: "italic" }}>Add a location so travel time can be calculated.</div>
+        <div style={{ fontFamily: F.ui, fontSize: 12, fontStyle: "italic" }}>
+          {lookedUp[next.location] === null ? "Couldn't look up travel time — set a household address in Settings, or enter it manually on this event." : "Looking up travel time…"}
+        </div>
       )}
     </div>
   );
@@ -165,80 +181,70 @@ function MascotBox() {
     <button
       onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
       style={{
-        background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, cursor: "pointer",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
-        padding: 12, minWidth: 140, aspectRatio: "1 / 1",
+        ...widgetCard("#fff"), cursor: "pointer", border: "none", boxShadow: "none",
+        alignItems: "center", justifyContent: "center", padding: 0,
       }}
+      aria-label="Ask Mr. Sprinkles"
     >
-      <img src={MASCOT.main} alt="" style={{ width: 56, height: 56, objectFit: "contain", pointerEvents: "none" }} />
-      <span style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 12, textAlign: "center" }}>Ask Mr. Sprinkles</span>
+      <img src={mascotOfDay()} alt="" style={{ width: "70%", maxWidth: 96, objectFit: "contain", pointerEvents: "none" }} />
     </button>
   );
 }
 
-function TasksAndProjectsCard({ members, chores, completions, projects, onToggleChore, navigate }) {
+function TasksCard({ members, chores, completions, onToggleChore, navigate }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const doneToday = new Set(completions.filter((c) => c.date === todayStr).map((c) => c.chore_id));
   const remainingChores = chores.filter((c) => c.active && (c.visibility || "public") === "public" && choreAppliesToday(c) && !doneToday.has(c.id));
+
+  return (
+    <div style={widgetCard(BASE.pink)}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Today's Tasks</span>
+        <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
+          <IconBadge icon="check" bg="#fff" size={28} radius={8} />
+        </button>
+      </div>
+      {remainingChores.length === 0 ? (
+        <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>All done today!</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
+          {remainingChores.map((c) => {
+            const member = members.find((m) => m.id === c.member_id);
+            return (
+              <div key={c.id} onClick={() => onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
+                <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={22} radius={7} iconColor="#fff" />
+                <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{c.title}</span>
+                <Icon name="close" size={14} style={{ opacity: 0.25 }} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectsCard({ projects, navigate }) {
   const openProjects = projects.filter((p) => (p.visibility || "public") === "public" && p.status !== "done");
 
   return (
-    <div style={{ ...widgetCard(BASE.pink), gridColumn: "1 / -1" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }} className="sprinkles-today-tasks-split">
-        <div style={{ flex: 2, minWidth: 220 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Today's Tasks</span>
-            <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-              <IconBadge icon="check" bg="#fff" size={28} radius={8} />
-            </button>
-          </div>
-          {remainingChores.length === 0 ? (
-            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>All done today!</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
-              {remainingChores.map((c) => {
-                const member = members.find((m) => m.id === c.member_id);
-                return (
-                  <div key={c.id} onClick={() => onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
-                    <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={22} radius={7} iconColor="#fff" />
-                    <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{c.title}</span>
-                    <Icon name="close" size={14} style={{ opacity: 0.25 }} />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div style={{ width: 2, background: BASE.ink, opacity: 0.15, alignSelf: "stretch" }} className="sprinkles-today-tasks-divider" />
-
-        <div style={{ flex: 2, minWidth: 220 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Open Projects</span>
-            <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-              <IconBadge icon="grid" bg="#fff" size={28} radius={8} />
-            </button>
-          </div>
-          {openProjects.length === 0 ? (
-            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>Nothing in progress.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
-              {openProjects.map((p) => (
-                <div key={p.id} onClick={() => navigate("/tasks")} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
-                  <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, marginBottom: 5 }}>{p.title}</div>
-                  <ProgressBar pct={p.progress} color={BASE.pink} height={8} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ width: 2, background: BASE.ink, opacity: 0.15, alignSelf: "stretch" }} className="sprinkles-today-tasks-divider" />
-
-        <div style={{ flex: 1, minWidth: 140, display: "flex", alignItems: "center" }}>
-          <MascotBox />
-        </div>
+    <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/tasks")}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Open Projects</span>
+        <IconBadge icon="grid" bg={BASE.lilac} size={28} radius={8} />
       </div>
+      {openProjects.length === 0 ? (
+        <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>Nothing in progress.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
+          {openProjects.map((p) => (
+            <div key={p.id} style={{ background: BASE.muted, border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px" }}>
+              <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, marginBottom: 5 }}>{p.title}</div>
+              <ProgressBar pct={p.progress} color={BASE.pink} height={8} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -348,7 +354,9 @@ export default function Today({ members, events, chores, completions, mealPlan, 
         <MealsCard mealPlan={mealPlan} navigate={navigate} />
         <KidCoinsCard kids={kids} coinLedger={coinLedger} coinRewards={coinRewards} navigate={navigate} />
         <ParentsGoalsCard parents={parents} stats={stats} navigate={navigate} />
-        <TasksAndProjectsCard members={members} chores={chores} completions={completions} projects={projects} onToggleChore={onToggleChore} navigate={navigate} />
+        <TasksCard members={members} chores={chores} completions={completions} onToggleChore={onToggleChore} navigate={navigate} />
+        <ProjectsCard projects={projects} navigate={navigate} />
+        <MascotBox />
       </div>
 
       <style>{`

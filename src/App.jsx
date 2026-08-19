@@ -499,6 +499,7 @@ function AppInner() {
         onAddChore={onAddChore}
         onUpdateChore={onUpdateChore}
         onDeleteChore={(id) => onDelete("sprinkles_chores", id)}
+        onToggleChore={onToggleChore}
         onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
       />
     );
