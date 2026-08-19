@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader, Card, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon, EQUIPMENT_ICONS } from "../components/Icons.jsx";
@@ -195,7 +195,7 @@ function AlternativeMealsWidget({ recipes, onView }) {
   if (!pool.length) return null;
 
   return (
-    <Card style={{ aspectRatio: "1 / 1", display: "flex", flexDirection: "column" }}>
+    <Card style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Need Something Different?</span>
         <button onClick={() => setPicks(shuffle(pool).slice(0, 3))} style={{ ...btn("#fff"), display: "flex", alignItems: "center", gap: 6, padding: "6px 12px" }}>
@@ -217,7 +217,7 @@ function AlternativeMealsWidget({ recipes, onView }) {
 // same row, replacing the old full-width "Grocery List" button.
 function GroceryListBox({ shopping, navigate }) {
   return (
-    <Card onClick={() => navigate("/food/grocery")} style={{ aspectRatio: "1 / 1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", textAlign: "center" }}>
+    <Card onClick={() => navigate("/food/grocery")} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", textAlign: "center", padding: "24px 16px" }}>
       <IconBadge icon="cart" bg={BASE.orange} size={48} />
       <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>Grocery List</span>
       <span style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, fontWeight: 700 }}>
@@ -228,9 +228,11 @@ function GroceryListBox({ shopping, navigate }) {
 }
 
 // This week's already-planned Lunch or Dinner lineup, read straight from
-// the meal_plan table — shown as its own compact box so lunches and
-// dinners can sit side by side above the weekly add grid.
-function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView }) {
+// the meal_plan table. Clicking an empty day opens the recipe picker to add
+// a meal; a planned day can be viewed, swapped for another recipe, or
+// removed — this is the only place lunches/dinners get edited now that the
+// separate "Weekly Add" grid is gone.
+function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView, onPickSlot, onRemoveSlot }) {
   return (
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -245,9 +247,13 @@ function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView }) {
             <div key={short} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "6px 10px" }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: BASE.t2, minWidth: 60, fontFamily: F.ui }}>{short} {date.getMonth() + 1}/{date.getDate()}</span>
               {slot ? (
-                <span onClick={() => recipe && onView(recipe)} style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, cursor: recipe ? "pointer" : "default" }}>{slot.recipe_name}</span>
+                <>
+                  <span onClick={() => recipe && onView(recipe)} style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, cursor: recipe ? "pointer" : "default" }}>{slot.recipe_name}</span>
+                  <button onClick={() => onPickSlot(short, mealLabel)} title="Choose a different meal" style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex", flexShrink: 0, padding: 4 }}><Icon name="edit" size={13} /></button>
+                  <button onClick={() => onRemoveSlot(slot.id)} title="Remove" style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex", flexShrink: 0, padding: 4 }}><Icon name="close" size={13} /></button>
+                </>
               ) : (
-                <span style={{ flex: 1, fontFamily: F.ui, fontSize: 12, color: BASE.t3, fontStyle: "italic" }}>Not planned</span>
+                <span onClick={() => onPickSlot(short, mealLabel)} style={{ flex: 1, fontFamily: F.ui, fontSize: 12, color: BASE.t3, fontStyle: "italic", cursor: "pointer" }}>+ Add a meal</span>
               )}
             </div>
           );
@@ -257,8 +263,7 @@ function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView }) {
   );
 }
 
-// ─── Food (horizontal weekly plan grid) ─────────────────────────
-const FOOD_MEALS = ["Lunch", "Dinner"];
+// ─── Food (weekly plan) ─────────────────────────
 const FOOD_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
@@ -299,18 +304,6 @@ export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, o
     });
   }, [recipes, mealPlan, weekDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDrop = (e, day, meal) => {
-    e.preventDefault();
-    const recipeId = e.dataTransfer.getData("text/recipe-id");
-    const slotId = e.dataTransfer.getData("text/slot-id");
-    if (recipeId) {
-      const recipe = recipes.find((r) => r.id === Number(recipeId));
-      if (recipe) onScheduleRecipe(day, meal, recipe);
-    } else if (slotId) {
-      onMoveSlot(Number(slotId), day, meal);
-    }
-  };
-
   return (
     <div>
       <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 32px" }}>
@@ -319,59 +312,15 @@ export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, o
           <button onClick={() => navigate("/food/trends")} style={btn("#fff")}><Icon name="grid" size={15} /></button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 18 }}>
-          <WeekMealsBox mealLabel="Lunch" weekDays={weekDays} mealPlan={mealPlan} recipes={recipes} onView={setViewRecipe} />
-          <WeekMealsBox mealLabel="Dinner" weekDays={weekDays} mealPlan={mealPlan} recipes={recipes} onView={setViewRecipe} />
-        </div>
-
-        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Weekly Add</div>
-        <div style={{ overflowX: "auto", marginBottom: 18 }}>
-          <div style={{ display: "grid", gridTemplateColumns: `74px repeat(${weekDays.length}, minmax(150px, 1fr))`, gap: 8, minWidth: 700 }}>
-            <div />
-            {weekDays.map(({ short, date }) => (
-              <div key={short} style={{ textAlign: "center", fontFamily: F.ui, fontWeight: 800, fontSize: 12, padding: "4px 0" }}>
-                {short} <span style={{ color: BASE.t2, fontWeight: 600 }}>{date.getMonth() + 1}/{date.getDate()}</span>
-              </div>
-            ))}
-            {FOOD_MEALS.map((meal) => (
-              <Fragment key={meal}>
-                <div style={{ display: "flex", alignItems: "center", fontFamily: F.ui, fontWeight: 800, fontSize: 12, color: BASE.t2 }}>
-                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: MEAL_COLOR[meal], marginRight: 6, border: `1px solid ${BASE.ink}` }} />
-                  {meal}
-                </div>
-                {weekDays.map(({ short }) => {
-                  const slot = slotFor(short, meal);
-                  return (
-                    <div key={short + meal} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, short, meal)}>
-                      {slot ? (
-                        <div
-                          draggable
-                          onDragStart={(e) => e.dataTransfer.setData("text/slot-id", String(slot.id))}
-                          onClick={() => { const r = recipes.find((x) => x.id === slot.recipe_id); if (r) setViewRecipe(r); }}
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "8px 10px", cursor: "grab", minHeight: 68 }}
-                        >
-                          <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{slot.recipe_name}</span>
-                          <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex", flexShrink: 0 }}><Icon name="close" size={12} /></button>
-                        </div>
-                      ) : (
-                        <div
-                          onClick={() => setPickerSlot({ day: short, meal })}
-                          style={{ border: `1.5px dashed ${BASE.t3}`, borderRadius: 8, padding: "8px 10px", fontSize: 12, color: BASE.t3, fontFamily: F.ui, cursor: "pointer", minHeight: 68, display: "flex", alignItems: "center" }}
-                        >
-                          + Add
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </Fragment>
-            ))}
-          </div>
-        </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-          <AlternativeMealsWidget recipes={recipes} onView={setViewRecipe} />
-          <GroceryListBox shopping={shopping} navigate={navigate} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <WeekMealsBox mealLabel="Lunch" weekDays={weekDays} mealPlan={mealPlan} recipes={recipes} onView={setViewRecipe} onPickSlot={(day, meal) => setPickerSlot({ day, meal })} onRemoveSlot={onRemoveSlot} />
+            <AlternativeMealsWidget recipes={recipes} onView={setViewRecipe} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <WeekMealsBox mealLabel="Dinner" weekDays={weekDays} mealPlan={mealPlan} recipes={recipes} onView={setViewRecipe} onPickSlot={(day, meal) => setPickerSlot({ day, meal })} onRemoveSlot={onRemoveSlot} />
+            <GroceryListBox shopping={shopping} navigate={navigate} />
+          </div>
         </div>
       </div>
 
