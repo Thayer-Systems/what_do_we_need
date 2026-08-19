@@ -8,6 +8,7 @@ import { Chip } from "./ui.jsx";
 import { useCalendarFilters } from "../lib/calendarFilters.jsx";
 
 export const TABS = [
+  ["/routines", "clock", "Routines", BASE.lilac],
   ["/", "home", "Today", BASE.yellow],
   ["/calendar", "calendar", "Calendar", BASE.teal],
   ["/food", "meals", "Food", BASE.lilac],
