@@ -353,9 +353,14 @@ function AppInner() {
           if (d?.ok && d.googleEventId) {
             setEvents((p) => p.map((e) => (e.id === saved.id ? { ...e, google_event_id: d.googleEventId } : e)));
             patch("sprinkles_events", saved.id, { google_event_id: d.googleEventId });
+          } else if (!d?.ok) {
+            // Not fatal to the save, but the event silently won't reach
+            // Google Calendar (and so won't email attendees) — surface why.
+            // eslint-disable-next-line no-console
+            console.error("Google Calendar sync failed on create:", d?.reason, d?.detail);
           }
         })
-        .catch(() => {});
+        .catch((e) => console.error("Google Calendar sync request failed on create:", e)); // eslint-disable-line no-console
     }
     return saved;
   };
@@ -381,9 +386,11 @@ function AppInner() {
         if (d?.ok && d.googleEventId) {
           setEvents((p) => p.map((e) => (e.id === id ? { ...e, google_event_id: d.googleEventId } : e)));
           if (d.googleEventId !== after.google_event_id) patch("sprinkles_events", id, { google_event_id: d.googleEventId });
+        } else if (!d?.ok) {
+          console.error("Google Calendar sync failed on update:", d?.reason, d?.detail); // eslint-disable-line no-console
         }
       })
-      .catch(() => {});
+      .catch((e) => console.error("Google Calendar sync request failed on update:", e)); // eslint-disable-line no-console
   };
   const onSyncEventToGoogle = async (event) => {
     const r = await fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...event, attendee_emails: settings?.attendee_emails }) });
