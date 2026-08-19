@@ -8,6 +8,15 @@ const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${B
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
 
+// A curated picture set for routine items — plain emoji rather than new
+// image assets, so young kids who can't read yet get a recognizable
+// picture next to each task without adding files to the repo.
+const ROUTINE_ITEM_ICONS = [
+  "🪥", "🚿", "🧼", "🧴", "🚽", "👕", "🧦", "👟", "🎒", "🍽️",
+  "🥣", "🛏️", "📚", "🧸", "💊", "🧹", "🐶", "☀️", "🌙", "⭐",
+];
+const DEFAULT_ITEM_ICON = "⭐";
+
 function fmtTime(t) {
   if (!t) return "";
   const [h, m] = t.split(":").map(Number);
@@ -85,9 +94,10 @@ function RoutineModal({ routine, onSave, onDelete, onClose }) {
 function RoutineItemModal({ members, routineId, onSave, onClose }) {
   const [memberId, setMemberId] = useState(members[0]?.id ?? null);
   const [title, setTitle] = useState("");
+  const [icon, setIcon] = useState(DEFAULT_ITEM_ICON);
   const submit = () => {
     if (!title.trim() || !memberId) return;
-    onSave({ member_id: memberId, routine_id: routineId, title: title.trim(), active: true, sort_order: 0 });
+    onSave({ member_id: memberId, routine_id: routineId, title: title.trim(), icon, active: true, sort_order: 0 });
     onClose();
   };
   return (
@@ -104,6 +114,16 @@ function RoutineItemModal({ members, routineId, onSave, onClose }) {
           </div>
         </div>
         <div><span style={label}>Item</span><input autoFocus style={inp} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Brush teeth" /></div>
+        <div>
+          <span style={label}>Picture</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {ROUTINE_ITEM_ICONS.map((e) => (
+              <button key={e} type="button" onClick={() => setIcon(e)} style={{ width: 40, height: 40, fontSize: 20, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: icon === e ? BASE.yellow : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
         <button style={{ ...btn(BASE.green), width: "100%" }} onClick={submit}>Add Item</button>
       </div>
     </Modal>
@@ -169,11 +189,12 @@ function LiveRoutineCard({ routine, members, items, now, checked, onToggle }) {
                     {mine.map((item) => {
                       const done = checked.has(item.id);
                       return (
-                        <div key={item.id} onClick={() => onToggle(item.id)} style={{ display: "flex", alignItems: "center", gap: 8, background: BASE.muted, borderRadius: 8, padding: "6px 10px", cursor: "pointer", opacity: done ? 0.55 : 1 }}>
-                          <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            {done && <Icon name="check" size={11} color="#fff" />}
+                        <div key={item.id} onClick={() => onToggle(item.id)} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "8px 10px", cursor: "pointer", opacity: done ? 0.55 : 1 }}>
+                          <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{item.icon || DEFAULT_ITEM_ICON}</span>
+                          <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 14, textDecoration: done ? "line-through" : "none" }}>{item.title}</span>
+                          <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {done && <Icon name="check" size={13} color="#fff" />}
                           </div>
-                          <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, textDecoration: done ? "line-through" : "none" }}>{item.title}</span>
                         </div>
                       );
                     })}
@@ -258,6 +279,7 @@ export default function RoutinesTab({ members, routines, routineItems, onAdd, on
                       const kid = kids.find((k) => k.id === i.member_id);
                       return (
                         <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 8, background: BASE.muted, borderRadius: 8, padding: "6px 10px" }}>
+                          <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{i.icon || DEFAULT_ITEM_ICON}</span>
                           <IconBadge icon={kid?.icon || "donut"} bg={kid?.color || BASE.yellow} size={20} radius={6} iconColor="#fff" />
                           <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{i.title}</span>
                           <button onClick={() => onDelete("sprinkles_morning_routine_items", i.id)} style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex" }}><Icon name="close" size={12} /></button>

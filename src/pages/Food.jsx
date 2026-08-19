@@ -213,16 +213,33 @@ function AlternativeMealsWidget({ recipes, onView }) {
   );
 }
 
-// Square box mirroring AlternativeMealsWidget, sitting next to it on the
-// same row, replacing the old full-width "Grocery List" button.
+// Mirrors AlternativeMealsWidget's list-card look instead of a plain button
+// so the pending items are visible without a tap — sits under This Week's
+// Dinners.
+const GROCERY_PREVIEW_COUNT = 5;
 function GroceryListBox({ shopping, navigate }) {
+  const preview = shopping.slice(0, GROCERY_PREVIEW_COUNT);
+  const extra = shopping.length - preview.length;
   return (
-    <Card onClick={() => navigate("/food/grocery")} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", textAlign: "center", padding: "24px 16px" }}>
-      <IconBadge icon="cart" bg={BASE.orange} size={48} />
-      <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>Grocery List</span>
-      <span style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, fontWeight: 700 }}>
-        {shopping.length === 0 ? "Nothing on the list" : `${shopping.length} item${shopping.length === 1 ? "" : "s"} pending`}
-      </span>
+    <Card onClick={() => navigate("/food/grocery")} style={{ cursor: "pointer", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Groceries</span>
+        <IconBadge icon="cart" bg={BASE.orange} size={32} />
+      </div>
+      {shopping.length === 0 ? (
+        <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>Nothing on the list.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {preview.map((item) => (
+            <div key={item.id} style={{ background: BASE.muted, borderRadius: 8, padding: "8px 12px", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
+              {item.name}
+            </div>
+          ))}
+          {extra > 0 && (
+            <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t2, fontWeight: 700, padding: "2px 4px" }}>+{extra} more</div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
@@ -236,7 +253,7 @@ function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView, onPickSl
   return (
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>This Week's {mealLabel}s</span>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>This Week's {MEAL_PLURAL[mealLabel] || `${mealLabel}s`}</span>
         <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: MEAL_COLOR[mealLabel], border: `1.5px solid ${BASE.ink}` }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -265,6 +282,11 @@ function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView, onPickSl
 
 // ─── Food (weekly plan) ─────────────────────────
 const FOOD_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+// Recipes store day_of_week as the full weekday name (RecipeModal's picker
+// uses WEEK_DAYS from weekPlan.js), but the weekly plan works in short
+// day codes — this bridges the two so the rotation match actually hits.
+const SHORT_TO_FULL_DAY = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" };
+const MEAL_PLURAL = { Lunch: "Lunches", Dinner: "Dinners" };
 
 export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
   const { navigate } = useRouter();
@@ -296,7 +318,7 @@ export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, o
     weekDays.forEach(({ short }) => {
       if (attemptedAutofill.current.has(short)) return;
       if (slotFor(short, "Dinner")) return;
-      const recipe = recipes.find((r) => r.folder === folder && r.day_of_week === short);
+      const recipe = recipes.find((r) => r.folder === folder && r.day_of_week === SHORT_TO_FULL_DAY[short]);
       if (recipe) {
         attemptedAutofill.current.add(short);
         onScheduleRecipe(short, "Dinner", recipe);
