@@ -11,7 +11,7 @@ export const TABS = [
   ["/", "home", "Today", BASE.yellow],
   ["/calendar", "calendar", "Calendar", BASE.teal],
   ["/food", "meals", "Food", BASE.lilac],
-  ["/goals/kids", "star", "Kids Goals", BASE.pink],
+  ["/goals/kids", "star", "Kids Coins", BASE.pink],
   ["/goals/parents", "users", "Parents Goals", BASE.orange],
   ["/tasks", "check", "Tasks", BASE.green],
   ["/settings", "settings", "Tools", "#cfd8e3"],
