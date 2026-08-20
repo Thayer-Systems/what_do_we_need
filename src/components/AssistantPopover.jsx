@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
 import { promptOfDay } from "../lib/prompts.js";
+import { speak } from "../lib/tts.js";
 import { Icon } from "./Icons.jsx";
 
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "10px 14px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -32,6 +33,7 @@ export default function AssistantPopover({ onSend }) {
     const reply = await onSend(msg, nextLog);
     setLog((p) => [...p, { role: "sprinkles", text: reply }]);
     setBusy(false);
+    speak(reply);
   };
 
   return (

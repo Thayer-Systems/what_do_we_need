@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Card } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F, DAY_NAMES, hardShadow, MASCOT } from "../lib/theme.js";
+import { speak } from "../lib/tts.js";
+
+// Minutes-remaining thresholds a live routine calls out loud at, checked
+// on the same 15s tick that drives the countdown display.
+const ANNOUNCE_THRESHOLDS = [15, 10, 5, 2];
 
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -228,6 +233,29 @@ export default function RoutinesTab({ members, routines, routineItems, onAdd, on
 
   const liveRoutine = routines.find((r) => routineIsLive(r, now));
   const sorted = [...routines].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+
+  // Voice callouts as a live routine's end time approaches. Tracked per
+  // activation (keyed by routine id) so switching routines, or the same
+  // routine coming back tomorrow, gets a fresh set of announcements.
+  const announcedRef = useRef({ routineId: null, minutes: new Set() });
+  useEffect(() => {
+    if (!liveRoutine) {
+      announcedRef.current = { routineId: null, minutes: new Set() };
+      return;
+    }
+    if (announcedRef.current.routineId !== liveRoutine.id) {
+      announcedRef.current = { routineId: liveRoutine.id, minutes: new Set() };
+    }
+    const msLeft = endMomentFor(liveRoutine, now) - now;
+    const minutesLeft = Math.ceil(msLeft / 60000);
+    for (const threshold of ANNOUNCE_THRESHOLDS) {
+      if (minutesLeft <= threshold && !announcedRef.current.minutes.has(threshold)) {
+        announcedRef.current.minutes.add(threshold);
+        speak(`${liveRoutine.name} ends in ${threshold} minute${threshold === 1 ? "" : "s"}.`);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveRoutine?.id, now]);
 
   const updateRoutine = async (v) => {
     const { id, ...ch } = v;

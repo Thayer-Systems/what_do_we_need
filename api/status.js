@@ -27,5 +27,6 @@ module.exports = async function handler(req, res) {
     googleMapsOriginConfigured: addressConfigured,
     googleCalendarConfigured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     pushConfigured: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+    ttsConfigured: !!process.env.ELEVENLABS_API_KEY,
   });
 };
