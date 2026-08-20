@@ -13,7 +13,7 @@ const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0
 // picture next to each task without adding files to the repo.
 const ROUTINE_ITEM_ICONS = [
   "🪥", "🚿", "🧼", "🧴", "🚽", "👕", "🧦", "👟", "🎒", "🍽️",
-  "🥣", "🛏️", "📚", "🧸", "💊", "🧹", "🐶", "☀️", "🌙", "⭐",
+  "🍳", "🚗", "🥣", "🛏️", "📚", "🧸", "💊", "🧹", "🐶", "☀️", "🌙", "⭐",
 ];
 const DEFAULT_ITEM_ICON = "⭐";
 
@@ -91,13 +91,13 @@ function RoutineModal({ routine, onSave, onDelete, onClose }) {
   );
 }
 
-function RoutineItemModal({ members, routineId, onSave, onClose }) {
+function RoutineItemModal({ members, routineId, nextSortOrder, onSave, onClose }) {
   const [memberId, setMemberId] = useState(members[0]?.id ?? null);
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState(DEFAULT_ITEM_ICON);
   const submit = () => {
     if (!title.trim() || !memberId) return;
-    onSave({ member_id: memberId, routine_id: routineId, title: title.trim(), icon, active: true, sort_order: 0 });
+    onSave({ member_id: memberId, routine_id: routineId, title: title.trim(), icon, active: true, sort_order: nextSortOrder });
     onClose();
   };
   return (
@@ -171,7 +171,7 @@ function LiveRoutineCard({ routine, members, items, now, checked, onToggle }) {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           {members.map((k) => {
-            const mine = items.filter((i) => i.member_id === k.id && i.active);
+            const mine = items.filter((i) => i.member_id === k.id && i.active).sort((a, b) => a.sort_order - b.sort_order);
             const doneCount = mine.filter((i) => checked.has(i.id)).length;
             return (
               <div key={k.id} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12 }}>
@@ -209,7 +209,7 @@ function LiveRoutineCard({ routine, members, items, now, checked, onToggle }) {
   );
 }
 
-export default function RoutinesTab({ members, routines, routineItems, onAdd, onUpdateRoutine, onDelete }) {
+export default function RoutinesTab({ members, routines, routineItems, onAdd, onUpdateRoutine, onUpdateRoutineItem, onDelete }) {
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -255,8 +255,22 @@ export default function RoutinesTab({ members, routines, routineItems, onAdd, on
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {sorted.map((r) => {
-            const items = routineItems.filter((i) => i.routine_id === r.id);
+            const items = routineItems.filter((i) => i.routine_id === r.id).sort((a, b) => a.sort_order - b.sort_order);
             const isLive = liveRoutine?.id === r.id;
+            // Reassigns every item's sort_order to its new index rather than
+            // just swapping the two values — existing rows can share the
+            // same sort_order (e.g. everything defaulted to 0 before this
+            // existed), so a plain swap between equal values would look
+            // like nothing happened.
+            const moveItem = (index, dir) => {
+              const target = index + dir;
+              if (target < 0 || target >= items.length) return;
+              const reordered = [...items];
+              [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+              reordered.forEach((item, i) => {
+                if (item.sort_order !== i) onUpdateRoutineItem(item.id, { sort_order: i });
+              });
+            };
             return (
               <Card key={r.id} style={isLive ? { borderColor: BASE.ink, boxShadow: hardShadow(BASE.yellow, 4, 4) } : {}}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
@@ -275,13 +289,15 @@ export default function RoutinesTab({ members, routines, routineItems, onAdd, on
                   <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>No checklist items yet.</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {items.map((i) => {
+                    {items.map((i, index) => {
                       const kid = kids.find((k) => k.id === i.member_id);
                       return (
                         <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 8, background: BASE.muted, borderRadius: 8, padding: "6px 10px" }}>
                           <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{i.icon || DEFAULT_ITEM_ICON}</span>
                           <IconBadge icon={kid?.icon || "donut"} bg={kid?.color || BASE.yellow} size={20} radius={6} iconColor="#fff" />
                           <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{i.title}</span>
+                          <button onClick={() => moveItem(index, -1)} disabled={index === 0} style={{ border: "none", background: "transparent", cursor: index === 0 ? "default" : "pointer", display: "flex", opacity: index === 0 ? 0.25 : 1, padding: 2 }}><Icon name="chevronDown" size={13} style={{ transform: "rotate(180deg)" }} /></button>
+                          <button onClick={() => moveItem(index, 1)} disabled={index === items.length - 1} style={{ border: "none", background: "transparent", cursor: index === items.length - 1 ? "default" : "pointer", display: "flex", opacity: index === items.length - 1 ? 0.25 : 1, padding: 2 }}><Icon name="chevronDown" size={13} /></button>
                           <button onClick={() => onDelete("sprinkles_morning_routine_items", i.id)} style={{ border: "none", background: "transparent", cursor: "pointer", display: "flex" }}><Icon name="close" size={12} /></button>
                         </div>
                       );
@@ -306,6 +322,7 @@ export default function RoutinesTab({ members, routines, routineItems, onAdd, on
         <RoutineItemModal
           members={kids}
           routineId={itemModal}
+          nextSortOrder={routineItems.filter((i) => i.routine_id === itemModal).length}
           onSave={(v) => onAdd("sprinkles_morning_routine_items", v)}
           onClose={() => setItemModal(null)}
         />

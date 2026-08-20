@@ -216,6 +216,17 @@ function AppInner() {
     if (result.ok && body.member_id) notifyAssignment([body.member_id], "New task assigned", result.data.title, "/tasks");
     return result;
   };
+  const onUpdateRoutineItem = async (id, ch) => {
+    const before = morningRoutine.find((i) => i.id === id);
+    setMorningRoutine((p) => p.map((i) => (i.id === id ? { ...i, ...ch } : i)));
+    try {
+      await patch("sprinkles_morning_routine_items", id, ch);
+      return { ok: true };
+    } catch (e) {
+      if (before) setMorningRoutine((p) => p.map((i) => (i.id === id ? before : i)));
+      return { ok: false, error: e.message || "Request failed." };
+    }
+  };
   const onUpdateRoutine = async (id, ch) => {
     const before = routines.find((r) => r.id === id);
     setRoutines((p) => p.map((r) => (r.id === id ? { ...r, ...ch } : r)));
@@ -495,7 +506,7 @@ function AppInner() {
 
   let page;
   if (path === "/routines") {
-    page = <RoutinesTab members={members} routines={routines} routineItems={morningRoutine} onAdd={onAdd} onUpdateRoutine={onUpdateRoutine} onDelete={onDelete} />;
+    page = <RoutinesTab members={members} routines={routines} routineItems={morningRoutine} onAdd={onAdd} onUpdateRoutine={onUpdateRoutine} onUpdateRoutineItem={onUpdateRoutineItem} onDelete={onDelete} />;
   } else if (path === "/school-day") {
     page = <SchoolDay members={members} morningRoutine={morningRoutine} schedule={displaySchedule} events={allEvents} coinLedger={coinLedger} />;
   } else if (coinTrendsMemberFromPath(path)) {
