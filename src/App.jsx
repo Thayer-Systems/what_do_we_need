@@ -19,6 +19,7 @@ import WeatherPage from "./pages/WeatherPage.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import { HouseholdPage, IntegrationsPage, FaqPage, InstructionsPage, PreferencesPage, GamesPage } from "./pages/SettingsPages.jsx";
 import SchoolDay from "./pages/SchoolDay.jsx";
+import RoutinesTab from "./pages/RoutinesTab.jsx";
 import RoutinesPage from "./pages/RoutinesPage.jsx";
 import { get, getSafe, post, patch, del } from "./lib/db.js";
 import { interpretMessage } from "./lib/ai.js";
@@ -95,12 +96,13 @@ function AppInner() {
   const [coinRewards, setCoinRewards] = useState([]);
   const [coinLoadError, setCoinLoadError] = useState(false);
   const [morningRoutine, setMorningRoutine] = useState([]);
+  const [routines, setRoutines] = useState([]);
   const [displaySchedule, setDisplaySchedule] = useState(null);
 
   const loadAll = useCallback(async () => {
     let coinFailed = false;
     const trackCoinFailure = () => { coinFailed = true; };
-    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning, schedule] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning, schedule, routineRows] = await Promise.all([
       getSafe("sprinkles_family_members?order=sort_order.asc"),
       getSafe("sprinkles_contacts"),
       getSafe("sprinkles_activities"),
@@ -121,6 +123,7 @@ function AppInner() {
       getSafe("sprinkles_coin_rewards?order=sort_order.asc", trackCoinFailure),
       getSafe("sprinkles_morning_routine_items?order=sort_order.asc"),
       getSafe("sprinkles_display_schedule?id=eq.1"),
+      getSafe("sprinkles_routines?order=sort_order.asc"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -143,6 +146,7 @@ function AppInner() {
     setCoinLoadError(coinFailed);
     setMorningRoutine(morning || []);
     setDisplaySchedule((schedule || [])[0] || null);
+    setRoutines(routineRows || []);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -182,7 +186,7 @@ function AppInner() {
   const SETTERS = {
     sprinkles_contacts: setContacts, sprinkles_activities: setActivities, sprinkles_medications: setMedications,
     sprinkles_links: setLinks, sprinkles_chores: setChores, sprinkles_events: setEvents,
-    sprinkles_morning_routine_items: setMorningRoutine,
+    sprinkles_morning_routine_items: setMorningRoutine, sprinkles_routines: setRoutines,
   };
   // Returns { ok, error, data } instead of throwing so every modal that
   // calls this can show the failure inline and keep the form open — a bare
@@ -211,6 +215,17 @@ function AppInner() {
     const result = await onAdd("sprinkles_chores", { active: true, ...body });
     if (result.ok && body.member_id) notifyAssignment([body.member_id], "New task assigned", result.data.title, "/tasks");
     return result;
+  };
+  const onUpdateRoutine = async (id, ch) => {
+    const before = routines.find((r) => r.id === id);
+    setRoutines((p) => p.map((r) => (r.id === id ? { ...r, ...ch } : r)));
+    try {
+      await patch("sprinkles_routines", id, ch);
+      return { ok: true };
+    } catch (e) {
+      if (before) setRoutines((p) => p.map((r) => (r.id === id ? before : r)));
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const onUpdateChore = async (id, ch) => {
     const before = chores.find((c) => c.id === id);
@@ -338,9 +353,14 @@ function AppInner() {
           if (d?.ok && d.googleEventId) {
             setEvents((p) => p.map((e) => (e.id === saved.id ? { ...e, google_event_id: d.googleEventId } : e)));
             patch("sprinkles_events", saved.id, { google_event_id: d.googleEventId });
+          } else if (!d?.ok) {
+            // Not fatal to the save, but the event silently won't reach
+            // Google Calendar (and so won't email attendees) — surface why.
+            // eslint-disable-next-line no-console
+            console.error("Google Calendar sync failed on create:", d?.reason, d?.detail);
           }
         })
-        .catch(() => {});
+        .catch((e) => console.error("Google Calendar sync request failed on create:", e)); // eslint-disable-line no-console
     }
     return saved;
   };
@@ -366,9 +386,11 @@ function AppInner() {
         if (d?.ok && d.googleEventId) {
           setEvents((p) => p.map((e) => (e.id === id ? { ...e, google_event_id: d.googleEventId } : e)));
           if (d.googleEventId !== after.google_event_id) patch("sprinkles_events", id, { google_event_id: d.googleEventId });
+        } else if (!d?.ok) {
+          console.error("Google Calendar sync failed on update:", d?.reason, d?.detail); // eslint-disable-line no-console
         }
       })
-      .catch(() => {});
+      .catch((e) => console.error("Google Calendar sync request failed on update:", e)); // eslint-disable-line no-console
   };
   const onSyncEventToGoogle = async (event) => {
     const r = await fetch("/api/calendar/create-event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...event, attendee_emails: settings?.attendee_emails }) });
@@ -472,7 +494,9 @@ function AppInner() {
   };
 
   let page;
-  if (path === "/school-day") {
+  if (path === "/routines") {
+    page = <RoutinesTab members={members} routines={routines} routineItems={morningRoutine} onAdd={onAdd} onUpdateRoutine={onUpdateRoutine} onDelete={onDelete} />;
+  } else if (path === "/school-day") {
     page = <SchoolDay members={members} morningRoutine={morningRoutine} schedule={displaySchedule} events={allEvents} coinLedger={coinLedger} />;
   } else if (coinTrendsMemberFromPath(path)) {
     page = <KidCoinTrendsPage member={coinTrendsMemberFromPath(path)} coinLedger={coinLedger} />;
@@ -499,6 +523,7 @@ function AppInner() {
         onAddChore={onAddChore}
         onUpdateChore={onUpdateChore}
         onDeleteChore={(id) => onDelete("sprinkles_chores", id)}
+        onToggleChore={onToggleChore}
         onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
       />
     );

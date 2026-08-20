@@ -84,10 +84,11 @@ function KidRoutineBox({ kid, items, checked, onToggle }) {
                   border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", opacity: done ? 0.55 : 1,
                 }}
               >
+                <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{item.icon || "⭐"}</span>
+                <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 15, textDecoration: done ? "line-through" : "none" }}>{item.title}</span>
                 <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {done && <Icon name="check" size={14} color="#fff" />}
                 </div>
-                <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 15, textDecoration: done ? "line-through" : "none" }}>{item.title}</span>
               </div>
             );
           })}

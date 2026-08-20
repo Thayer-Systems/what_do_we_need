@@ -44,7 +44,7 @@ export default function RoutinesPage({ schedule, onUpdateSchedule }) {
 
   return (
     <div>
-      <PageHeader title="Routines" sprinkles="settings" back={() => navigate("/settings")} />
+      <PageHeader title="Display Schedule" sprinkles="settings" back={() => navigate("/settings")} />
       <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2 }}>
           Configure when the School Day screen automatically becomes the main display on a TV, and what it shows. This saves and keeps running on that schedule until you change it here — no need to set it up again.

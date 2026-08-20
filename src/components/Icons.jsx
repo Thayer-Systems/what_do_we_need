@@ -120,8 +120,9 @@ const PATHS = {
   ),
   book: (
     <>
-      <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H12v18H5.5A1.5 1.5 0 0 1 4 19.5z" />
-      <path d="M20 4.5A1.5 1.5 0 0 0 18.5 3H12v18h6.5a1.5 1.5 0 0 0 1.5-1.5z" />
+      <path d="M5 3.5h12.5A1.5 1.5 0 0 1 19 5v15.5H6.5A2.5 2.5 0 0 1 4 18V5.5A2 2 0 0 1 5 3.5z" />
+      <path d="M4 18a2.5 2.5 0 0 1 2.5-2.5H19" />
+      <path d="M8 7.5h7M8 10.5h7" />
     </>
   ),
   bell: (
@@ -296,6 +297,24 @@ const PATHS = {
       <path d="M9 15.5c1.2.8 3 1 4.4.3" strokeDasharray="0.1 3" />
     </>
   ),
+  cat: (
+    <>
+      <path d="M6 4l1.6 4.5M18 4l-1.6 4.5" />
+      <path d="M7.2 8.2a5.5 5.5 0 0 1 9.6 0c1.4 1 2.2 2.6 2.2 4.5 0 3.8-3.1 6.8-7 6.8s-7-3-7-6.8c0-1.9.8-3.5 2.2-4.5z" />
+      <circle cx="9.7" cy="13" r="0.9" fill={BASE.ink} stroke="none" />
+      <circle cx="14.3" cy="13" r="0.9" fill={BASE.ink} stroke="none" />
+      <path d="M12 14.6v0.8" />
+    </>
+  ),
+  mermaid: (
+    <>
+      <circle cx="12" cy="6.5" r="3" />
+      <path d="M8 8.5c-1 1.4-1.5 3-1.5 4.5" />
+      <path d="M16 8.5c1 1.4 1.5 3 1.5 4.5" />
+      <path d="M9 12c0 3 1.3 5 3 5s3-2 3-5" />
+      <path d="M9.5 17c-1.2.6-2 1.8-2 3.2M14.5 17c1.2.6 2 1.8 2 3.2" />
+    </>
+  ),
   donut: (
     <>
       <circle cx="12" cy="12" r="8.5" />
@@ -321,16 +340,20 @@ export const MEMBER_ICONS = {
   fox: "fox",
   unicorn: "unicorn",
   donut: "donut",
+  cat: "cat",
+  mermaid: "mermaid",
 };
 
 // Illustrated badge art for member icons — swapped in for the plain line
 // icon wherever a matching image exists (see IconBadge in Deco.jsx).
 export const MEMBER_ICON_IMAGES = {
-  fox: "/member-icons/fox.png",
+  fox: "/member-icons/fox.webp",
   pokeball: "/member-icons/pokeball.png",
   unicorn: "/member-icons/unicorn.png",
   polarBear: "/member-icons/polar-bear.png",
   dumbbell: "/member-icons/dumbbell.png",
+  cat: "/member-icons/cat.png",
+  mermaid: "/member-icons/mermaid.webp",
 };
 
 export const EQUIPMENT_ICONS = {

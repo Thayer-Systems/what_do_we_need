@@ -2,14 +2,37 @@ import { BASE, F, hardShadow } from "../lib/theme.js";
 
 // Minimal custom SVG bar chart — kept dependency-free and styled to
 // match the neobrutalism system rather than a generic chart-lib look.
-export function BarChart({ data, color = BASE.pink, height = 120, valueSuffix = "" }) {
-  const max = Math.max(1, ...data.map((d) => d.value));
+// showTrend overlays a linear-regression trend line across the bar values
+// (e.g. a kid's running coin balance over time).
+export function BarChart({ data, color = BASE.pink, height = 120, valueSuffix = "", showTrend = false, trendColor = BASE.ink }) {
+  const values = data.map((d) => d.value);
+  const min = Math.min(0, ...values);
+  const max = Math.max(1, ...values);
+  const range = max - min || 1;
   const barW = 100 / data.length;
+  const yFor = (v) => height - 20 - ((v - min) / range) * (height - 24);
+
+  // Ordinary least-squares fit over the bar indices.
+  let trendPath = null;
+  if (showTrend && data.length > 1) {
+    const n = data.length;
+    const sumX = values.reduce((s, _, i) => s + i, 0);
+    const sumY = values.reduce((s, v) => s + v, 0);
+    const sumXY = values.reduce((s, v, i) => s + i * v, 0);
+    const sumXX = values.reduce((s, _, i) => s + i * i, 0);
+    const denom = n * sumXX - sumX * sumX;
+    const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+    const intercept = (sumY - slope * sumX) / n;
+    const x1 = barW * 0.5, x2 = (n - 1) * barW + barW * 0.5;
+    const y1 = yFor(intercept), y2 = yFor(intercept + slope * (n - 1));
+    trendPath = `M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  }
+
   return (
     <div>
       <svg viewBox={`0 0 100 ${height}`} width="100%" height={height} preserveAspectRatio="none">
         {data.map((d, i) => {
-          const h = (d.value / max) * (height - 24);
+          const h = ((d.value - min) / range) * (height - 24);
           return (
             <g key={i}>
               <rect
@@ -25,6 +48,9 @@ export function BarChart({ data, color = BASE.pink, height = 120, valueSuffix = 
             </g>
           );
         })}
+        {trendPath && (
+          <path d={trendPath} fill="none" stroke={trendColor} strokeWidth={1.6} strokeDasharray="3 2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        )}
       </svg>
       <div style={{ display: "flex" }}>
         {data.map((d, i) => (

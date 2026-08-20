@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { PageHeader, Modal, EmptyState } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { LineChart, ProgressBar } from "../components/Charts.jsx";
+import { BarChart, ProgressBar } from "../components/Charts.jsx";
 import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance, daysUntilCashIn } from "../lib/coins.js";
@@ -209,11 +209,12 @@ function LoadErrorBanner() {
 // A slowly, continuously spinning gold coin badge for the corner of each
 // kid's box — a flat circle rotated on the Y axis so it reads as a coin
 // flipping in place rather than a flat wheel spin.
-function SpinningCoin() {
+function SpinningCoin({ inline }) {
   return (
     <div
       style={{
-        position: "absolute", top: 10, right: 10, width: 36, height: 36, borderRadius: "50%",
+        ...(inline ? {} : { position: "absolute", top: 10, right: 10 }),
+        width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
         background: "radial-gradient(circle at 35% 35%, #fff6c8, #ffd23f 55%, #c8951f 100%)",
         border: `2px solid ${BASE.ink}`, boxShadow: hardShadow(BASE.ink, 2, 2),
         animation: "sprinkles-coin-spin 3s linear infinite",
@@ -317,7 +318,7 @@ export function KidCoinTrendsPage({ member, coinLedger }) {
         ) : (
           <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 14 }}>
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Balance over time</div>
-            <LineChart data={points} color={member.color} labelEvery={Math.max(1, Math.round(points.length / 8))} />
+            <BarChart data={points} color={member.color} showTrend />
           </div>
         )}
 
@@ -380,32 +381,51 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
           </span>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(kids.length, 4)}, 1fr)`, gap: 12, alignItems: "start" }} className="sprinkles-kid-coin-row">
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {kids.map((k) => {
             const balance = coinBalance(coinLedger, k.id);
+            const eligible = coinRewards.filter((r) => r.coin_cost <= balance).sort((a, b) => b.coin_cost - a.coin_cost || a.sort_order - b.sort_order);
             return (
               <div
                 key={k.id}
-                onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
-                style={{ position: "relative", background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "18px 14px", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
+                style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, color: "#fff" }}
               >
-                <SpinningCoin />
-                <IconBadge icon={k.icon} bg="#fff" size={56} radius={16} />
-                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{k.name}</span>
-                <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 34 }}>{balance} <span style={{ fontFamily: F.ui, fontSize: 14, fontWeight: 700, opacity: 0.85 }}>coins</span></span>
-                {tiers.length > 0 && (
-                  <div style={{ background: "#fff", borderRadius: 10, padding: "10px", width: "100%", boxSizing: "border-box" }}>
-                    <RewardTierBar balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
+                <div onClick={() => navigate(`/goals/kids/trends/${k.id}`)} style={{ display: "flex", alignItems: "center", gap: 16, cursor: "pointer", marginBottom: 16 }}>
+                  <div style={{ width: 84, height: 84, flexShrink: 0, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <IconBadge icon={k.icon} bg="#fff" size={64} radius={0} style={{ boxShadow: "none", border: "none" }} />
                   </div>
-                )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26 }}>{k.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 32 }}>{balance}</span>
+                      <span style={{ fontFamily: F.ui, fontSize: 15, fontWeight: 700, opacity: 0.9 }}>coins</span>
+                    </div>
+                  </div>
+                  <SpinningCoin inline />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                  {tiers.length > 0 && (
+                    <div style={{ background: "#fff", borderRadius: 10, padding: 14, boxSizing: "border-box" }}>
+                      <RewardTierBar balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
+                    </div>
+                  )}
+                  <div style={{ background: "#fff", borderRadius: 10, padding: 14, boxSizing: "border-box", color: BASE.ink }}>
+                    <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Eligible for</div>
+                    {eligible.length === 0 ? (
+                      <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Not enough coins yet for a reward.</div>
+                    ) : (
+                      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: F.ui, fontSize: 13, fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>
+                        {eligible.map((r) => <li key={r.id}>{r.label}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
         <style>{`
-          @media (max-width: 640px) {
-            .sprinkles-kid-coin-row { grid-template-columns: repeat(2, 1fr) !important; }
-          }
           @keyframes sprinkles-coin-spin {
             from { transform: rotateY(0deg); }
             to { transform: rotateY(360deg); }
@@ -423,25 +443,6 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
           </div>
         </div>
 
-        <div>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Recent Activity</div>
-          {coinLedger.length === 0 ? (
-            <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No coins given or taken yet.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {[...coinLedger].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10).map((l) => {
-                const kid = kids.find((k) => k.id === l.member_id);
-                return (
-                  <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "6px 10px" }}>
-                    <IconBadge icon={kid?.icon || "donut"} bg={kid?.color || BASE.yellow} size={22} radius={7} iconColor="#fff" />
-                    <span style={{ flex: 1, fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>{l.reason || (l.delta > 0 ? "Coins given" : "Coins taken")}</span>
-                    <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 13, color: l.delta > 0 ? BASE.green : BASE.red }}>{l.delta > 0 ? "+" : ""}{l.delta}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
       {quickOpen && <QuickAdjustModal kids={kids} coinRules={coinRules} onSubmit={onAddCoinTransaction} onClose={() => setQuickOpen(false)} />}

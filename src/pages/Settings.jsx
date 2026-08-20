@@ -7,7 +7,7 @@ import { useRouter } from "../lib/router.jsx";
 const ITEMS = [
   ["users", "Family", BASE.pink, "/family"],
   ["home", "Household", BASE.yellow, "/settings/household"],
-  ["clock", "Routines", BASE.teal, "/settings/routines"],
+  ["clock", "Display Schedule", BASE.teal, "/settings/routines"],
   ["star", "Games", BASE.lilac, "/settings/games"],
   ["settings", "Settings", BASE.green, "/settings/preferences"],
 ];
