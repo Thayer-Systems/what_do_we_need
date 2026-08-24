@@ -7,8 +7,8 @@ import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { FOLDERS, FOLDER_LABELS, WEEKLY_FOLDERS, WEEK_DAYS, getActiveWeekTag, folderForWeekTag, shuffle } from "../lib/weekPlan.js";
 
-const RECIPE_TAGS = ["Quick", "Dinner", "Lunch", "Breakfast", "Crockpot", "Dump & Go"];
-const EQUIPMENT = Object.keys(EQUIPMENT_ICONS);
+export const RECIPE_TAGS = ["Quick", "Dinner", "Lunch", "Breakfast", "Crockpot", "Dump & Go"];
+export const EQUIPMENT = Object.keys(EQUIPMENT_ICONS);
 const EST_TIMES = ["5 min", "10 min", "15 min", "30 min", "45 min", "1 hr", "2 hr", "3 hr", "4 hr", "5 hr", "6 hr"];
 const MEAL_COLOR = { Breakfast: BASE.yellow, Lunch: BASE.teal, Dinner: BASE.lilac };
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };

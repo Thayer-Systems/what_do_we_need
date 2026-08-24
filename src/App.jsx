@@ -9,7 +9,7 @@ import Today from "./pages/Today.jsx";
 import FamilyList from "./pages/FamilyList.jsx";
 import FamilyMember from "./pages/FamilyMember.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
-import { FoodWeekPage, RecipeLibraryPage, TrendsPage } from "./pages/Food.jsx";
+import { FoodWeekPage, RecipeLibraryPage, TrendsPage, RECIPE_TAGS, EQUIPMENT } from "./pages/Food.jsx";
 import Grocery from "./pages/Grocery.jsx";
 import Tasks from "./pages/Tasks.jsx";
 import KidsGoals, { KidsGoalsRulesPage, KidCoinTrendsPage } from "./pages/KidsGoals.jsx";
@@ -488,6 +488,21 @@ function AppInner() {
         const delta = Number(action.delta);
         if (member && Number.isFinite(delta) && delta !== 0) {
           await onAddCoinTransaction({ member_id: member.id, delta, reason: action.reason || null, rule_id: null });
+        }
+      } else if (action.type === "recipe") {
+        const ingredients = Array.isArray(action.ingredients) ? action.ingredients.filter(Boolean) : [];
+        if (action.name && ingredients.length) {
+          await onSaveRecipe({
+            name: action.name,
+            ingredients,
+            tags: (action.tags || []).filter((t) => RECIPE_TAGS.includes(t)),
+            equipment: (action.equipment || []).filter((e) => EQUIPMENT.includes(e)),
+            est_time: action.est_time || null,
+            notes: action.notes || null,
+            folder: null,
+            day_of_week: null,
+            week_tag: null,
+          });
         }
       }
       // "call" actions: not supported yet, no-op — the model's reply already says so.

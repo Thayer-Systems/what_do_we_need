@@ -80,6 +80,23 @@ async function applyAction(action, members, req) {
     return;
   }
 
+  if (action.type === "recipe") {
+    const ingredients = Array.isArray(action.ingredients) ? action.ingredients.filter(Boolean) : [];
+    if (!action.name || !ingredients.length) return;
+    await supaInsert("recipes", {
+      name: action.name,
+      ingredients,
+      tags: action.tags || [],
+      equipment: action.equipment || [],
+      est_time: action.est_time || null,
+      notes: action.notes || null,
+      folder: null,
+      day_of_week: null,
+      week_tag: null,
+    });
+    return;
+  }
+
   // action.type === "call" (or anything unrecognized): no-op by design.
 }
 
