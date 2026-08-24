@@ -13,6 +13,16 @@ export const FOLDER_LABELS = {
 };
 export const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
+// Sunday-based week_start used to key the meal_plan table (matches the
+// getWeekStart used server-side). offsetWeeks lets callers look at past/
+// future weeks — 0 is this week, 1 is next week, -1 is last week, etc.
+export function getWeekStart(offsetWeeks = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay() + offsetWeeks * 7);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().split("T")[0];
+}
+
 export function getWeekOfMonth(date = new Date()) {
   return Math.ceil(date.getDate() / 7);
 }

@@ -10,6 +10,7 @@ import FamilyList from "./pages/FamilyList.jsx";
 import FamilyMember from "./pages/FamilyMember.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
 import { FoodWeekPage, RecipeLibraryPage, TrendsPage, RECIPE_TAGS, EQUIPMENT } from "./pages/Food.jsx";
+import { getWeekStart } from "./lib/weekPlan.js";
 import Grocery from "./pages/Grocery.jsx";
 import Tasks from "./pages/Tasks.jsx";
 import KidsGoals, { KidsGoalsRulesPage, KidCoinTrendsPage } from "./pages/KidsGoals.jsx";
@@ -28,12 +29,6 @@ import { useIsTVMode } from "./lib/useMediaQuery.js";
 import { isInDisplayWindow } from "./lib/schoolDay.js";
 
 const DAY_MS = 86400000;
-
-function getWeekStart() {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().split("T")[0];
-}
 
 // Turns recurring family activities into read-only calendar entries
 // for the surrounding ~4 months, without writing a DB row per occurrence.
