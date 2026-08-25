@@ -30,6 +30,21 @@ async function supaInsert(table, body) {
   return rows?.[0] || null;
 }
 
+async function supaPatch(table, id, body) {
+  await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...headers(), Prefer: "return=minimal" },
+    body: JSON.stringify(body),
+  });
+}
+
+const WEEKDAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+async function setMealSlot(day, meal, name, weekStart) {
+  const existing = await supaGet(`meal_plan?select=id&day=eq.${day}&meal=eq.${meal}&week_start=eq.${weekStart}`);
+  if (existing?.[0]) await supaPatch("meal_plan", existing[0].id, { recipe_id: null, recipe_name: name });
+  else await supaInsert("meal_plan", { day, meal, recipe_id: null, recipe_name: name, week_start: weekStart, eat_out: false });
+}
+
 function getWeekStart() {
   const d = new Date();
   d.setDate(d.getDate() - d.getDay());
@@ -76,7 +91,36 @@ async function applyAction(action, members, req) {
   }
 
   if (action.type === "meal") {
-    await supaInsert("meal_plan", { day: action.day, meal: action.meal, recipe_id: null, recipe_name: action.name, week_start: getWeekStart(), eat_out: false });
+    const weekStart = getWeekStart();
+    if (action.apply_rest_of_week) {
+      const fromIdx = Math.max(0, WEEKDAY_ORDER.indexOf(action.day));
+      for (const day of WEEKDAY_ORDER.slice(fromIdx)) await setMealSlot(day, action.meal, action.name, weekStart);
+    } else {
+      await setMealSlot(action.day, action.meal, action.name, weekStart);
+    }
+    return;
+  }
+
+  if (action.type === "coin") {
+    const member = findMember(action.member);
+    const delta = Number(action.delta);
+    if (member && Number.isFinite(delta) && delta !== 0) {
+      await supaInsert("sprinkles_coin_ledger", { member_id: member.id, delta, reason: action.reason || null, rule_id: null });
+    }
+    return;
+  }
+
+  if (action.type === "project") {
+    await supaInsert("sprinkles_projects", { title: action.title, status: "in_progress", progress: 0 });
+    return;
+  }
+
+  if (action.type === "stat") {
+    const member = findMember(action.member);
+    if (!member || !Number.isFinite(Number(action.value))) return;
+    const matches = await supaGet(`sprinkles_member_stats?select=id,label&member_id=eq.${member.id}&active=eq.true`);
+    const stat = matches.find((s) => s.label.toLowerCase() === (action.label || "").toLowerCase());
+    if (stat) await supaPatch("sprinkles_member_stats", stat.id, { value: Number(action.value) });
     return;
   }
 

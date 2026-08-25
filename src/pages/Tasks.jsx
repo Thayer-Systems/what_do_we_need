@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, Modal, Chip } from "../components/ui.jsx";
 import { IconBadge } from "../components/Deco.jsx";
 import { Icon } from "../components/Icons.jsx";
@@ -40,7 +40,7 @@ function AssigneeBadge({ member }) {
   );
 }
 
-function ProjectModal({ project, members, onSave, onDelete, onClose }) {
+export function ProjectModal({ project, members, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(project?.title || "");
   const [description, setDescription] = useState(project?.description || "");
   const [progress, setProgress] = useState(project?.progress ?? 0);
@@ -198,6 +198,15 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
   const [choreModal, setChoreModal] = useState(null);
   const [projectModal, setProjectModal] = useState(null);
   const [assigneeFilter, setAssigneeFilter] = useState("all");
+
+  // The Today page's combined Tasks & Projects box jumps here and fires
+  // this to pop the add menu straight open, instead of landing on the page
+  // and leaving the "+" button to be discovered.
+  useEffect(() => {
+    const openIt = () => setAddMenuOpen(true);
+    window.addEventListener("sprinkles-open-add-menu", openIt);
+    return () => window.removeEventListener("sprinkles-open-add-menu", openIt);
+  }, []);
 
   const memberById = (id) => members.find((m) => m.id === id);
   const todayStr = new Date().toISOString().slice(0, 10);

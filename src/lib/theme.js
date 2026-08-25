@@ -128,24 +128,14 @@ export const THEMES = {
 
 export const themeFor = (member) => THEMES[member?.theme] || THEMES.default;
 
+// Mr. Sprinkles is always the pink icing character now — no more
+// day-of-week color cycling.
 export const MASCOT = {
-  main: "/mascot/02_purple_pink_teal_yellow.png",
-  variants: [
-    "/mascot/01_pink_turquoise_yellow_lilac.png",
-    "/mascot/02_purple_pink_teal_yellow.png",
-    "/mascot/03_orange_teal_pink_cream.png",
-    "/mascot/04_teal_purple_pink_yellow.png",
-    "/mascot/05_chocolate_pink_drizzle.png",
-    "/mascot/06_white_multicolor.png",
-    "/mascot/07_yellow_pink_teal_lilac.png",
-  ],
+  main: "/mascot/01_pink_turquoise_yellow_lilac.png",
   peeking: "/mascot/08_peeking.png",
   celebrating: "/mascot/09_celebrating.png",
   pointing: "/mascot/10_pointing.png",
 };
-
-// Home hero mascot cycles through a color variant per day of week.
-export const mascotOfDay = (date = new Date()) => MASCOT.variants[date.getDay() % MASCOT.variants.length];
 
 // Sprinkle accent color sets per page — used to decorate header bars
 // (background stays white) so each section reads distinctly.

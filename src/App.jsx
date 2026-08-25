@@ -27,6 +27,9 @@ import { interpretMessage } from "./lib/ai.js";
 import { notifyAssignment } from "./lib/push.js";
 import { useIsTVMode } from "./lib/useMediaQuery.js";
 import { isInDisplayWindow } from "./lib/schoolDay.js";
+import { speak } from "./lib/tts.js";
+import { choreAppliesToday } from "./lib/tasks.js";
+import { coinAnnouncementFor, randomParentAffirmation } from "./lib/announcements.js";
 
 const DAY_MS = 86400000;
 
@@ -92,12 +95,13 @@ function AppInner() {
   const [coinLoadError, setCoinLoadError] = useState(false);
   const [morningRoutine, setMorningRoutine] = useState([]);
   const [routines, setRoutines] = useState([]);
+  const [routineCompletions, setRoutineCompletions] = useState([]);
   const [displaySchedule, setDisplaySchedule] = useState(null);
 
   const loadAll = useCallback(async () => {
     let coinFailed = false;
     const trackCoinFailure = () => { coinFailed = true; };
-    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning, schedule, routineRows] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning, schedule, routineRows, routineCompletionRows] = await Promise.all([
       getSafe("sprinkles_family_members?order=sort_order.asc"),
       getSafe("sprinkles_contacts"),
       getSafe("sprinkles_activities"),
@@ -119,6 +123,7 @@ function AppInner() {
       getSafe("sprinkles_morning_routine_items?order=sort_order.asc"),
       getSafe("sprinkles_display_schedule?id=eq.1"),
       getSafe("sprinkles_routines?order=sort_order.asc"),
+      getSafe("sprinkles_routine_completions"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -142,9 +147,27 @@ function AppInner() {
     setMorningRoutine(morning || []);
     setDisplaySchedule((schedule || [])[0] || null);
     setRoutines(routineRows || []);
+    setRoutineCompletions(routineCompletionRows || []);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Two phones sharing one household means each device's in-memory state
+  // goes stale the moment the *other* one saves something — there's no
+  // realtime subscription, just a one-time load on mount. Re-pull
+  // everything whenever this tab/PWA regains focus (backgrounding and
+  // reopening the app is the common mobile case) so a change made on the
+  // other phone shows up here without a manual refresh, and this device's
+  // own state doesn't silently drift from what's actually in the database.
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState !== "hidden") loadAll(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [loadAll]);
 
   // On a TV/kiosk device, the School Day display becomes the main screen
   // during the window configured on Tools > Routines — it only
@@ -175,8 +198,15 @@ function AppInner() {
 
   // ── Family handlers ──
   const onUpdateMember = async (id, ch) => {
+    const before = members.find((m) => m.id === id);
     setMembers((p) => p.map((m) => (m.id === id ? { ...m, ...ch } : m)));
-    await patch("sprinkles_family_members", id, ch);
+    try {
+      await patch("sprinkles_family_members", id, ch);
+      return { ok: true };
+    } catch (e) {
+      if (before) setMembers((p) => p.map((m) => (m.id === id ? before : m)));
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const SETTERS = {
     sprinkles_contacts: setContacts, sprinkles_activities: setActivities, sprinkles_medications: setMedications,
@@ -233,6 +263,28 @@ function AppInner() {
       return { ok: false, error: e.message || "Request failed." };
     }
   };
+  // Toggles one checklist item for a kid's routine on a given date, and —
+  // if that completes every active item for that kid in that routine —
+  // awards the flat 3-coin all-or-none reward exactly once (guarded by
+  // coins_awarded so re-checking/unchecking later never pays out twice).
+  const onToggleRoutineItem = async (routineId, memberId, itemId, date) => {
+    const activeItemIds = morningRoutine.filter((i) => i.routine_id === routineId && i.member_id === memberId && i.active).map((i) => i.id);
+    let row = routineCompletions.find((c) => c.routine_id === routineId && c.member_id === memberId && c.date === date);
+    const prevChecked = row?.checked_item_ids || [];
+    const nextChecked = prevChecked.includes(itemId) ? prevChecked.filter((id) => id !== itemId) : [...prevChecked, itemId];
+    const allDone = activeItemIds.length > 0 && activeItemIds.every((id) => nextChecked.includes(id));
+    const shouldAward = allDone && !row?.coins_awarded;
+
+    if (row) {
+      setRoutineCompletions((p) => p.map((c) => (c.id === row.id ? { ...c, checked_item_ids: nextChecked, coins_awarded: c.coins_awarded || shouldAward } : c)));
+      await patch("sprinkles_routine_completions", row.id, { checked_item_ids: nextChecked, ...(shouldAward ? { coins_awarded: true } : {}) });
+    } else {
+      const d = await post("sprinkles_routine_completions", { routine_id: routineId, member_id: memberId, date, checked_item_ids: nextChecked, coins_awarded: shouldAward });
+      if (d?.[0]) setRoutineCompletions((p) => [...p, d[0]]);
+    }
+    if (shouldAward) await onAddCoinTransaction({ member_id: memberId, delta: 3, reason: "Completed routine", rule_id: null });
+  };
+
   const onUpdateChore = async (id, ch) => {
     const before = chores.find((c) => c.id === id);
     setChores((p) => p.map((c) => (c.id === id ? { ...c, ...ch } : c)));
@@ -248,17 +300,30 @@ function AppInner() {
     return { ok: true };
   };
   const onUpdateSettings = async (ch) => {
+    const before = settings;
     setSettings((p) => ({ ...p, ...ch }));
-    await patch("sprinkles_settings", 1, ch);
+    try {
+      await patch("sprinkles_settings", 1, ch);
+      return { ok: true };
+    } catch (e) {
+      setSettings(before);
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const onUpdateFoodPrefs = async (memberId, prefs) => {
     const existing = foodPrefs.find((f) => f.member_id === memberId);
-    if (existing) {
-      setFoodPrefs((p) => p.map((f) => (f.member_id === memberId ? { ...f, ...prefs } : f)));
-      await patch("sprinkles_food_prefs", existing.id, prefs);
-    } else {
-      const d = await post("sprinkles_food_prefs", { member_id: memberId, ...prefs });
-      if (d?.[0]) setFoodPrefs((p) => [...p, d[0]]);
+    try {
+      if (existing) {
+        setFoodPrefs((p) => p.map((f) => (f.member_id === memberId ? { ...f, ...prefs } : f)));
+        await patch("sprinkles_food_prefs", existing.id, prefs);
+      } else {
+        const d = await post("sprinkles_food_prefs", { member_id: memberId, ...prefs });
+        if (d?.[0]) setFoodPrefs((p) => [...p, d[0]]);
+      }
+      return { ok: true };
+    } catch (e) {
+      if (existing) setFoodPrefs((p) => p.map((f) => (f.member_id === memberId ? existing : f)));
+      return { ok: false, error: e.message || "Request failed." };
     }
   };
 
@@ -287,8 +352,13 @@ function AppInner() {
     return { ok: true };
   };
   const onDeleteStat = async (id) => {
+    const before = stats.find((s) => s.id === id);
     setStats((p) => p.filter((s) => s.id !== id));
-    await del("sprinkles_member_stats", id);
+    try {
+      await del("sprinkles_member_stats", id);
+    } catch (e) {
+      if (before) setStats((p) => [...p, before]);
+    }
   };
 
   // ── Projects ──
@@ -312,27 +382,43 @@ function AppInner() {
       if (before) setProjects((p) => p.map((x) => (x.id === id ? before : x)));
       return { ok: false, error: e.message || "Request failed." };
     }
+    const justFinished = (ch.progress === 100 || ch.status === "done") && before && before.progress !== 100 && before.status !== "done";
     if (ch.progress === 100 || ch.status === "done") celebrate("Project done!");
+    if (justFinished) {
+      const assignee = members.find((m) => m.id === (ch.member_id ?? before.member_id));
+      if (assignee?.role === "parent") speak(randomParentAffirmation());
+    }
     if (ch.member_id && before && ch.member_id !== before.member_id) {
       notifyAssignment([ch.member_id], "Project assigned to you", ch.title || before.title, "/tasks");
     }
     return { ok: true };
   };
   const onDeleteProject = async (id) => {
+    const before = projects.find((x) => x.id === id);
     setProjects((p) => p.filter((x) => x.id !== id));
-    await del("sprinkles_projects", id);
+    try {
+      await del("sprinkles_projects", id);
+    } catch (e) {
+      if (before) setProjects((p) => [before, ...p]);
+    }
   };
 
   // ── Kids Goals (coins) ──
   // Returns { ok, error } instead of throwing so callers (modals) can show
   // the failure inline — a silent throw here previously meant "nothing
   // happens" with no indication anything went wrong.
-  const onAddCoinTransaction = async (body) => {
+  // `announcement` lets a caller override what gets said out loud (e.g. the
+  // "all chores done" bonus below says "Great Job {name}" instead of the
+  // default "coins given" line) — pass an explicit falsy value to say
+  // nothing, or omit it to use the default per-delta line.
+  const onAddCoinTransaction = async (body, announcement) => {
     try {
       const d = await post("sprinkles_coin_ledger", body);
       if (!d?.[0]) return { ok: false, error: "No row was created." };
       setCoinLedger((p) => [d[0], ...p]);
       if (d[0].delta > 0) celebrate("Coins earned!");
+      const line = announcement !== undefined ? announcement : coinAnnouncementFor(d[0], coinLedger, coinRewards);
+      if (line) speak(line);
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message || "Request failed." };
@@ -342,9 +428,37 @@ function AppInner() {
   // ── Chores / celebration ──
   const onToggleChore = async (chore) => {
     const date = new Date().toISOString().slice(0, 10);
-    const d = await post("sprinkles_chore_completions", { chore_id: chore.id, date });
-    if (d?.[0]) setCompletions((p) => [...p, d[0]]);
-    celebrate("Good Job!");
+    try {
+      const d = await post("sprinkles_chore_completions", { chore_id: chore.id, date });
+      if (d?.[0]) {
+        setCompletions((p) => [...p, d[0]]);
+        celebrate("Good Job!");
+        const member = members.find((m) => m.id === chore.member_id);
+        if (member?.role === "parent") {
+          speak(randomParentAffirmation());
+        } else if (member) {
+          // Every active task assigned to this kid that applies today — if
+          // this completion is the one that finishes them all off (and
+          // wasn't already all done before it), pay the flat 3-coin
+          // all-or-none bonus and say so instead of the usual "coins given"
+          // line.
+          const applicable = chores.filter((c) => c.member_id === member.id && c.active && choreAppliesToday(c));
+          if (applicable.length > 0) {
+            const doneBefore = new Set(completions.filter((c) => c.date === date).map((c) => c.chore_id));
+            const wasAllDone = applicable.every((c) => doneBefore.has(c.id));
+            const isAllDoneNow = applicable.every((c) => doneBefore.has(c.id) || c.id === chore.id);
+            if (isAllDoneNow && !wasAllDone) {
+              await onAddCoinTransaction(
+                { member_id: member.id, delta: 3, reason: "Completed all tasks today", rule_id: null },
+                `Great job ${member.name}!`
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to record task completion:", e); // eslint-disable-line no-console
+    }
   };
 
   // ── Calendar ──
@@ -414,48 +528,95 @@ function AppInner() {
       name: r.name, ingredients: r.ingredients, tags: r.tags, equipment: r.equipment, est_time: r.est_time, notes: r.notes,
       folder: r.folder ?? null, day_of_week: r.day_of_week ?? null, week_tag: r.week_tag ?? null,
     };
-    if (r.id) {
-      await patch("recipes", r.id, body);
-      const updated = { ...r, ...body };
-      setRecipes((p) => p.map((x) => (x.id === r.id ? updated : x)));
-      return updated;
+    try {
+      if (r.id) {
+        await patch("recipes", r.id, body);
+        const updated = { ...r, ...body };
+        setRecipes((p) => p.map((x) => (x.id === r.id ? updated : x)));
+        return updated;
+      }
+      const d = await post("recipes", body);
+      if (d?.[0]) {
+        setRecipes((p) => [...p, d[0]].sort((a, b) => a.name.localeCompare(b.name)));
+        return d[0];
+      }
+      return null;
+    } catch (e) {
+      console.error("Failed to save recipe:", e); // eslint-disable-line no-console
+      return null;
     }
-    const d = await post("recipes", body);
-    if (d?.[0]) {
-      setRecipes((p) => [...p, d[0]].sort((a, b) => a.name.localeCompare(b.name)));
-      return d[0];
-    }
-    return null;
   };
   const onDeleteRecipe = async (id) => {
+    const before = recipes.find((r) => r.id === id);
     setRecipes((p) => p.filter((r) => r.id !== id));
-    await del("recipes", id);
+    try {
+      await del("recipes", id);
+    } catch (e) {
+      if (before) setRecipes((p) => [...p, before].sort((a, b) => a.name.localeCompare(b.name)));
+    }
   };
   const onScheduleRecipe = async (day, meal, recipe) => {
-    const d = await post("meal_plan", { day, meal, recipe_id: recipe.id, recipe_name: recipe.name, week_start: weekStart, eat_out: false });
-    if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+    try {
+      const d = await post("meal_plan", { day, meal, recipe_id: recipe.id, recipe_name: recipe.name, week_start: weekStart, eat_out: false });
+      if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+    } catch (e) {
+      console.error("Failed to schedule meal:", e); // eslint-disable-line no-console
+    }
   };
   const onMoveSlot = async (id, day, meal) => {
+    const before = mealPlan.find((s) => s.id === id);
     setMealPlan((p) => p.map((s) => (s.id === id ? { ...s, day, meal } : s)));
-    await patch("meal_plan", id, { day, meal });
+    try {
+      await patch("meal_plan", id, { day, meal });
+    } catch (e) {
+      if (before) setMealPlan((p) => p.map((s) => (s.id === id ? before : s)));
+    }
   };
   const onRemoveSlot = async (id) => {
+    const before = mealPlan.find((s) => s.id === id);
     setMealPlan((p) => p.filter((s) => s.id !== id));
-    await del("meal_plan", id);
+    try {
+      await del("meal_plan", id);
+    } catch (e) {
+      if (before) setMealPlan((p) => [...p, before]);
+    }
   };
 
   // ── Grocery ──
   const onAddGrocery = async (name) => {
-    const d = await post("shopping_list", { name, category: "Other", status: "pending" });
-    if (d?.[0]) setShopping((p) => [...p, d[0]]);
+    try {
+      const d = await post("shopping_list", { name, category: "Other", status: "pending" });
+      if (d?.[0]) setShopping((p) => [...p, d[0]]);
+    } catch (e) {
+      console.error("Failed to add grocery item:", e); // eslint-disable-line no-console
+    }
   };
   const onRemoveGrocery = async (id) => {
+    const before = shopping.find((s) => s.id === id);
     setShopping((p) => p.filter((s) => s.id !== id));
-    await del("shopping_list", id);
-    celebrate("Got it!");
+    try {
+      await del("shopping_list", id);
+      celebrate("Got it!");
+    } catch (e) {
+      if (before) setShopping((p) => [...p, before]);
+    }
   };
 
   // ── Assistant ──
+  const WEEKDAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  // Overwrites whatever's already scheduled for a day/meal (rather than
+  // stacking a second row alongside it) — used both for a single-day meal
+  // action and for "the rest of the week" overrides below.
+  const setMealSlot = async (day, meal, name) => {
+    const existing = mealPlan.find((s) => s.day === day && s.meal === meal);
+    if (existing) {
+      setMealPlan((p) => p.map((s) => (s.id === existing.id ? { ...s, recipe_id: null, recipe_name: name } : s)));
+      await patch("meal_plan", existing.id, { recipe_id: null, recipe_name: name });
+    } else {
+      const d = await post("meal_plan", { day, meal, recipe_id: null, recipe_name: name, week_start: weekStart, eat_out: false });
+      if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+    }
+  };
   const onAssistantSend = async (text, history) => {
     const result = await interpretMessage(text, history);
     const actions = Array.isArray(result.actions) ? result.actions : [];
@@ -476,14 +637,26 @@ function AppInner() {
           source: "manual",
         });
       } else if (action.type === "meal") {
-        const d = await post("meal_plan", { day: action.day, meal: action.meal, recipe_id: null, recipe_name: action.name, week_start: weekStart, eat_out: false });
-        if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+        if (action.apply_rest_of_week) {
+          const fromIdx = Math.max(0, WEEKDAY_ORDER.indexOf(action.day));
+          for (const day of WEEKDAY_ORDER.slice(fromIdx)) {
+            await setMealSlot(day, action.meal, action.name);
+          }
+        } else {
+          await setMealSlot(action.day, action.meal, action.name);
+        }
       } else if (action.type === "coin") {
         const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase() && m.role !== "parent");
         const delta = Number(action.delta);
         if (member && Number.isFinite(delta) && delta !== 0) {
           await onAddCoinTransaction({ member_id: member.id, delta, reason: action.reason || null, rule_id: null });
         }
+      } else if (action.type === "project") {
+        await onAddProject({ title: action.title, status: "in_progress", progress: 0 });
+      } else if (action.type === "stat") {
+        const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase());
+        const stat = member && stats.find((s) => s.member_id === member.id && s.label.toLowerCase() === (action.label || "").toLowerCase());
+        if (stat && Number.isFinite(Number(action.value))) await onUpdateStat(stat.id, { value: Number(action.value) });
       } else if (action.type === "recipe") {
         const ingredients = Array.isArray(action.ingredients) ? action.ingredients.filter(Boolean) : [];
         if (action.name && ingredients.length) {
@@ -516,11 +689,11 @@ function AppInner() {
 
   let page;
   if (path === "/routines") {
-    page = <RoutinesTab members={members} routines={routines} routineItems={morningRoutine} onAdd={onAdd} onUpdateRoutine={onUpdateRoutine} onUpdateRoutineItem={onUpdateRoutineItem} onDelete={onDelete} />;
+    page = <RoutinesTab members={members} routines={routines} routineItems={morningRoutine} routineCompletions={routineCompletions} onToggleRoutineItem={onToggleRoutineItem} />;
   } else if (path === "/school-day") {
     page = <SchoolDay members={members} morningRoutine={morningRoutine} schedule={displaySchedule} events={allEvents} coinLedger={coinLedger} />;
   } else if (coinTrendsMemberFromPath(path)) {
-    page = <KidCoinTrendsPage member={coinTrendsMemberFromPath(path)} coinLedger={coinLedger} />;
+    page = <KidCoinTrendsPage member={coinTrendsMemberFromPath(path)} coinLedger={coinLedger} coinRewards={coinRewards} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/calendar") {
     page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} onSyncGoogle={onSyncEventToGoogle} />;
   } else if (path === "/food") {
@@ -534,7 +707,7 @@ function AppInner() {
   } else if (path === "/goals/kids/rules") {
     page = <KidsGoalsRulesPage members={members} coinRules={coinRules} coinLedger={coinLedger} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/kids") {
-    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
+    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} chores={chores} completions={completions} onToggleChore={onToggleChore} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/parents") {
     page = <ParentsGoals members={members} stats={stats} onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat} />;
   } else if (path === "/tasks") {
@@ -558,6 +731,7 @@ function AppInner() {
         morningRoutine={morningRoutine}
         onUpdateMember={onUpdateMember} onAdd={onAdd} onDelete={onDelete} onUpdateFoodPrefs={onUpdateFoodPrefs}
         onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat}
+        onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
       />
     );
   } else if (path === "/settings/tools/weather") {
@@ -573,7 +747,13 @@ function AppInner() {
   } else if (path === "/settings/games") {
     page = <GamesPage />;
   } else if (path === "/settings/routines") {
-    page = <RoutinesPage schedule={displaySchedule} onUpdateSchedule={onUpdateDisplaySchedule} />;
+    page = (
+      <RoutinesPage
+        members={members} routines={routines} routineItems={morningRoutine}
+        onAdd={onAdd} onUpdateRoutine={onUpdateRoutine} onUpdateRoutineItem={onUpdateRoutineItem} onDelete={onDelete}
+        schedule={displaySchedule} onUpdateSchedule={onUpdateDisplaySchedule}
+      />
+    );
   } else if (path === "/settings/preferences") {
     page = <PreferencesPage settings={settings} onUpdateSettings={onUpdateSettings} members={members} />;
   } else if (path === "/settings") {

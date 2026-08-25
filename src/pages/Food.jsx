@@ -89,7 +89,7 @@ function RecipeModal({ recipe, defaultFolder, onSave, onDelete, onClose }) {
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 14 }}>{recipe?.id ? "Edit Recipe" : "New Recipe"}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div><span style={label}>Name</span><input autoFocus style={inp} value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div><span style={label}>Ingredients (one per line)</span><textarea style={{ ...inp, minHeight: 90 }} value={ingredients} onChange={(e) => setIngredients(e.target.value)} /></div>
+        <div><span style={label}>Ingredients (one per line, optional)</span><textarea style={{ ...inp, minHeight: 90 }} value={ingredients} onChange={(e) => setIngredients(e.target.value)} /></div>
         <div><span style={label}>Est. Time</span>
           <select style={inp} value={estTime} onChange={(e) => setEstTime(e.target.value)}>
             <option value="">Select...</option>
@@ -130,7 +130,7 @@ function RecipeModal({ recipe, defaultFolder, onSave, onDelete, onClose }) {
           style={{ ...btn(BASE.green), width: "100%" }}
           onClick={() => {
             const ing = ingredients.split("\n").map((s) => s.trim()).filter(Boolean);
-            if (!name.trim() || !ing.length) return;
+            if (!name.trim()) return;
             onSave({
               id: recipe?.id, name: name.trim(), ingredients: ing, tags, equipment, est_time: estTime || null, notes: notes.trim() || null,
               folder: folder || null,
