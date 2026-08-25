@@ -90,7 +90,7 @@ export function ProjectModal({ project, members, onSave, onDelete, onClose }) {
   );
 }
 
-function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
+export function ChoreModal({ chore, members, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(chore?.title || "");
   const [memberId, setMemberId] = useState(chore?.member_id ?? null);
   const [visibility, setVisibility] = useState(chore?.visibility || "public");

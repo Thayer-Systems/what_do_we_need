@@ -697,7 +697,12 @@ function AppInner() {
   } else if (path === "/goals/kids/rules") {
     page = <KidsGoalsRulesPage members={members} coinRules={coinRules} coinLedger={coinLedger} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/kids/chores") {
-    page = <KidsChoresPage members={members} chores={chores} completions={completions} onToggleChore={onToggleChore} />;
+    page = (
+      <KidsChoresPage
+        members={members} chores={chores} completions={completions} onToggleChore={onToggleChore}
+        onAddChore={onAddChore} onUpdateChore={onUpdateChore} onDeleteChore={(id) => onDelete("sprinkles_chores", id)}
+      />
+    );
   } else if (path === "/goals/kids") {
     page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/parents") {
