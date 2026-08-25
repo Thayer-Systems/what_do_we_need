@@ -40,7 +40,7 @@ function AssigneeBadge({ member }) {
   );
 }
 
-function ProjectModal({ project, members, onSave, onDelete, onClose }) {
+export function ProjectModal({ project, members, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(project?.title || "");
   const [description, setDescription] = useState(project?.description || "");
   const [progress, setProgress] = useState(project?.progress ?? 0);

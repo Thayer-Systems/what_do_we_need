@@ -5,6 +5,7 @@ import { BarChart, ProgressBar, StatCard } from "../components/Charts.jsx";
 import { Icon, MEMBER_ICONS } from "../components/Icons.jsx";
 import { BASE, F, THEMES, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
+import { ProjectModal } from "./Tasks.jsx";
 
 const btn = (bg = BASE.pink) => ({
   background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px",
@@ -118,10 +119,12 @@ function StatRow({ stat, color, onEdit, onTogglePause, onDelete }) {
 export default function FamilyMember({
   member, contacts, activities, medications, foodPrefs, links, chores, completions, stats, projects = [], morningRoutine = [],
   onUpdateMember, onAdd, onDelete, onUpdateFoodPrefs, onAddStat, onUpdateStat, onDeleteStat,
+  onAddProject, onUpdateProject, onDeleteProject,
 }) {
   const { navigate } = useRouter();
   const [modal, setModal] = useState(null);
   const [statModal, setStatModal] = useState(null);
+  const [projectModal, setProjectModal] = useState(null);
 
   if (!member) return null;
   const theme = THEMES.default;
@@ -225,7 +228,7 @@ export default function FamilyMember({
           <Section title="Private Projects">
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {mPrivateProjects.map((p) => (
-                <div key={p.id} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12 }}>
+                <div key={p.id} onClick={() => setProjectModal(p)} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12, cursor: "pointer" }}>
                   <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{p.title}</div>
                   <ProgressBar pct={p.progress} color={member.color} />
                 </div>
@@ -334,6 +337,15 @@ export default function FamilyMember({
             return statModal.id ? onUpdateStat(statModal.id, body) : onAddStat(member.id, body);
           }}
           onClose={() => setStatModal(null)}
+        />
+      )}
+      {projectModal && (
+        <ProjectModal
+          project={projectModal.id ? projectModal : null}
+          members={[member]}
+          onSave={(v) => (v.id ? onUpdateProject(v.id, v) : onAddProject({ ...v, member_id: member.id, visibility: "private" }))}
+          onDelete={onDeleteProject}
+          onClose={() => setProjectModal(null)}
         />
       )}
     </div>

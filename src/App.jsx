@@ -26,6 +26,9 @@ import { interpretMessage } from "./lib/ai.js";
 import { notifyAssignment } from "./lib/push.js";
 import { useIsTVMode } from "./lib/useMediaQuery.js";
 import { isInDisplayWindow } from "./lib/schoolDay.js";
+import { speak } from "./lib/tts.js";
+import { choreAppliesToday } from "./lib/tasks.js";
+import { coinAnnouncementFor, randomParentAffirmation } from "./lib/announcements.js";
 
 const DAY_MS = 86400000;
 
@@ -384,7 +387,12 @@ function AppInner() {
       if (before) setProjects((p) => p.map((x) => (x.id === id ? before : x)));
       return { ok: false, error: e.message || "Request failed." };
     }
+    const justFinished = (ch.progress === 100 || ch.status === "done") && before && before.progress !== 100 && before.status !== "done";
     if (ch.progress === 100 || ch.status === "done") celebrate("Project done!");
+    if (justFinished) {
+      const assignee = members.find((m) => m.id === (ch.member_id ?? before.member_id));
+      if (assignee?.role === "parent") speak(randomParentAffirmation());
+    }
     if (ch.member_id && before && ch.member_id !== before.member_id) {
       notifyAssignment([ch.member_id], "Project assigned to you", ch.title || before.title, "/tasks");
     }
@@ -404,12 +412,18 @@ function AppInner() {
   // Returns { ok, error } instead of throwing so callers (modals) can show
   // the failure inline — a silent throw here previously meant "nothing
   // happens" with no indication anything went wrong.
-  const onAddCoinTransaction = async (body) => {
+  // `announcement` lets a caller override what gets said out loud (e.g. the
+  // "all chores done" bonus below says "Great Job {name}" instead of the
+  // default "coins given" line) — pass an explicit falsy value to say
+  // nothing, or omit it to use the default per-delta line.
+  const onAddCoinTransaction = async (body, announcement) => {
     try {
       const d = await post("sprinkles_coin_ledger", body);
       if (!d?.[0]) return { ok: false, error: "No row was created." };
       setCoinLedger((p) => [d[0], ...p]);
       if (d[0].delta > 0) celebrate("Coins earned!");
+      const line = announcement !== undefined ? announcement : coinAnnouncementFor(d[0], coinLedger, coinRewards);
+      if (line) speak(line);
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message || "Request failed." };
@@ -424,6 +438,28 @@ function AppInner() {
       if (d?.[0]) {
         setCompletions((p) => [...p, d[0]]);
         celebrate("Good Job!");
+        const member = members.find((m) => m.id === chore.member_id);
+        if (member?.role === "parent") {
+          speak(randomParentAffirmation());
+        } else if (member) {
+          // Every active task assigned to this kid that applies today — if
+          // this completion is the one that finishes them all off (and
+          // wasn't already all done before it), pay the flat 3-coin
+          // all-or-none bonus and say so instead of the usual "coins given"
+          // line.
+          const applicable = chores.filter((c) => c.member_id === member.id && c.active && choreAppliesToday(c));
+          if (applicable.length > 0) {
+            const doneBefore = new Set(completions.filter((c) => c.date === date).map((c) => c.chore_id));
+            const wasAllDone = applicable.every((c) => doneBefore.has(c.id));
+            const isAllDoneNow = applicable.every((c) => doneBefore.has(c.id) || c.id === chore.id);
+            if (isAllDoneNow && !wasAllDone) {
+              await onAddCoinTransaction(
+                { member_id: member.id, delta: 3, reason: "Completed all tasks today", rule_id: null },
+                `Great job ${member.name}!`
+              );
+            }
+          }
+        }
       }
     } catch (e) {
       console.error("Failed to record task completion:", e); // eslint-disable-line no-console
@@ -685,6 +721,7 @@ function AppInner() {
         morningRoutine={morningRoutine}
         onUpdateMember={onUpdateMember} onAdd={onAdd} onDelete={onDelete} onUpdateFoodPrefs={onUpdateFoodPrefs}
         onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat}
+        onAddProject={onAddProject} onUpdateProject={onUpdateProject} onDeleteProject={onDeleteProject}
       />
     );
   } else if (path === "/settings/tools/weather") {

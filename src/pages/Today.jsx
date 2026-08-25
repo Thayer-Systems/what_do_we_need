@@ -38,29 +38,31 @@ function WeatherCard({ weather, week, navigate }) {
   const todayForecast = week.find((d) => sameDay(new Date(d.date), today));
   const restOfWeek = week.filter((d) => !sameDay(new Date(d.date), today)).slice(0, 6);
   return (
-    <div style={{ ...widgetCard(BASE.teal), cursor: "pointer", justifyContent: "space-between" }} onClick={() => navigate("/settings/tools/weather")}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={eyebrow}>Weather</div>
-          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 40, marginTop: 4 }}>{weather ? `${weather.temperatureF}°F` : "—"}</div>
-          <div style={{ fontFamily: F.ui, fontSize: 14, fontWeight: 700 }}>{weather ? weather.summary : "Not connected"}</div>
+    <div style={{ ...widgetCard(BASE.teal), cursor: "pointer" }} onClick={() => navigate("/settings/tools/weather")}>
+      <div style={eyebrow}>Weather</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon name={weather?.icon || "sun"} size={38} />
+            <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 32 }}>{weather ? `${weather.temperatureF}°F` : "—"}</span>
+          </div>
+          <div style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 700, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{weather ? weather.summary : "Not connected"}</div>
           {todayForecast && (
-            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, opacity: 0.85, marginTop: 4 }}>H:{todayForecast.highF}° L:{todayForecast.lowF}°</div>
+            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, opacity: 0.85, marginTop: 2 }}>H:{todayForecast.highF}° L:{todayForecast.lowF}°</div>
           )}
         </div>
-        <Icon name={weather?.icon || "sun"} size={56} />
+        {restOfWeek.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, flexShrink: 0 }}>
+            {restOfWeek.slice(0, 4).map((d) => (
+              <div key={d.date} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "3px 9px" }}>
+                <span style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", width: 28 }}>{new Date(d.date).toLocaleDateString([], { weekday: "short" })}</span>
+                <Icon name={d.icon} size={16} />
+                <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, width: 26, textAlign: "right" }}>{d.highF}°</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      {restOfWeek.length > 0 && (
-        <div style={{ display: "flex", gap: 8, marginTop: 16, overflowX: "auto" }}>
-          {restOfWeek.map((d) => (
-            <div key={d.date} style={{ background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "8px 10px", textAlign: "center", flexShrink: 0, minWidth: 56 }}>
-              <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase" }}>{new Date(d.date).toLocaleDateString([], { weekday: "short" })}</div>
-              <Icon name={d.icon} size={22} />
-              <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800 }}>{d.highF}°</div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
