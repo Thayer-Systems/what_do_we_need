@@ -31,7 +31,10 @@ module.exports = async function handler(req, res) {
     if (isHourly) {
       const url = `https://api.tomorrow.io/v4/weather/forecast?location=${encodeURIComponent(location)}&units=imperial&timesteps=1h&apikey=${key}`;
       const r = await fetch(url);
-      if (!r.ok) throw new Error("hourly forecast lookup failed");
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        throw new Error(`hourly forecast lookup failed (${r.status}): ${body.slice(0, 300)}`);
+      }
       const data = await r.json();
       const hours = (data?.timelines?.hourly || []).slice(0, 168).map((h) => {
         const v = h.values || {};
@@ -53,7 +56,10 @@ module.exports = async function handler(req, res) {
     if (!isWeek) {
       const url = `https://api.tomorrow.io/v4/weather/realtime?location=${encodeURIComponent(location)}&units=imperial&apikey=${key}`;
       const r = await fetch(url);
-      if (!r.ok) throw new Error("weather lookup failed");
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        throw new Error(`weather lookup failed (${r.status}): ${body.slice(0, 300)}`);
+      }
       const data = await r.json();
       const v = data?.data?.values || {};
       res.status(200).json({
@@ -68,7 +74,10 @@ module.exports = async function handler(req, res) {
 
     const url = `https://api.tomorrow.io/v4/weather/forecast?location=${encodeURIComponent(location)}&units=imperial&timesteps=1d&apikey=${key}`;
     const r = await fetch(url);
-    if (!r.ok) throw new Error("forecast lookup failed");
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      throw new Error(`forecast lookup failed (${r.status}): ${body.slice(0, 300)}`);
+    }
     const data = await r.json();
     const days = (data?.timelines?.daily || []).slice(0, 7).map((d) => {
       const v = d.values || {};
@@ -89,6 +98,7 @@ module.exports = async function handler(req, res) {
     });
     res.status(200).json({ available: true, days });
   } catch (e) {
+    console.error("Weather lookup failed:", e.message); // eslint-disable-line no-console
     res.status(200).json({ available: false });
   }
 };
