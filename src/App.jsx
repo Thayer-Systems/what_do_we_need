@@ -697,7 +697,7 @@ function AppInner() {
   } else if (path === "/goals/kids/rules") {
     page = <KidsGoalsRulesPage members={members} coinRules={coinRules} coinLedger={coinLedger} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/kids") {
-    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
+    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} chores={chores} completions={completions} onToggleChore={onToggleChore} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/parents") {
     page = <ParentsGoals members={members} stats={stats} onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat} />;
   } else if (path === "/tasks") {

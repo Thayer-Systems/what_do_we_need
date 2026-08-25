@@ -6,6 +6,7 @@ import { BarChart, ProgressBar } from "../components/Charts.jsx";
 import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance, daysUntilCashIn } from "../lib/coins.js";
+import { choreAppliesToday } from "../lib/tasks.js";
 
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -373,11 +374,48 @@ export function KidCoinTrendsPage({ member, coinLedger, coinRewards = [], onAddC
   );
 }
 
+// One kid's daily chore list — checking every one of them off is what pays
+// out the flat 3-coin all-or-none bonus (App.jsx's onToggleChore), so this
+// list is the actual "do the thing" surface; the boxes above are just the
+// running total.
+function KidChoreList({ kid, chores, completions, onToggleChore }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const doneToday = new Set(completions.filter((c) => c.date === todayStr).map((c) => c.chore_id));
+  const applicable = chores.filter((c) => c.member_id === kid.id && c.active && choreAppliesToday(c));
+  const doneCount = applicable.filter((c) => doneToday.has(c.id)).length;
+
+  if (applicable.length === 0) return null;
+
+  return (
+    <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <IconBadge icon={kid.icon} bg={kid.color} size={28} radius={9} iconColor="#fff" />
+        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, flex: 1 }}>{kid.name}'s Tasks</div>
+        <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2 }}>{doneCount}/{applicable.length}{doneCount === applicable.length ? " · +3 coins!" : ""}</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {applicable.map((c) => {
+          const done = doneToday.has(c.id);
+          return (
+            <div key={c.id} onClick={() => !done && onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "8px 10px", cursor: done ? "default" : "pointer", opacity: done ? 0.55 : 1 }}>
+              <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, textDecoration: done ? "line-through" : "none" }}>{c.title}</span>
+              <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {done && <Icon name="check" size={13} color="#fff" />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // The overview: one box per kid — icon, total coin count, and a spinning
-// coin — sized to fit three kids without scrolling. Everything else
-// (progress bars, eligible rewards, history) lives one tap away on
-// KidCoinTrendsPage; coin rules live only behind the book icon now.
-export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, coinLoadError, onAddCoinTransaction }) {
+// coin — sized to fit three kids without scrolling. Below that, each kid's
+// daily chore checklist (5 chores, complete them all for a flat 3-coin
+// bonus). Progress bars, eligible rewards, and full history live one tap
+// away on KidCoinTrendsPage; coin rules live only behind the book icon.
+export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, coinLoadError, chores = [], completions = [], onToggleChore, onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -435,6 +473,12 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
             to { transform: rotateY(360deg); }
           }
         `}</style>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {kids.map((k) => (
+            <KidChoreList key={k.id} kid={k} chores={chores} completions={completions} onToggleChore={onToggleChore} />
+          ))}
+        </div>
       </div>
 
       {quickOpen && <QuickAdjustModal kids={kids} coinRules={coinRules} onSubmit={onAddCoinTransaction} onClose={() => setQuickOpen(false)} />}
