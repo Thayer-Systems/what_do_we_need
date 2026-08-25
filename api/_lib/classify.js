@@ -18,18 +18,22 @@ Action object shapes:
 {"type":"grocery","items":["milk"]}
 {"type":"chore","member":"Piper","title":"feed the dog","frequency":"daily"}
 {"type":"event","title":"Piper: Gym","start":"2026-08-12T17:00:00","location":"Franklin Dance Studio","member":"Piper","category":"activity"}
-{"type":"meal","day":"Mon","meal":"Dinner","name":"Tacos"}
+{"type":"meal","day":"Mon","meal":"Dinner","name":"Tacos","apply_rest_of_week":false}
 {"type":"call","target":"pharmacy","request":"refill prescription"}
 {"type":"coin","member":"Piper","delta":2,"reason":"cleaning her room"}
+{"type":"project","title":"Repaint the garage"}
+{"type":"stat","member":"Courtney","label":"Miles run","value":12}
 
 Rules for actions:
 - One message can ask for MULTIPLE things at once (e.g. "add milk, schedule practice Thursday at 5, and what's for dinner tonight") — include one action object per actionable request, in the order mentioned. Pure questions that don't change any data (schedule, availability, "what's needed for X") don't need an action object at all — just answer them directly in "reply".
 - "we need X" / "out of X" / "need to grab X" -> grocery action. Split multiple items into separate strings in "items", not one combined string.
 - Anything about a kid needing to do something regularly -> chore action.
 - Anything with a date/time/place stated as fact (not asked as a question) -> event action. Infer a reasonable ISO start datetime from context (today's date is given below). Category is one of event, appointment, activity, meal, chore, other.
-- Anything about cooking or scheduling a specific meal -> meal action.
+- Anything about cooking or scheduling a specific meal -> meal action. "day" is the 3-letter weekday code (Mon/Tue/Wed/Thu/Fri) it applies to — for "the rest of the week" / "from now on" / "every dinner this week" style overrides, set "apply_rest_of_week" to true and "day" to today's weekday code; the app applies it from that day through Friday for you, so only emit ONE meal action for the whole span, not one per day.
 - Requests to call/phone someone (pharmacy, doctor, etc.) -> a "call" action. Outbound phone calls are NOT built yet — never claim in "reply" that a call was made, a prescription was filled, or anything similar. Say plainly and briefly that calling isn't supported yet.
 - Giving or taking away coins from a kid ("give Piper 2 coins for cleaning her room", "take a coin from Jack for whining") -> a "coin" action. "delta" is the signed number of coins (positive to give, negative to take) — infer the amount from what's said, defaulting to 1 if unspecified. "member" must be a kid (see Family members list below), never a parent. "reason" is a short phrase for what it was for. If the member named isn't a kid on the family list, don't emit a coin action — say so in "reply" instead.
+- Starting a new open-ended project/to-do ("we need to repaint the garage", "start a project for the kitchen remodel") -> a "project" action with a short "title".
+- Updating a parent's goal progress by name ("log 12 miles for Courtney's running goal") -> a "stat" action with "member", the goal's "label" (match an existing goal as closely as possible), and the new "value". If no matching goal exists, don't emit a stat action — say so in "reply" instead.
 - If the latest message is a short confirmation ("add it", "yes", "do it", "sounds good") and the recent conversation below already proposed a specific action, include that action now using the previously discussed details, and confirm it in "reply".
 - Use the household context to resolve names, recurring activities, and existing chores (e.g. match "gym" to whoever already has a gym activity, reuse their usual time/location if not repeated).
 
@@ -76,7 +80,7 @@ async function fetchHouseholdContext(askingPhone) {
     const now = new Date();
     const past = new Date(now.getTime() - 3 * 86400000).toISOString();
     const future = new Date(now.getTime() + 45 * 86400000).toISOString();
-    const [membersRes, activitiesRes, choresRes, eventsRes, mealsRes, shoppingRes, coinRulesRes, coinLedgerRes] = await Promise.all([
+    const [membersRes, activitiesRes, choresRes, eventsRes, mealsRes, shoppingRes, coinRulesRes, coinLedgerRes, statsRes, projectsRes] = await Promise.all([
       fetch(`${url}/rest/v1/sprinkles_family_members?select=id,name,role,birthday,phone`, { headers }),
       fetch(`${url}/rest/v1/sprinkles_activities?select=member_id,name,days,start_time,location&active=eq.true`, { headers }),
       fetch(`${url}/rest/v1/sprinkles_chores?select=member_id,title,frequency&active=eq.true`, { headers }),
@@ -85,10 +89,12 @@ async function fetchHouseholdContext(askingPhone) {
       fetch(`${url}/rest/v1/shopping_list?select=name&status=eq.pending`, { headers }),
       fetch(`${url}/rest/v1/sprinkles_coin_rules?select=delta,label&order=sort_order.asc`, { headers }),
       fetch(`${url}/rest/v1/sprinkles_coin_ledger?select=member_id,delta`, { headers }),
+      fetch(`${url}/rest/v1/sprinkles_member_stats?select=member_id,label,value,target&active=eq.true`, { headers }),
+      fetch(`${url}/rest/v1/sprinkles_projects?select=title,status,progress&status=neq.done`, { headers }),
     ]);
-    const [members, activities, chores, events, meals, shopping, coinRules, coinLedger] = await Promise.all([
+    const [members, activities, chores, events, meals, shopping, coinRules, coinLedger, stats, projects] = await Promise.all([
       membersRes.json(), activitiesRes.json(), choresRes.json(), eventsRes.json(), mealsRes.json(), shoppingRes.json(),
-      coinRulesRes.json(), coinLedgerRes.json(),
+      coinRulesRes.json(), coinLedgerRes.json(), statsRes.json(), projectsRes.json(),
     ]);
     const nameOf = (id) => members.find((m) => m.id === id)?.name || "?";
     const askingMember = askingPhone ? members.find((m) => m.phone && normalizePhone(m.phone) === normalizePhone(askingPhone)) : null;
@@ -140,6 +146,12 @@ async function fetchHouseholdContext(askingPhone) {
       coinLedger.forEach((l) => { balances[l.member_id] = (balances[l.member_id] || 0) + l.delta; });
       const kidBalances = Object.entries(balances).map(([id, bal]) => `${nameOf(Number(id))}: ${bal} coins`).join(", ");
       if (kidBalances) lines.push("Current coin balances: " + kidBalances);
+    }
+    if (Array.isArray(stats) && stats.length) {
+      lines.push("Parent goals (for the \"stat\" action's \"label\" — match one of these exactly): " + stats.map((s) => `${nameOf(s.member_id)} — "${s.label}" (${s.value}/${s.target})`).join("; "));
+    }
+    if (Array.isArray(projects) && projects.length) {
+      lines.push("Open projects: " + projects.map((p) => `"${p.title}" (${p.progress}% done)`).join("; "));
     }
     return lines.join("\n");
   } catch (e) {

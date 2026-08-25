@@ -7,15 +7,23 @@ import { isToolsUnlocked } from "../lib/pin.js";
 import { Chip } from "./ui.jsx";
 import { useCalendarFilters } from "../lib/calendarFilters.jsx";
 
+// Kids Coins and Parents Goals used to be their own top-level tabs — they're
+// now reached through the "Tasks" dropdown below instead (see
+// TASKS_SUBPAGES), alongside the household chores/projects page that used
+// to be the only thing "Tasks" meant.
 export const TABS = [
   ["/routines", "clock", "Routines", BASE.lilac],
   ["/", "home", "Today", BASE.yellow],
   ["/calendar", "calendar", "Calendar", BASE.teal],
   ["/food", "meals", "Food", BASE.lilac],
-  ["/goals/kids", "star", "Kids Coins", BASE.pink],
-  ["/goals/parents", "users", "Parents Goals", BASE.orange],
   ["/tasks", "check", "Tasks", BASE.green],
   ["/settings", "settings", "Tools", "#cfd8e3"],
+];
+
+const TASKS_SUBPAGES = [
+  ["/tasks", "check", "Household", BASE.green],
+  ["/goals/kids", "star", "Kids", BASE.pink],
+  ["/goals/parents", "users", "Parents", BASE.orange],
 ];
 
 const CATEGORIES = ["event", "appointment", "activity", "meal", "chore", "work", "other"];
@@ -155,12 +163,77 @@ function CalendarNavControl() {
   );
 }
 
-// Mr. Sprinkles gets his own fixed box in the bottom-right corner — except
-// on Today, which already embeds an in-flow version of the same box
-// alongside Today's Tasks / Open Projects, so it isn't duplicated there.
+// The "Tasks" tab is a dropdown of three subpages instead of a plain link —
+// same fixed-position dropdown pattern as the Calendar controls above (the
+// nav bar scrolls horizontally, which clips an absolutely-positioned
+// dropdown, so this anchors from the button's own bounding rect instead).
+function TasksNavControl({ active }) {
+  const { path, navigate } = useRouter();
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 8, left: r.left });
+    }
+    setOpen((o) => !o);
+  };
+
+  return (
+    <div style={{ flexShrink: 0 }}>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        style={{
+          display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 12,
+          border: active ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
+          background: active ? BASE.green : "transparent",
+          boxShadow: active ? hardShadow(BASE.ink, 2.5, 2.5) : "none",
+          cursor: "pointer", fontFamily: F.ui, fontWeight: active ? 800 : 600, fontSize: 13,
+          color: BASE.ink, whiteSpace: "nowrap",
+        }}
+      >
+        <IconBadge icon="check" bg={active ? "#fff" : BASE.green} size={24} radius={8} style={{ boxShadow: "none" }} />
+        Tasks
+        <Icon name="chevronDown" size={12} />
+      </button>
+      {open && pos && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+          <div
+            style={{
+              position: "fixed", top: pos.top, left: pos.left, background: "#fff", border: `2.5px solid ${BASE.ink}`,
+              borderRadius: 14, boxShadow: hardShadow(BASE.ink, 3, 3), zIndex: 50, padding: 8, minWidth: 190,
+            }}
+          >
+            {TASKS_SUBPAGES.map(([p, icon, label, color]) => {
+              const isActive = path.startsWith(p);
+              return (
+                <button
+                  key={p}
+                  onClick={() => { navigate(p); setOpen(false); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+                    padding: "8px 10px", background: isActive ? color : "transparent", border: "none",
+                    borderRadius: 8, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13, color: BASE.ink,
+                  }}
+                >
+                  <IconBadge icon={icon} bg={color} size={22} radius={7} style={{ boxShadow: "none" }} /> {label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Mr. Sprinkles gets his own fixed box in the bottom-right corner on every
+// page, including Today.
 function MascotCorner() {
-  const { path } = useRouter();
-  if (path === "/") return null;
   return (
     <button
       onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
@@ -200,7 +273,10 @@ export default function Shell({ children, members = [] }) {
           overflowX: "auto",
         }}
       >
-        {TABS.map(([p, icon, label, color]) => (
+        {TABS.map(([p, icon, label, color]) =>
+          p === "/tasks" ? (
+            <TasksNavControl key={p} active={active("/tasks") || active("/goals/kids") || active("/goals/parents")} />
+          ) : (
           <button
             key={p}
             onClick={() => navigate(p)}
@@ -226,7 +302,8 @@ export default function Shell({ children, members = [] }) {
             {label}
             {p === "/settings" && toolsLocked && <Icon name="pin" size={12} style={{ opacity: 0.6 }} />}
           </button>
-        ))}
+          )
+        )}
         <div style={{ flex: 1 }} />
         {onCalendar && <CalendarFilterControl members={members} />}
         {onCalendar && <CalendarNavControl />}

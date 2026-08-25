@@ -245,7 +245,6 @@ function MonthView({ cursor, events, members, onDayClick, onOpenEvent }) {
   const today = new Date();
   return (
     <div style={{ padding: "0 16px 24px" }}>
-      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 10 }}>{cursor.toLocaleDateString([], { month: "long", year: "numeric" })}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 6 }}>
         {WEEKDAY_HEADERS.map((d) => (
           <div key={d} style={{ textAlign: "center", fontFamily: F.ui, fontWeight: 800, fontSize: 12, color: BASE.t2, textTransform: "uppercase" }}>{d}</div>
@@ -324,12 +323,27 @@ export default function CalendarPage({ members, events, settings, onAdd, onUpdat
     ? cursor.toLocaleDateString([], { month: "long", year: "numeric" })
     : cursor.toLocaleDateString([], { weekday: view === "day" ? "long" : undefined, month: "long", day: "numeric", year: "numeric" });
 
+  // Same step logic as the nav dropdown's Move buttons — steps by a month,
+  // a week, 3 days, or a day depending on which view is active, so the
+  // arrows here carry the same meaning as everywhere else on the page.
+  const shiftCursor = (dir) => {
+    const d = new Date(cursor);
+    if (view === "month") d.setMonth(d.getMonth() + dir);
+    else if (view === "week") d.setDate(d.getDate() + dir * 7);
+    else if (view === "3day") d.setDate(d.getDate() + dir * 3);
+    else d.setDate(d.getDate() + dir);
+    setCursor(d);
+  };
+  const navArrowStyle = { width: 34, height: 34, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+
   return (
     <div>
-      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0" }}>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0", display: "flex", alignItems: "center", gap: 10 }}>
+        <button onClick={() => shiftCursor(-1)} aria-label="Previous" style={navArrowStyle}><Icon name="chevronLeft" size={16} /></button>
         <div style={{ display: "inline-block", background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 10, boxShadow: hardShadow(BASE.ink, 3, 3), padding: "6px 12px" }}>
           <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>{headerLabel}</span>
         </div>
+        <button onClick={() => shiftCursor(1)} aria-label="Next" style={navArrowStyle}><Icon name="chevronRight" size={16} /></button>
       </div>
 
       <div style={{ marginTop: 12 }}>
