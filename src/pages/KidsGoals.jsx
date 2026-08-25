@@ -384,15 +384,18 @@ function KidChoreList({ kid, chores, completions, onToggleChore }) {
   const applicable = chores.filter((c) => c.member_id === kid.id && c.active && choreAppliesToday(c));
   const doneCount = applicable.filter((c) => doneToday.has(c.id)).length;
 
-  if (applicable.length === 0) return null;
-
   return (
     <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <IconBadge icon={kid.icon} bg={kid.color} size={28} radius={9} iconColor="#fff" />
         <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, flex: 1 }}>{kid.name}'s Tasks</div>
-        <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2 }}>{doneCount}/{applicable.length}{doneCount === applicable.length ? " · +3 coins!" : ""}</div>
+        {applicable.length > 0 && (
+          <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2 }}>{doneCount}/{applicable.length}{doneCount === applicable.length ? " · +3 coins!" : ""}</div>
+        )}
       </div>
+      {applicable.length === 0 ? (
+        <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>No tasks assigned for today.</div>
+      ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {applicable.map((c) => {
           const done = doneToday.has(c.id);
@@ -406,16 +409,18 @@ function KidChoreList({ kid, chores, completions, onToggleChore }) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
 
 // The overview: one box per kid — icon, total coin count, and a spinning
-// coin — sized to fit three kids without scrolling. Below that, each kid's
-// daily chore checklist (5 chores, complete them all for a flat 3-coin
-// bonus). Progress bars, eligible rewards, and full history live one tap
-// away on KidCoinTrendsPage; coin rules live only behind the book icon.
-export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, coinLoadError, chores = [], completions = [], onToggleChore, onAddCoinTransaction }) {
+// coin — sized to fit three kids without scrolling. Progress bars, eligible
+// rewards, and full history live one tap away on KidCoinTrendsPage; coin
+// rules live only behind the book icon. The daily chore checklist that
+// actually earns those coins lives on its own "Kids Chores" subpage instead
+// (see KidsChoresPage below).
+export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, coinLoadError, onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -473,15 +478,36 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
             to { transform: rotateY(360deg); }
           }
         `}</style>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {kids.map((k) => (
-            <KidChoreList key={k.id} kid={k} chores={chores} completions={completions} onToggleChore={onToggleChore} />
-          ))}
-        </div>
       </div>
 
       {quickOpen && <QuickAdjustModal kids={kids} coinRules={coinRules} onSubmit={onAddCoinTransaction} onClose={() => setQuickOpen(false)} />}
+    </div>
+  );
+}
+
+// "Kids Chores" — reached from the Tasks dropdown alongside "Kids Coins".
+// Each kid's daily checklist lives here; checking every item off pays the
+// flat 3-coin all-or-none bonus and the "Great job {name}" voice line
+// (both wired in App.jsx's onToggleChore).
+export function KidsChoresPage({ members, chores, completions, onToggleChore }) {
+  const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
+
+  if (kids.length === 0) {
+    return (
+      <div>
+        <EmptyState icon="check" text="No kids on the family list yet — add family members and mark them as kids." />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22, marginBottom: 6 }}>Kids' Chores</div>
+        {kids.map((k) => (
+          <KidChoreList key={k.id} kid={k} chores={chores} completions={completions} onToggleChore={onToggleChore} />
+        ))}
+      </div>
     </div>
   );
 }
