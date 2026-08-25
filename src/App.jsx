@@ -12,7 +12,7 @@ import CalendarPage from "./pages/CalendarPage.jsx";
 import { FoodWeekPage, RecipeLibraryPage, TrendsPage } from "./pages/Food.jsx";
 import Grocery from "./pages/Grocery.jsx";
 import Tasks from "./pages/Tasks.jsx";
-import KidsGoals, { KidsGoalsRulesPage, KidCoinTrendsPage } from "./pages/KidsGoals.jsx";
+import KidsGoals, { KidsGoalsRulesPage, KidCoinTrendsPage, KidsChoresPage } from "./pages/KidsGoals.jsx";
 import ParentsGoals from "./pages/ParentsGoals.jsx";
 import Settings from "./pages/Settings.jsx";
 import WeatherPage from "./pages/WeatherPage.jsx";
@@ -696,8 +696,10 @@ function AppInner() {
     page = <TrendsPage recipes={recipes} mealPlan={mealPlan} shopping={shopping} />;
   } else if (path === "/goals/kids/rules") {
     page = <KidsGoalsRulesPage members={members} coinRules={coinRules} coinLedger={coinLedger} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
+  } else if (path === "/goals/kids/chores") {
+    page = <KidsChoresPage members={members} chores={chores} completions={completions} onToggleChore={onToggleChore} />;
   } else if (path === "/goals/kids") {
-    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} chores={chores} completions={completions} onToggleChore={onToggleChore} onAddCoinTransaction={onAddCoinTransaction} />;
+    page = <KidsGoals members={members} coinLedger={coinLedger} coinRules={coinRules} coinRewards={coinRewards} coinLoadError={coinLoadError} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/goals/parents") {
     page = <ParentsGoals members={members} stats={stats} onAddStat={onAddStat} onUpdateStat={onUpdateStat} onDeleteStat={onDeleteStat} />;
   } else if (path === "/tasks") {
