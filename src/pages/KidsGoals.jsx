@@ -7,6 +7,7 @@ import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance, daysUntilCashIn } from "../lib/coins.js";
 import { choreAppliesToday } from "../lib/tasks.js";
+import { ChoreModal } from "./Tasks.jsx";
 
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
@@ -378,10 +379,11 @@ export function KidCoinTrendsPage({ member, coinLedger, coinRewards = [], onAddC
 // out the flat 3-coin all-or-none bonus (App.jsx's onToggleChore), so this
 // list is the actual "do the thing" surface; the boxes above are just the
 // running total.
-function KidChoreList({ kid, chores, completions, onToggleChore }) {
+function KidChoreList({ kid, chores, completions, onToggleChore, onAdd, onEdit }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const doneToday = new Set(completions.filter((c) => c.date === todayStr).map((c) => c.chore_id));
-  const applicable = chores.filter((c) => c.member_id === kid.id && c.active && choreAppliesToday(c));
+  const mine = chores.filter((c) => c.member_id === kid.id && c.active);
+  const applicable = mine.filter((c) => choreAppliesToday(c));
   const doneCount = applicable.filter((c) => doneToday.has(c.id)).length;
 
   return (
@@ -392,19 +394,29 @@ function KidChoreList({ kid, chores, completions, onToggleChore }) {
         {applicable.length > 0 && (
           <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2 }}>{doneCount}/{applicable.length}{doneCount === applicable.length ? " · +3 coins!" : ""}</div>
         )}
+        <button onClick={() => onAdd(kid)} style={{ width: 26, height: 26, borderRadius: 8, border: `2px solid ${BASE.ink}`, background: BASE.pink, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}>
+          <Icon name="plus" size={13} />
+        </button>
       </div>
-      {applicable.length === 0 ? (
-        <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>No tasks assigned for today.</div>
+      {mine.length === 0 ? (
+        <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>No tasks yet — tap + to add one.</div>
+      ) : applicable.length === 0 ? (
+        <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Nothing scheduled for today.</div>
       ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {applicable.map((c) => {
           const done = doneToday.has(c.id);
           return (
-            <div key={c.id} onClick={() => !done && onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "8px 10px", cursor: done ? "default" : "pointer", opacity: done ? 0.55 : 1 }}>
-              <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, textDecoration: done ? "line-through" : "none" }}>{c.title}</span>
-              <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "8px 10px" }}>
+              <button
+                onClick={() => !done && onToggleChore(c)}
+                title={done ? "Completed" : "Mark complete"}
+                style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: done ? "default" : "pointer", padding: 0 }}
+              >
                 {done && <Icon name="check" size={13} color="#fff" />}
-              </div>
+              </button>
+              <span onClick={() => onEdit(c)} style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 13, textDecoration: done ? "line-through" : "none", opacity: done ? 0.55 : 1, cursor: "pointer" }}>{c.title}</span>
+              <Icon name="edit" size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
             </div>
           );
         })}
@@ -486,11 +498,14 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
 }
 
 // "Kids Chores" — reached from the Tasks dropdown alongside "Kids Coins".
-// Each kid's daily checklist lives here; checking every item off pays the
-// flat 3-coin all-or-none bonus and the "Great job {name}" voice line
-// (both wired in App.jsx's onToggleChore).
-export function KidsChoresPage({ members, chores, completions, onToggleChore }) {
+// Each kid's daily checklist lives here (with add/edit for that kid's
+// chores, reusing the same ChoreModal the Household Tasks page uses);
+// checking every item off pays the flat 3-coin all-or-none bonus and the
+// "Great job {name}" voice line (both wired in App.jsx's onToggleChore).
+export function KidsChoresPage({ members, chores, completions, onToggleChore, onAddChore, onUpdateChore, onDeleteChore }) {
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
+  const [choreModal, setChoreModal] = useState(null);
+  const [defaultKid, setDefaultKid] = useState(null);
 
   if (kids.length === 0) {
     return (
@@ -505,9 +520,27 @@ export function KidsChoresPage({ members, chores, completions, onToggleChore }) 
       <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 18px) 16px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22, marginBottom: 6 }}>Kids' Chores</div>
         {kids.map((k) => (
-          <KidChoreList key={k.id} kid={k} chores={chores} completions={completions} onToggleChore={onToggleChore} />
+          <KidChoreList
+            key={k.id}
+            kid={k}
+            chores={chores}
+            completions={completions}
+            onToggleChore={onToggleChore}
+            onAdd={(kid) => { setDefaultKid(kid); setChoreModal({}); }}
+            onEdit={(chore) => { setDefaultKid(null); setChoreModal(chore); }}
+          />
         ))}
       </div>
+
+      {choreModal && (
+        <ChoreModal
+          chore={choreModal.id ? choreModal : (defaultKid ? { member_id: defaultKid.id } : null)}
+          members={kids}
+          onSave={(v) => (v.id ? onUpdateChore(v.id, v) : onAddChore(v))}
+          onDelete={onDeleteChore}
+          onClose={() => { setChoreModal(null); setDefaultKid(null); }}
+        />
+      )}
     </div>
   );
 }
