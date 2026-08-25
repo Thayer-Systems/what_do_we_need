@@ -20,10 +20,15 @@ export const TABS = [
   ["/settings", "settings", "Tools", "#cfd8e3"],
 ];
 
+// Each entry's own `match` decides its highlight — plain path.startsWith()
+// isn't precise enough here since "/goals/kids" is a prefix of both
+// "/goals/kids/chores" and "/goals/kids/trends/:id", which need to light up
+// Kids Chores and Kids Coins respectively, not both at once.
 const TASKS_SUBPAGES = [
-  ["/tasks", "check", "Household", BASE.green],
-  ["/goals/kids", "star", "Kids", BASE.pink],
-  ["/goals/parents", "users", "Parents", BASE.orange],
+  ["/tasks", "check", "Household", BASE.green, (p) => p === "/tasks"],
+  ["/goals/kids", "star", "Kids Coins", BASE.pink, (p) => p === "/goals/kids" || p.startsWith("/goals/kids/trends")],
+  ["/goals/kids/chores", "check", "Kids Chores", BASE.teal, (p) => p === "/goals/kids/chores"],
+  ["/goals/parents", "users", "Parents", BASE.orange, (p) => p.startsWith("/goals/parents")],
 ];
 
 const CATEGORIES = ["event", "appointment", "activity", "meal", "chore", "work", "other"];
@@ -208,8 +213,8 @@ function TasksNavControl({ active }) {
               borderRadius: 14, boxShadow: hardShadow(BASE.ink, 3, 3), zIndex: 50, padding: 8, minWidth: 190,
             }}
           >
-            {TASKS_SUBPAGES.map(([p, icon, label, color]) => {
-              const isActive = path.startsWith(p);
+            {TASKS_SUBPAGES.map(([p, icon, label, color, match]) => {
+              const isActive = match(path);
               return (
                 <button
                   key={p}
