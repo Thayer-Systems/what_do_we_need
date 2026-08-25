@@ -27,6 +27,18 @@ module.exports = async function handler(req, res) {
   const isWeek = range === "week";
   const isHourly = range === "hourly";
 
+  // Tomorrow.io's free tier has a low rate limit, and this endpoint gets
+  // called on every page load from every device with nothing between the
+  // browser and the upstream API — a couple of people using the app is
+  // enough to burn through it and start getting 429s (which is exactly
+  // what was happening). Cache successful responses at Vercel's edge for
+  // everyone for a few minutes; weather doesn't change fast enough for that
+  // to matter, and it cuts upstream calls by roughly the number of
+  // page-loads that land within the window. Cache failures too, briefly,
+  // so a rate-limit incident doesn't keep re-triggering itself every time
+  // someone reloads the page.
+  res.setHeader("Cache-Control", "public, max-age=60, s-maxage=600, stale-while-revalidate=1800");
+
   try {
     if (isHourly) {
       const url = `https://api.tomorrow.io/v4/weather/forecast?location=${encodeURIComponent(location)}&units=imperial&timesteps=1h&apikey=${key}`;
@@ -99,6 +111,7 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ available: true, days });
   } catch (e) {
     console.error("Weather lookup failed:", e.message); // eslint-disable-line no-console
+    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=120, stale-while-revalidate=300");
     res.status(200).json({ available: false });
   }
 };
