@@ -154,6 +154,23 @@ function AppInner() {
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Two phones sharing one household means each device's in-memory state
+  // goes stale the moment the *other* one saves something — there's no
+  // realtime subscription, just a one-time load on mount. Re-pull
+  // everything whenever this tab/PWA regains focus (backgrounding and
+  // reopening the app is the common mobile case) so a change made on the
+  // other phone shows up here without a manual refresh, and this device's
+  // own state doesn't silently drift from what's actually in the database.
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState !== "hidden") loadAll(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [loadAll]);
+
   // On a TV/kiosk device, the School Day display becomes the main screen
   // during the window configured on Tools > Routines — it only
   // auto-switches away from Today, never interrupts another page, and
@@ -183,8 +200,15 @@ function AppInner() {
 
   // ── Family handlers ──
   const onUpdateMember = async (id, ch) => {
+    const before = members.find((m) => m.id === id);
     setMembers((p) => p.map((m) => (m.id === id ? { ...m, ...ch } : m)));
-    await patch("sprinkles_family_members", id, ch);
+    try {
+      await patch("sprinkles_family_members", id, ch);
+      return { ok: true };
+    } catch (e) {
+      if (before) setMembers((p) => p.map((m) => (m.id === id ? before : m)));
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const SETTERS = {
     sprinkles_contacts: setContacts, sprinkles_activities: setActivities, sprinkles_medications: setMedications,
@@ -278,17 +302,30 @@ function AppInner() {
     return { ok: true };
   };
   const onUpdateSettings = async (ch) => {
+    const before = settings;
     setSettings((p) => ({ ...p, ...ch }));
-    await patch("sprinkles_settings", 1, ch);
+    try {
+      await patch("sprinkles_settings", 1, ch);
+      return { ok: true };
+    } catch (e) {
+      setSettings(before);
+      return { ok: false, error: e.message || "Request failed." };
+    }
   };
   const onUpdateFoodPrefs = async (memberId, prefs) => {
     const existing = foodPrefs.find((f) => f.member_id === memberId);
-    if (existing) {
-      setFoodPrefs((p) => p.map((f) => (f.member_id === memberId ? { ...f, ...prefs } : f)));
-      await patch("sprinkles_food_prefs", existing.id, prefs);
-    } else {
-      const d = await post("sprinkles_food_prefs", { member_id: memberId, ...prefs });
-      if (d?.[0]) setFoodPrefs((p) => [...p, d[0]]);
+    try {
+      if (existing) {
+        setFoodPrefs((p) => p.map((f) => (f.member_id === memberId ? { ...f, ...prefs } : f)));
+        await patch("sprinkles_food_prefs", existing.id, prefs);
+      } else {
+        const d = await post("sprinkles_food_prefs", { member_id: memberId, ...prefs });
+        if (d?.[0]) setFoodPrefs((p) => [...p, d[0]]);
+      }
+      return { ok: true };
+    } catch (e) {
+      if (existing) setFoodPrefs((p) => p.map((f) => (f.member_id === memberId ? existing : f)));
+      return { ok: false, error: e.message || "Request failed." };
     }
   };
 
@@ -317,8 +354,13 @@ function AppInner() {
     return { ok: true };
   };
   const onDeleteStat = async (id) => {
+    const before = stats.find((s) => s.id === id);
     setStats((p) => p.filter((s) => s.id !== id));
-    await del("sprinkles_member_stats", id);
+    try {
+      await del("sprinkles_member_stats", id);
+    } catch (e) {
+      if (before) setStats((p) => [...p, before]);
+    }
   };
 
   // ── Projects ──
@@ -349,8 +391,13 @@ function AppInner() {
     return { ok: true };
   };
   const onDeleteProject = async (id) => {
+    const before = projects.find((x) => x.id === id);
     setProjects((p) => p.filter((x) => x.id !== id));
-    await del("sprinkles_projects", id);
+    try {
+      await del("sprinkles_projects", id);
+    } catch (e) {
+      if (before) setProjects((p) => [before, ...p]);
+    }
   };
 
   // ── Kids Goals (coins) ──
@@ -372,9 +419,15 @@ function AppInner() {
   // ── Chores / celebration ──
   const onToggleChore = async (chore) => {
     const date = new Date().toISOString().slice(0, 10);
-    const d = await post("sprinkles_chore_completions", { chore_id: chore.id, date });
-    if (d?.[0]) setCompletions((p) => [...p, d[0]]);
-    celebrate("Good Job!");
+    try {
+      const d = await post("sprinkles_chore_completions", { chore_id: chore.id, date });
+      if (d?.[0]) {
+        setCompletions((p) => [...p, d[0]]);
+        celebrate("Good Job!");
+      }
+    } catch (e) {
+      console.error("Failed to record task completion:", e); // eslint-disable-line no-console
+    }
   };
 
   // ── Calendar ──
@@ -444,45 +497,78 @@ function AppInner() {
       name: r.name, ingredients: r.ingredients, tags: r.tags, equipment: r.equipment, est_time: r.est_time, notes: r.notes,
       folder: r.folder ?? null, day_of_week: r.day_of_week ?? null, week_tag: r.week_tag ?? null,
     };
-    if (r.id) {
-      await patch("recipes", r.id, body);
-      const updated = { ...r, ...body };
-      setRecipes((p) => p.map((x) => (x.id === r.id ? updated : x)));
-      return updated;
+    try {
+      if (r.id) {
+        await patch("recipes", r.id, body);
+        const updated = { ...r, ...body };
+        setRecipes((p) => p.map((x) => (x.id === r.id ? updated : x)));
+        return updated;
+      }
+      const d = await post("recipes", body);
+      if (d?.[0]) {
+        setRecipes((p) => [...p, d[0]].sort((a, b) => a.name.localeCompare(b.name)));
+        return d[0];
+      }
+      return null;
+    } catch (e) {
+      console.error("Failed to save recipe:", e); // eslint-disable-line no-console
+      return null;
     }
-    const d = await post("recipes", body);
-    if (d?.[0]) {
-      setRecipes((p) => [...p, d[0]].sort((a, b) => a.name.localeCompare(b.name)));
-      return d[0];
-    }
-    return null;
   };
   const onDeleteRecipe = async (id) => {
+    const before = recipes.find((r) => r.id === id);
     setRecipes((p) => p.filter((r) => r.id !== id));
-    await del("recipes", id);
+    try {
+      await del("recipes", id);
+    } catch (e) {
+      if (before) setRecipes((p) => [...p, before].sort((a, b) => a.name.localeCompare(b.name)));
+    }
   };
   const onScheduleRecipe = async (day, meal, recipe) => {
-    const d = await post("meal_plan", { day, meal, recipe_id: recipe.id, recipe_name: recipe.name, week_start: weekStart, eat_out: false });
-    if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+    try {
+      const d = await post("meal_plan", { day, meal, recipe_id: recipe.id, recipe_name: recipe.name, week_start: weekStart, eat_out: false });
+      if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+    } catch (e) {
+      console.error("Failed to schedule meal:", e); // eslint-disable-line no-console
+    }
   };
   const onMoveSlot = async (id, day, meal) => {
+    const before = mealPlan.find((s) => s.id === id);
     setMealPlan((p) => p.map((s) => (s.id === id ? { ...s, day, meal } : s)));
-    await patch("meal_plan", id, { day, meal });
+    try {
+      await patch("meal_plan", id, { day, meal });
+    } catch (e) {
+      if (before) setMealPlan((p) => p.map((s) => (s.id === id ? before : s)));
+    }
   };
   const onRemoveSlot = async (id) => {
+    const before = mealPlan.find((s) => s.id === id);
     setMealPlan((p) => p.filter((s) => s.id !== id));
-    await del("meal_plan", id);
+    try {
+      await del("meal_plan", id);
+    } catch (e) {
+      if (before) setMealPlan((p) => [...p, before]);
+    }
   };
 
   // ── Grocery ──
   const onAddGrocery = async (name) => {
-    const d = await post("shopping_list", { name, category: "Other", status: "pending" });
-    if (d?.[0]) setShopping((p) => [...p, d[0]]);
+    try {
+      const d = await post("shopping_list", { name, category: "Other", status: "pending" });
+      if (d?.[0]) setShopping((p) => [...p, d[0]]);
+    } catch (e) {
+      console.error("Failed to add grocery item:", e); // eslint-disable-line no-console
+    }
   };
   const onRemoveGrocery = async (id) => {
+    const before = shopping.find((s) => s.id === id);
     setShopping((p) => p.filter((s) => s.id !== id));
-    await del("shopping_list", id);
-    celebrate("Got it!");
+    try {
+      await del("shopping_list", id);
+      celebrate("Got it!");
+    } catch (e) {
+      if (before) setShopping((p) => [...p, before]);
+    }
   };
 
   // ── Assistant ──

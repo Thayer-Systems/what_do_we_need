@@ -115,60 +115,66 @@ function MealsCard({ mealPlan, navigate }) {
   );
 }
 
-function TasksCard({ members, chores, completions, onToggleChore, navigate }) {
+// Tasks and Open Projects share one box now — the "+" jumps straight to
+// the Tasks page and pops its Task/Project add menu open (via the same
+// global-event pattern the mascot button uses) instead of just landing on
+// the page and leaving the user to hunt for how to add a project.
+function TasksProjectsCard({ members, chores, completions, projects, onToggleChore, navigate }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const doneToday = new Set(completions.filter((c) => c.date === todayStr).map((c) => c.chore_id));
   const remainingChores = chores.filter((c) => c.active && (c.visibility || "public") === "public" && choreAppliesToday(c) && !doneToday.has(c.id));
-
-  return (
-    <div style={widgetCard(BASE.pink)}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Today's Tasks</span>
-        <button onClick={() => navigate("/tasks")} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-          <IconBadge icon="check" bg="#fff" size={28} radius={8} />
-        </button>
-      </div>
-      {remainingChores.length === 0 ? (
-        <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>All done today!</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
-          {remainingChores.map((c) => {
-            const member = members.find((m) => m.id === c.member_id);
-            return (
-              <div key={c.id} onClick={() => onToggleChore(c)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
-                <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={22} radius={7} iconColor="#fff" />
-                <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{c.title}</span>
-                <Icon name="close" size={14} style={{ opacity: 0.25 }} />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProjectsCard({ projects, navigate }) {
   const openProjects = projects.filter((p) => (p.visibility || "public") === "public" && p.status !== "done");
 
+  const openAddMenu = (e) => {
+    e.stopPropagation();
+    navigate("/tasks");
+    window.dispatchEvent(new Event("sprinkles-open-add-menu"));
+  };
+
   return (
-    <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/tasks")}>
+    <div style={{ ...widgetCard(BASE.pink), cursor: "pointer" }} onClick={() => navigate("/tasks")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Open Projects</span>
-        <IconBadge icon="grid" bg={BASE.lilac} size={28} radius={8} />
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Tasks &amp; Projects</span>
+        <button onClick={openAddMenu} aria-label="Add a task or project" style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 8, cursor: "pointer", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+          <Icon name="plus" size={15} />
+        </button>
       </div>
-      {openProjects.length === 0 ? (
-        <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>Nothing in progress.</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 168, overflowY: "auto" }}>
-          {openProjects.map((p) => (
-            <div key={p.id} style={{ background: BASE.muted, border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px" }}>
-              <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, marginBottom: 5 }}>{p.title}</div>
-              <ProgressBar pct={p.progress} color={BASE.pink} height={8} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 220, overflowY: "auto" }}>
+        <div>
+          <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>Today's Tasks</div>
+          {remainingChores.length === 0 ? (
+            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>All done today!</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {remainingChores.map((c) => {
+                const member = members.find((m) => m.id === c.member_id);
+                return (
+                  <div key={c.id} onClick={(e) => { e.stopPropagation(); onToggleChore(c); }} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
+                    <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={22} radius={7} iconColor="#fff" />
+                    <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{c.title}</span>
+                    <Icon name="close" size={14} style={{ opacity: 0.25 }} />
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
-      )}
+        <div>
+          <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>Open Projects</div>
+          {openProjects.length === 0 ? (
+            <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>Nothing in progress.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {openProjects.map((p) => (
+                <div key={p.id} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px" }}>
+                  <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, marginBottom: 5 }}>{p.title}</div>
+                  <ProgressBar pct={p.progress} color={BASE.pink} height={8} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -275,8 +281,7 @@ export default function Today({ members, events, chores, completions, mealPlan, 
         <MealsCard mealPlan={mealPlan} navigate={navigate} />
         <KidCoinsCard kids={kids} coinLedger={coinLedger} coinRewards={coinRewards} navigate={navigate} />
         <ParentsGoalsCard parents={parents} stats={stats} navigate={navigate} />
-        <TasksCard members={members} chores={chores} completions={completions} onToggleChore={onToggleChore} navigate={navigate} />
-        <ProjectsCard projects={projects} navigate={navigate} />
+        <TasksProjectsCard members={members} chores={chores} completions={completions} projects={projects} onToggleChore={onToggleChore} navigate={navigate} />
       </div>
 
       <style>{`
