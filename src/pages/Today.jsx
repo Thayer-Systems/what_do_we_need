@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { IconBadge } from "../components/Deco.jsx";
 import { ProgressBar } from "../components/Charts.jsx";
 import { Icon } from "../components/Icons.jsx";
-import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow, MASCOT, mascotOfDay } from "../lib/theme.js";
+import { BASE, F, CATEGORY_COLORS, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 import { coinBalance } from "../lib/coins.js";
 import { choreAppliesToday } from "../lib/tasks.js";
@@ -20,14 +20,6 @@ function useWeather() {
 
 function sameDay(a, b) {
   return a.toDateString() === b.toDateString();
-}
-
-function fmtCountdown(ms) {
-  if (ms <= 0) return "now";
-  const totalMin = Math.round(ms / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 const widgetCard = (bg) => ({
@@ -88,64 +80,14 @@ function TodaysEventsCard({ events, now, navigate }) {
           {todays.map((e) => (
             <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 10, padding: "8px 12px" }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: CATEGORY_COLORS[e.category] || BASE.pink, border: `1.5px solid ${BASE.ink}`, flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>{e.title}</div>
-                <div style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t2 }}>
-                  {new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                  {e.location ? ` · ${e.location}` : ""}
-                </div>
+              <div style={{ flex: 1, minWidth: 0, fontFamily: F.ui, fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {e.title}{e.location ? ` · ${e.location}` : ""}
+              </div>
+              <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.t2, flexShrink: 0 }}>
+                {new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </div>
             </div>
           ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DepartureCard({ events, now }) {
-  const next = events.filter((e) => e.location && new Date(e.start_at) > now).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))[0];
-
-  // Synthetic activity-based events (recurring activities) never carry a
-  // stored travel_minutes since they aren't real DB rows — look it up
-  // client-side instead of leaving the card blank.
-  const [lookedUp, setLookedUp] = useState({});
-  useEffect(() => {
-    if (!next || next.travel_minutes != null) return;
-    if (lookedUp[next.location] !== undefined) return;
-    fetch(`/api/travel-time?destination=${encodeURIComponent(next.location)}`)
-      .then((r) => r.json())
-      .then((d) => setLookedUp((p) => ({ ...p, [next.location]: d.available ? d.minutes : null })))
-      .catch(() => setLookedUp((p) => ({ ...p, [next.location]: null })));
-  }, [next?.location, next?.travel_minutes]);
-
-  if (!next) {
-    return (
-      <div style={widgetCard(BASE.orange)}>
-        <div style={eyebrow}>Next Up</div>
-        <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, marginTop: 8 }}>Nothing with a location scheduled</div>
-      </div>
-    );
-  }
-  const start = new Date(next.start_at);
-  const travelMin = next.travel_minutes != null ? next.travel_minutes : lookedUp[next.location];
-  const leaveBy = travelMin != null ? new Date(start.getTime() - travelMin * 60000) : null;
-  const msUntilLeave = leaveBy ? leaveBy - now : null;
-  return (
-    <div style={widgetCard(BASE.orange)}>
-      <div style={eyebrow}>Next Event</div>
-      <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, margin: "4px 0 6px" }}>{next.title}</div>
-      <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}>
-        {start.toLocaleString([], { hour: "numeric", minute: "2-digit" })} · <Icon name="pin" size={12} /> {next.location}
-      </div>
-      {leaveBy ? (
-        <div style={{ background: BASE.ink, color: "#fff", borderRadius: 999, padding: "8px 14px", fontFamily: F.ui, fontSize: 12, fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
-          <span>Leave by {leaveBy.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-          <span>{msUntilLeave > 0 ? `${fmtCountdown(msUntilLeave)} left` : "Go now!"}</span>
-        </div>
-      ) : (
-        <div style={{ fontFamily: F.ui, fontSize: 12, fontStyle: "italic" }}>
-          {lookedUp[next.location] === null ? "Couldn't look up travel time — set a household address in Settings, or enter it manually on this event." : "Looking up travel time…"}
         </div>
       )}
     </div>
@@ -157,37 +99,19 @@ function MealsCard({ mealPlan, navigate }) {
   const slot = (meal) => mealPlan.find((s) => s.day === today && s.meal === meal);
   return (
     <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/food")}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Today's Meals</span>
         <IconBadge icon="meals" bg={BASE.lilac} size={32} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, justifyContent: "center" }}>
         {[["Lunch", slot("Lunch")], ["Dinner", slot("Dinner")]].map(([lbl, s]) => (
-          <div key={lbl} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: 10, aspectRatio: "1 / 1", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: 4 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: BASE.t2, fontFamily: F.ui, textTransform: "uppercase" }}>{lbl}</span>
-            <span style={{ fontSize: 12, fontWeight: 700, fontFamily: F.ui }}>{s ? s.recipe_name : "Not planned"}</span>
+          <div key={lbl} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: BASE.t2, fontFamily: F.ui, textTransform: "uppercase", flexShrink: 0 }}>{lbl}</span>
+            <span style={{ fontSize: 20, fontWeight: 700, fontFamily: F.display, flex: 1 }}>{s ? s.recipe_name : "Not planned"}</span>
           </div>
         ))}
       </div>
     </div>
-  );
-}
-
-// Mr. Sprinkles' own square box, sitting in-flow as the third box on this
-// row (rather than a floating overlay) — tapping it opens the same
-// assistant popover as the nav button.
-function MascotBox() {
-  return (
-    <button
-      onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
-      style={{
-        ...widgetCard("#fff"), cursor: "pointer", border: "none", boxShadow: "none",
-        alignItems: "center", justifyContent: "center", padding: 0,
-      }}
-      aria-label="Ask Mr. Sprinkles"
-    >
-      <img src={mascotOfDay()} alt="" style={{ width: "70%", maxWidth: 96, objectFit: "contain", pointerEvents: "none" }} />
-    </button>
   );
 }
 
@@ -285,34 +209,32 @@ function KidCoinsCard({ kids, coinLedger, coinRewards, navigate }) {
 function ParentsGoalsCard({ parents, stats, navigate }) {
   if (!parents.length) return null;
   return (
-    <div style={{ ...widgetCard("#fff"), cursor: "pointer" }} onClick={() => navigate("/goals/parents")}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+    <div style={{ ...widgetCard("#fff") }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Parents' Goals</span>
         <IconBadge icon="users" bg={BASE.orange} size={32} />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, justifyContent: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${parents.length}, 1fr)`, gap: 10, flex: 1 }}>
         {parents.map((p) => {
           const goals = stats.filter((s) => s.member_id === p.id);
           return (
-            <div key={p.id}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: goals.length ? 6 : 0 }}>
-                <IconBadge icon={p.icon} bg={p.color} size={28} radius={9} iconColor="#fff" />
-                <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, flex: 1 }}>{p.name}</span>
-              </div>
+            <div
+              key={p.id}
+              onClick={() => navigate("/goals/parents")}
+              style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "12px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", height: "100%" }}
+            >
+              <IconBadge icon={p.icon} bg={p.color} size={40} radius={999} iconColor="#fff" />
+              <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, color: BASE.t2 }}>{p.name}</span>
               {goals.length === 0 ? (
                 <span style={{ fontFamily: F.ui, fontSize: 11, color: BASE.t3 }}>No goals set</span>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
                   {goals.map((goal) => {
                     const value = effectiveGoalValue(goal);
                     const pct = goal.target ? Math.round((value / goal.target) * 100) : 0;
-                    const readout = goal.goal_type === "count" ? `${value}/${goal.target} this ${goal.period}` : `${goal.value}${goal.unit}/${goal.target}${goal.unit}`;
                     return (
-                      <div key={goal.id}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F.ui, fontSize: 11, fontWeight: 700, color: BASE.t2, marginBottom: 3 }}>
-                          <span>{goal.label}</span>
-                          <span>{readout}</span>
-                        </div>
+                      <div key={goal.id} style={{ width: "100%" }}>
+                        <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 700, color: BASE.t2, marginBottom: 3, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goal.label}</div>
                         <ProgressBar pct={pct} color={p.color} height={8} />
                       </div>
                     );
@@ -349,14 +271,12 @@ export default function Today({ members, events, chores, completions, mealPlan, 
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginTop: 10 }} className="sprinkles-today-grid">
         <TodaysEventsCard events={events} now={now} navigate={navigate} />
-        <DepartureCard events={events} now={now} />
         <WeatherCard weather={weather} week={week} navigate={navigate} />
         <MealsCard mealPlan={mealPlan} navigate={navigate} />
         <KidCoinsCard kids={kids} coinLedger={coinLedger} coinRewards={coinRewards} navigate={navigate} />
         <ParentsGoalsCard parents={parents} stats={stats} navigate={navigate} />
         <TasksCard members={members} chores={chores} completions={completions} onToggleChore={onToggleChore} navigate={navigate} />
         <ProjectsCard projects={projects} navigate={navigate} />
-        <MascotBox />
       </div>
 
       <style>{`

@@ -155,12 +155,9 @@ function CalendarNavControl() {
   );
 }
 
-// Mr. Sprinkles gets his own fixed box in the bottom-right corner — except
-// on Today, which already embeds an in-flow version of the same box
-// alongside Today's Tasks / Open Projects, so it isn't duplicated there.
+// Mr. Sprinkles gets his own fixed box in the bottom-right corner on every
+// page, including Today.
 function MascotCorner() {
-  const { path } = useRouter();
-  if (path === "/") return null;
   return (
     <button
       onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}

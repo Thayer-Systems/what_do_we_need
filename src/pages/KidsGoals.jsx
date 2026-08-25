@@ -37,7 +37,7 @@ function SubmitError({ error }) {
 // take over.
 function QuickAdjustModal({ kids, coinRules, onSubmit, onClose }) {
   const [kidId, setKidId] = useState(kids[0]?.id ?? null);
-  const [amount, setAmount] = useState(1);
+  const [amount, setAmount] = useState("1");
   const [sign, setSign] = useState(1);
   const [ruleId, setRuleId] = useState("");
   const [reason, setReason] = useState("");
@@ -52,16 +52,18 @@ function QuickAdjustModal({ kids, coinRules, onSubmit, onClose }) {
     if (!value) return;
     const rule = coinRules.find((r) => String(r.id) === value);
     if (rule) {
-      setAmount(Math.abs(rule.delta));
+      setAmount(String(Math.abs(rule.delta)));
       setSign(rule.delta > 0 ? 1 : -1);
       setReason(rule.label);
     }
   };
 
+  const numericAmount = Math.max(1, Math.round(Math.abs(Number(amount)) || 1));
+
   const submit = async () => {
     setBusy(true);
     setError(null);
-    const result = await onSubmit({ member_id: kidId, delta: amount * sign, reason: reason.trim() || null, rule_id: ruleId ? Number(ruleId) : null });
+    const result = await onSubmit({ member_id: kidId, delta: numericAmount * sign, reason: reason.trim() || null, rule_id: ruleId ? Number(ruleId) : null });
     setBusy(false);
     if (result?.ok) onClose();
     else setError(result?.error || "Unknown error");
@@ -83,7 +85,8 @@ function QuickAdjustModal({ kids, coinRules, onSubmit, onClose }) {
             min={1}
             style={inp}
             value={amount}
-            onChange={(e) => setAmount(Math.max(1, Math.round(Math.abs(Number(e.target.value)) || 1)))}
+            onChange={(e) => setAmount(e.target.value)}
+            onBlur={() => setAmount(String(numericAmount))}
           />
         </div>
         <div>
@@ -107,7 +110,7 @@ function QuickAdjustModal({ kids, coinRules, onSubmit, onClose }) {
           )}
         </div>
         <button disabled={!kidId || busy} style={{ ...btn(BASE.green), width: "100%", opacity: busy ? 0.6 : 1 }} onClick={submit}>
-          {busy ? "Saving..." : `${sign === 1 ? "Give" : "Take"} ${amount} Coin${amount > 1 ? "s" : ""}`}
+          {busy ? "Saving..." : `${sign === 1 ? "Give" : "Take"} ${numericAmount} Coin${numericAmount > 1 ? "s" : ""}`}
         </button>
         <SubmitError error={error} />
       </div>
@@ -286,8 +289,11 @@ function RewardTierBar({ balance, tiers, onTierClick }) {
   );
 }
 
-// Per-kid coin history — cumulative balance over time, from the raw ledger.
-export function KidCoinTrendsPage({ member, coinLedger }) {
+// Per-kid coin drill-down: reward progress bars, what's currently eligible,
+// a balance-over-time chart, and the full history — everything that used to
+// live inline on the overview cards now lives here instead, reached by
+// tapping one of the overview boxes.
+export function KidCoinTrendsPage({ member, coinLedger, coinRewards = [], onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const entries = useMemo(
     () => coinLedger.filter((l) => l.member_id === member?.id).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
@@ -299,6 +305,11 @@ export function KidCoinTrendsPage({ member, coinLedger }) {
     return { label: new Date(l.created_at).toLocaleDateString([], { month: "numeric", day: "numeric" }), value: running };
   });
 
+  const balance = member ? coinBalance(coinLedger, member.id) : 0;
+  const tiers = useMemo(() => [...new Set(coinRewards.map((r) => r.coin_cost))].sort((a, b) => a - b), [coinRewards]);
+  const eligible = coinRewards.filter((r) => r.coin_cost <= balance).sort((a, b) => b.coin_cost - a.coin_cost || a.sort_order - b.sort_order);
+  const [tierModal, setTierModal] = useState(null);
+
   if (!member) return null;
 
   return (
@@ -309,8 +320,26 @@ export function KidCoinTrendsPage({ member, coinLedger }) {
           <IconBadge icon={member.icon} bg="#fff" size={40} radius={12} />
           <div>
             <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>Current balance</div>
-            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26 }}>{coinBalance(coinLedger, member.id)} coins</div>
+            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26 }}>{balance} coins</div>
           </div>
+        </div>
+
+        {tiers.length > 0 && (
+          <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Progress toward rewards</div>
+            <RewardTierBar balance={balance} tiers={tiers} onTierClick={setTierModal} />
+          </div>
+        )}
+
+        <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 14 }}>
+          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Eligible for</div>
+          {eligible.length === 0 ? (
+            <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Not enough coins yet for a reward.</div>
+          ) : (
+            <ul style={{ margin: 0, paddingLeft: 18, fontFamily: F.ui, fontSize: 13, fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>
+              {eligible.map((r) => <li key={r.id}>{r.label}</li>)}
+            </ul>
+          )}
         </div>
 
         {points.length < 2 ? (
@@ -339,19 +368,19 @@ export function KidCoinTrendsPage({ member, coinLedger }) {
           )}
         </div>
       </div>
+      {tierModal != null && <TierRewardsModal tier={tierModal} rewards={coinRewards} kids={[member]} coinLedger={coinLedger} onSubmit={onAddCoinTransaction} onClose={() => setTierModal(null)} />}
     </div>
   );
 }
 
+// The overview: one box per kid — icon, total coin count, and a spinning
+// coin — sized to fit three kids without scrolling. Everything else
+// (progress bars, eligible rewards, history) lives one tap away on
+// KidCoinTrendsPage; coin rules live only behind the book icon now.
 export default function KidsGoals({ members, coinLedger, coinRules, coinRewards, coinLoadError, onAddCoinTransaction }) {
   const { navigate } = useRouter();
   const kids = useMemo(() => members.filter((m) => m.role !== "parent"), [members]);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [ruleModal, setRuleModal] = useState(null);
-  const [tierModal, setTierModal] = useState(null);
-  const gives = coinRules.filter((r) => r.delta > 0).sort((a, b) => a.delta - b.delta || a.sort_order - b.sort_order);
-  const takes = coinRules.filter((r) => r.delta < 0).sort((a, b) => b.delta - a.delta || a.sort_order - b.sort_order);
-  const tiers = useMemo(() => [...new Set(coinRewards.map((r) => r.coin_cost))].sort((a, b) => a - b), [coinRewards]);
   const cashInDays = daysUntilCashIn();
 
   if (kids.length === 0) {
@@ -361,8 +390,6 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
       </div>
     );
   }
-
-  const rulesListStyle = { display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto", paddingRight: 4 };
 
   return (
     <div>
@@ -381,45 +408,22 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
           </span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(150px, 1fr))`, gap: 12 }}>
           {kids.map((k) => {
             const balance = coinBalance(coinLedger, k.id);
-            const eligible = coinRewards.filter((r) => r.coin_cost <= balance).sort((a, b) => b.coin_cost - a.coin_cost || a.sort_order - b.sort_order);
             return (
               <div
                 key={k.id}
-                style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, color: "#fff" }}
+                onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
+                style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}
               >
-                <div onClick={() => navigate(`/goals/kids/trends/${k.id}`)} style={{ display: "flex", alignItems: "center", gap: 16, cursor: "pointer", marginBottom: 16 }}>
-                  <div style={{ width: 84, height: 84, flexShrink: 0, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    <IconBadge icon={k.icon} bg="#fff" size={64} radius={0} style={{ boxShadow: "none", border: "none" }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26 }}>{k.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 32 }}>{balance}</span>
-                      <span style={{ fontFamily: F.ui, fontSize: 15, fontWeight: 700, opacity: 0.9 }}>coins</span>
-                    </div>
-                  </div>
-                  <SpinningCoin inline />
+                <div style={{ width: 72, height: 72, flexShrink: 0, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                  <IconBadge icon={k.icon} bg="#fff" size={54} radius={0} style={{ boxShadow: "none", border: "none" }} />
                 </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-                  {tiers.length > 0 && (
-                    <div style={{ background: "#fff", borderRadius: 10, padding: 14, boxSizing: "border-box" }}>
-                      <RewardTierBar balance={balance} tiers={tiers} onTierClick={(cost) => setTierModal(cost)} />
-                    </div>
-                  )}
-                  <div style={{ background: "#fff", borderRadius: 10, padding: 14, boxSizing: "border-box", color: BASE.ink }}>
-                    <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Eligible for</div>
-                    {eligible.length === 0 ? (
-                      <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Not enough coins yet for a reward.</div>
-                    ) : (
-                      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: F.ui, fontSize: 13, fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>
-                        {eligible.map((r) => <li key={r.id}>{r.label}</li>)}
-                      </ul>
-                    )}
-                  </div>
+                <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 17 }}>{k.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 30 }}>{balance}</span>
+                  <SpinningCoin inline />
                 </div>
               </div>
             );
@@ -431,23 +435,9 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
             to { transform: rotateY(360deg); }
           }
         `}</style>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, marginBottom: 6, color: BASE.green }}>Coins Given For</div>
-            <div style={rulesListStyle}>{gives.map((r) => <RuleRow key={r.id} rule={r} onOpen={setRuleModal} />)}</div>
-          </div>
-          <div>
-            <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, marginBottom: 6, color: BASE.red }}>Coins Taken For</div>
-            <div style={rulesListStyle}>{takes.map((r) => <RuleRow key={r.id} rule={r} onOpen={setRuleModal} />)}</div>
-          </div>
-        </div>
-
       </div>
 
       {quickOpen && <QuickAdjustModal kids={kids} coinRules={coinRules} onSubmit={onAddCoinTransaction} onClose={() => setQuickOpen(false)} />}
-      {ruleModal && <RuleApplyModal rule={ruleModal} kids={kids} onSubmit={onAddCoinTransaction} onClose={() => setRuleModal(null)} />}
-      {tierModal != null && <TierRewardsModal tier={tierModal} rewards={coinRewards} kids={kids} coinLedger={coinLedger} onSubmit={onAddCoinTransaction} onClose={() => setTierModal(null)} />}
     </div>
   );
 }

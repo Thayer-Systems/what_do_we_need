@@ -97,12 +97,13 @@ function AppInner() {
   const [coinLoadError, setCoinLoadError] = useState(false);
   const [morningRoutine, setMorningRoutine] = useState([]);
   const [routines, setRoutines] = useState([]);
+  const [routineCompletions, setRoutineCompletions] = useState([]);
   const [displaySchedule, setDisplaySchedule] = useState(null);
 
   const loadAll = useCallback(async () => {
     let coinFailed = false;
     const trackCoinFailure = () => { coinFailed = true; };
-    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning, schedule, routineRows] = await Promise.all([
+    const [mem, con, act, med, fp, lnk, chr, comp, evt, set, rec, mp, shop, sta, proj, rules, ledger, rewards, morning, schedule, routineRows, routineCompletionRows] = await Promise.all([
       getSafe("sprinkles_family_members?order=sort_order.asc"),
       getSafe("sprinkles_contacts"),
       getSafe("sprinkles_activities"),
@@ -124,6 +125,7 @@ function AppInner() {
       getSafe("sprinkles_morning_routine_items?order=sort_order.asc"),
       getSafe("sprinkles_display_schedule?id=eq.1"),
       getSafe("sprinkles_routines?order=sort_order.asc"),
+      getSafe("sprinkles_routine_completions"),
     ]);
     setMembers(mem || []);
     setContacts(con || []);
@@ -147,6 +149,7 @@ function AppInner() {
     setMorningRoutine(morning || []);
     setDisplaySchedule((schedule || [])[0] || null);
     setRoutines(routineRows || []);
+    setRoutineCompletions(routineCompletionRows || []);
   }, [weekStart]);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -238,6 +241,28 @@ function AppInner() {
       return { ok: false, error: e.message || "Request failed." };
     }
   };
+  // Toggles one checklist item for a kid's routine on a given date, and —
+  // if that completes every active item for that kid in that routine —
+  // awards the flat 3-coin all-or-none reward exactly once (guarded by
+  // coins_awarded so re-checking/unchecking later never pays out twice).
+  const onToggleRoutineItem = async (routineId, memberId, itemId, date) => {
+    const activeItemIds = morningRoutine.filter((i) => i.routine_id === routineId && i.member_id === memberId && i.active).map((i) => i.id);
+    let row = routineCompletions.find((c) => c.routine_id === routineId && c.member_id === memberId && c.date === date);
+    const prevChecked = row?.checked_item_ids || [];
+    const nextChecked = prevChecked.includes(itemId) ? prevChecked.filter((id) => id !== itemId) : [...prevChecked, itemId];
+    const allDone = activeItemIds.length > 0 && activeItemIds.every((id) => nextChecked.includes(id));
+    const shouldAward = allDone && !row?.coins_awarded;
+
+    if (row) {
+      setRoutineCompletions((p) => p.map((c) => (c.id === row.id ? { ...c, checked_item_ids: nextChecked, coins_awarded: c.coins_awarded || shouldAward } : c)));
+      await patch("sprinkles_routine_completions", row.id, { checked_item_ids: nextChecked, ...(shouldAward ? { coins_awarded: true } : {}) });
+    } else {
+      const d = await post("sprinkles_routine_completions", { routine_id: routineId, member_id: memberId, date, checked_item_ids: nextChecked, coins_awarded: shouldAward });
+      if (d?.[0]) setRoutineCompletions((p) => [...p, d[0]]);
+    }
+    if (shouldAward) await onAddCoinTransaction({ member_id: memberId, delta: 3, reason: "Completed routine", rule_id: null });
+  };
+
   const onUpdateChore = async (id, ch) => {
     const before = chores.find((c) => c.id === id);
     setChores((p) => p.map((c) => (c.id === id ? { ...c, ...ch } : c)));
@@ -461,6 +486,20 @@ function AppInner() {
   };
 
   // ── Assistant ──
+  const WEEKDAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  // Overwrites whatever's already scheduled for a day/meal (rather than
+  // stacking a second row alongside it) — used both for a single-day meal
+  // action and for "the rest of the week" overrides below.
+  const setMealSlot = async (day, meal, name) => {
+    const existing = mealPlan.find((s) => s.day === day && s.meal === meal);
+    if (existing) {
+      setMealPlan((p) => p.map((s) => (s.id === existing.id ? { ...s, recipe_id: null, recipe_name: name } : s)));
+      await patch("meal_plan", existing.id, { recipe_id: null, recipe_name: name });
+    } else {
+      const d = await post("meal_plan", { day, meal, recipe_id: null, recipe_name: name, week_start: weekStart, eat_out: false });
+      if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+    }
+  };
   const onAssistantSend = async (text, history) => {
     const result = await interpretMessage(text, history);
     const actions = Array.isArray(result.actions) ? result.actions : [];
@@ -481,14 +520,26 @@ function AppInner() {
           source: "manual",
         });
       } else if (action.type === "meal") {
-        const d = await post("meal_plan", { day: action.day, meal: action.meal, recipe_id: null, recipe_name: action.name, week_start: weekStart, eat_out: false });
-        if (d?.[0]) setMealPlan((p) => [...p, d[0]]);
+        if (action.apply_rest_of_week) {
+          const fromIdx = Math.max(0, WEEKDAY_ORDER.indexOf(action.day));
+          for (const day of WEEKDAY_ORDER.slice(fromIdx)) {
+            await setMealSlot(day, action.meal, action.name);
+          }
+        } else {
+          await setMealSlot(action.day, action.meal, action.name);
+        }
       } else if (action.type === "coin") {
         const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase() && m.role !== "parent");
         const delta = Number(action.delta);
         if (member && Number.isFinite(delta) && delta !== 0) {
           await onAddCoinTransaction({ member_id: member.id, delta, reason: action.reason || null, rule_id: null });
         }
+      } else if (action.type === "project") {
+        await onAddProject({ title: action.title, status: "in_progress", progress: 0 });
+      } else if (action.type === "stat") {
+        const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase());
+        const stat = member && stats.find((s) => s.member_id === member.id && s.label.toLowerCase() === (action.label || "").toLowerCase());
+        if (stat && Number.isFinite(Number(action.value))) await onUpdateStat(stat.id, { value: Number(action.value) });
       }
       // "call" actions: not supported yet, no-op — the model's reply already says so.
     }
@@ -506,11 +557,11 @@ function AppInner() {
 
   let page;
   if (path === "/routines") {
-    page = <RoutinesTab members={members} routines={routines} routineItems={morningRoutine} onAdd={onAdd} onUpdateRoutine={onUpdateRoutine} onUpdateRoutineItem={onUpdateRoutineItem} onDelete={onDelete} />;
+    page = <RoutinesTab members={members} routines={routines} routineItems={morningRoutine} routineCompletions={routineCompletions} onToggleRoutineItem={onToggleRoutineItem} />;
   } else if (path === "/school-day") {
     page = <SchoolDay members={members} morningRoutine={morningRoutine} schedule={displaySchedule} events={allEvents} coinLedger={coinLedger} />;
   } else if (coinTrendsMemberFromPath(path)) {
-    page = <KidCoinTrendsPage member={coinTrendsMemberFromPath(path)} coinLedger={coinLedger} />;
+    page = <KidCoinTrendsPage member={coinTrendsMemberFromPath(path)} coinLedger={coinLedger} coinRewards={coinRewards} onAddCoinTransaction={onAddCoinTransaction} />;
   } else if (path === "/calendar") {
     page = <CalendarPage members={members} events={allEvents} settings={settings} onAdd={onAddEvent} onUpdate={onUpdateEvent} onDelete={onDeleteEvent} onSyncGoogle={onSyncEventToGoogle} />;
   } else if (path === "/food") {
@@ -563,7 +614,13 @@ function AppInner() {
   } else if (path === "/settings/games") {
     page = <GamesPage />;
   } else if (path === "/settings/routines") {
-    page = <RoutinesPage schedule={displaySchedule} onUpdateSchedule={onUpdateDisplaySchedule} />;
+    page = (
+      <RoutinesPage
+        members={members} routines={routines} routineItems={morningRoutine}
+        onAdd={onAdd} onUpdateRoutine={onUpdateRoutine} onUpdateRoutineItem={onUpdateRoutineItem} onDelete={onDelete}
+        schedule={displaySchedule} onUpdateSchedule={onUpdateDisplaySchedule}
+      />
+    );
   } else if (path === "/settings/preferences") {
     page = <PreferencesPage settings={settings} onUpdateSettings={onUpdateSettings} members={members} />;
   } else if (path === "/settings") {
