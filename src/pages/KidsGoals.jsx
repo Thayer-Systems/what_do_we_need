@@ -191,8 +191,12 @@ function RedeemModal({ reward, kids, coinLedger, onSubmit, onClose }) {
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>{reward.label}</div>
       <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 14 }}>Costs {reward.coin_cost} coins</div>
       <KidPicker kids={kids} value={kidId} onChange={setKidId} />
-      {kidId && <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: canAfford ? BASE.green : BASE.red, marginTop: 10 }}>{canAfford ? `Enough coins (${balance} available)` : `Not enough coins yet — has ${balance}`}</div>}
-      <button disabled={!kidId || !canAfford || busy} style={{ ...btn(BASE.green), width: "100%", marginTop: 14, opacity: !kidId || !canAfford || busy ? 0.5 : 1 }} onClick={submit}>
+      {kidId && (
+        <div style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: canAfford ? BASE.green : BASE.red, marginTop: 10 }}>
+          {canAfford ? `Enough coins (${balance} available)` : `Only has ${balance} — redeeming will put them at ${balance - reward.coin_cost}`}
+        </div>
+      )}
+      <button disabled={!kidId || busy} style={{ ...btn(BASE.green), width: "100%", marginTop: 14, opacity: !kidId || busy ? 0.5 : 1 }} onClick={submit}>
         {busy ? "Saving..." : "Redeem"}
       </button>
       <SubmitError error={error} />
