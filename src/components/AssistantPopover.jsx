@@ -4,7 +4,20 @@ import { promptOfDay } from "../lib/prompts.js";
 import { speak } from "../lib/tts.js";
 import { Icon } from "./Icons.jsx";
 
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "10px 14px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const inp = {
+  background: "#fff",
+  border: `2px solid ${BASE.ink}`,
+  borderRadius: 12,
+  padding: "10px 14px",
+  fontSize: 14,
+  fontFamily: F.ui,
+  width: "100%",
+  boxSizing: "border-box",
+  resize: "none",
+  maxHeight: 160,
+  overflowY: "auto",
+  lineHeight: 1.4,
+};
 
 export default function AssistantPopover({ onSend }) {
   const [open, setOpen] = useState(false);
@@ -12,10 +25,18 @@ export default function AssistantPopover({ onSend }) {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState([]);
   const scrollRef = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [log, open]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [text, open]);
 
   useEffect(() => {
     const openIt = () => setOpen(true);
@@ -29,6 +50,7 @@ export default function AssistantPopover({ onSend }) {
     const nextLog = [...log, { role: "user", text: msg }];
     setLog(nextLog);
     setText("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     setBusy(true);
     const reply = await onSend(msg, nextLog);
     setLog((p) => [...p, { role: "sprinkles", text: reply }]);
@@ -96,8 +118,22 @@ export default function AssistantPopover({ onSend }) {
               {busy && <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Thinking…</div>}
             </div>
 
-            <div style={{ display: "flex", gap: 8, padding: 12, borderTop: `1.5px solid ${BASE.muted}` }}>
-              <input style={inp} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Type a message…" autoFocus />
+            <div style={{ display: "flex", gap: 8, padding: 12, borderTop: `1.5px solid ${BASE.muted}`, alignItems: "flex-end" }}>
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                style={inp}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    submit();
+                  }
+                }}
+                placeholder="Type a message, or paste in a recipe…"
+                autoFocus
+              />
               <button
                 onClick={submit}
                 disabled={busy}

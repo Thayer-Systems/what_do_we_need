@@ -5,22 +5,23 @@ import { Icon, EQUIPMENT_ICONS } from "../components/Icons.jsx";
 import { BarChart } from "../components/Charts.jsx";
 import { BASE, F, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
-import { FOLDERS, FOLDER_LABELS, WEEKLY_FOLDERS, WEEK_DAYS, getActiveWeekTag, folderForWeekTag, shuffle } from "../lib/weekPlan.js";
+import { FOLDERS, FOLDER_LABELS, WEEKLY_FOLDERS, WEEK_DAYS, getActiveWeekTag, folderForWeekTag, getWeekStart, shuffle } from "../lib/weekPlan.js";
+import { get, post, del } from "../lib/db.js";
 
-const RECIPE_TAGS = ["Quick", "Dinner", "Lunch", "Breakfast", "Crockpot", "Dump & Go"];
-const EQUIPMENT = Object.keys(EQUIPMENT_ICONS);
+export const RECIPE_TAGS = ["Quick", "Dinner", "Lunch", "Breakfast", "Crockpot", "Dump & Go"];
+export const EQUIPMENT = Object.keys(EQUIPMENT_ICONS);
 const EST_TIMES = ["5 min", "10 min", "15 min", "30 min", "45 min", "1 hr", "2 hr", "3 hr", "4 hr", "5 hr", "6 hr"];
 const MEAL_COLOR = { Breakfast: BASE.yellow, Lunch: BASE.teal, Dinner: BASE.lilac };
 const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
 const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
-function mondayOfThisWeek() {
+function mondayOfWeek(offsetWeeks = 0) {
   const today = new Date();
   const dow = today.getDay();
   const diff = dow === 0 ? -6 : 1 - dow;
   const monday = new Date(today);
-  monday.setDate(today.getDate() + diff);
+  monday.setDate(today.getDate() + diff + offsetWeeks * 7);
   monday.setHours(0, 0, 0, 0);
   return monday;
 }
@@ -249,11 +250,11 @@ function GroceryListBox({ shopping, navigate }) {
 // a meal; a planned day can be viewed, swapped for another recipe, or
 // removed — this is the only place lunches/dinners get edited now that the
 // separate "Weekly Add" grid is gone.
-function WeekMealsBox({ mealLabel, weekDays, mealPlan, recipes, onView, onPickSlot, onRemoveSlot }) {
+function WeekMealsBox({ mealLabel, weekLabel, weekDays, mealPlan, recipes, onView, onPickSlot, onRemoveSlot }) {
   return (
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>This Week's {MEAL_PLURAL[mealLabel] || `${mealLabel}s`}</span>
+        <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>{weekLabel}'s {MEAL_PLURAL[mealLabel] || `${mealLabel}s`}</span>
         <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: MEAL_COLOR[mealLabel], border: `1.5px solid ${BASE.ink}` }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -288,31 +289,73 @@ const FOOD_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const SHORT_TO_FULL_DAY = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" };
 const MEAL_PLURAL = { Lunch: "Lunches", Dinner: "Dinners" };
 
+const WEEK_OFFSET_LABELS = { "-1": "Last Week", 0: "This Week", 1: "Next Week" };
+function labelForWeekOffset(offset, monday) {
+  if (WEEK_OFFSET_LABELS[offset]) return WEEK_OFFSET_LABELS[offset];
+  return `Week of ${monday.getMonth() + 1}/${monday.getDate()}`;
+}
+
 export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, onDeleteRecipe, onScheduleRecipe, onMoveSlot, onRemoveSlot }) {
   const { navigate } = useRouter();
   const [recipeModal, setRecipeModal] = useState(null);
   const [viewRecipe, setViewRecipe] = useState(null);
   const [pickerSlot, setPickerSlot] = useState(null);
   const [createFromSlot, setCreateFromSlot] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const isCurrentWeek = weekOffset === 0;
+
+  // Only the current week is preloaded by the app (it drives Today's meal
+  // card too); browsing to another week fetches that week's slots on the
+  // fly and keeps them here instead.
+  const [otherWeekPlan, setOtherWeekPlan] = useState([]);
+  const [loadingWeek, setLoadingWeek] = useState(false);
+  useEffect(() => {
+    if (isCurrentWeek) return;
+    let cancelled = false;
+    setLoadingWeek(true);
+    get(`meal_plan?week_start=eq.${getWeekStart(weekOffset)}`)
+      .then((rows) => { if (!cancelled) setOtherWeekPlan(rows || []); })
+      .catch(() => { if (!cancelled) setOtherWeekPlan([]); })
+      .finally(() => { if (!cancelled) setLoadingWeek(false); });
+    return () => { cancelled = true; };
+  }, [weekOffset, isCurrentWeek]);
+
+  const displayedMealPlan = isCurrentWeek ? mealPlan : otherWeekPlan;
 
   const weekDays = useMemo(() => {
-    const monday = mondayOfThisWeek();
+    const monday = mondayOfWeek(weekOffset);
     return FOOD_DAYS.map((short, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
       return { short, date: d };
     });
-  }, []);
+  }, [weekOffset]);
+  const weekLabel = labelForWeekOffset(weekOffset, mondayOfWeek(weekOffset));
 
   const slotFor = (day, meal) => mealPlan.find((s) => s.day === day && s.meal === meal);
+
+  // Scheduling/removing a meal on a future or past week hits meal_plan
+  // directly for that week's week_start, since onScheduleRecipe/onRemoveSlot
+  // (passed down from App) always target the current week.
+  const handleScheduleRecipe = async (day, meal, recipe) => {
+    if (isCurrentWeek) return onScheduleRecipe(day, meal, recipe);
+    const d = await post("meal_plan", { day, meal, recipe_id: recipe.id, recipe_name: recipe.name, week_start: getWeekStart(weekOffset), eat_out: false });
+    if (d?.[0]) setOtherWeekPlan((p) => [...p, d[0]]);
+  };
+  const handleRemoveSlot = async (id) => {
+    if (isCurrentWeek) return onRemoveSlot(id);
+    await del("meal_plan", id);
+    setOtherWeekPlan((p) => p.filter((s) => s.id !== id));
+  };
 
   // The weekly-add grid used to duplicate "This Week's Dinners" (a separate
   // read-only view of the recipe library's rotation folder) — instead,
   // auto-schedule that rotation straight into meal_plan for any Dinner slot
-  // that's still empty, so there's one place to see and edit it.
+  // that's still empty, so there's one place to see and edit it. Only runs
+  // for the current week — future weeks are populated on request instead.
   const attemptedAutofill = useRef(new Set());
   useEffect(() => {
-    if (!recipes.length) return;
+    if (!isCurrentWeek || !recipes.length) return;
     const activeWeekTag = getActiveWeekTag();
     const folder = folderForWeekTag(activeWeekTag);
     weekDays.forEach(({ short }) => {
@@ -324,7 +367,7 @@ export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, o
         onScheduleRecipe(short, "Dinner", recipe);
       }
     });
-  }, [recipes, mealPlan, weekDays]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [recipes, mealPlan, weekDays, isCurrentWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
@@ -334,13 +377,20 @@ export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, o
           <button onClick={() => navigate("/food/trends")} style={btn("#fff")}><Icon name="grid" size={15} /></button>
         </div>
 
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 14 }}>
+          <button onClick={() => setWeekOffset((o) => o - 1)} style={{ ...btn("#fff"), padding: "8px 10px", display: "flex" }} aria-label="Previous week"><Icon name="chevronLeft" size={15} /></button>
+          <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, minWidth: 130, textAlign: "center" }}>{weekLabel}{loadingWeek ? "…" : ""}</span>
+          <button onClick={() => setWeekOffset((o) => o + 1)} style={{ ...btn("#fff"), padding: "8px 10px", display: "flex" }} aria-label="Next week"><Icon name="chevronRight" size={15} /></button>
+          {!isCurrentWeek && <button onClick={() => setWeekOffset(0)} style={{ ...btn(BASE.yellow), marginLeft: 4 }}>Today</button>}
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <WeekMealsBox mealLabel="Lunch" weekDays={weekDays} mealPlan={mealPlan} recipes={recipes} onView={setViewRecipe} onPickSlot={(day, meal) => setPickerSlot({ day, meal })} onRemoveSlot={onRemoveSlot} />
+            <WeekMealsBox mealLabel="Lunch" weekLabel={weekLabel} weekDays={weekDays} mealPlan={displayedMealPlan} recipes={recipes} onView={setViewRecipe} onPickSlot={(day, meal) => setPickerSlot({ day, meal })} onRemoveSlot={handleRemoveSlot} />
             <AlternativeMealsWidget recipes={recipes} onView={setViewRecipe} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <WeekMealsBox mealLabel="Dinner" weekDays={weekDays} mealPlan={mealPlan} recipes={recipes} onView={setViewRecipe} onPickSlot={(day, meal) => setPickerSlot({ day, meal })} onRemoveSlot={onRemoveSlot} />
+            <WeekMealsBox mealLabel="Dinner" weekLabel={weekLabel} weekDays={weekDays} mealPlan={displayedMealPlan} recipes={recipes} onView={setViewRecipe} onPickSlot={(day, meal) => setPickerSlot({ day, meal })} onRemoveSlot={handleRemoveSlot} />
             <GroceryListBox shopping={shopping} navigate={navigate} />
           </div>
         </div>
@@ -352,7 +402,7 @@ export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, o
           day={pickerSlot.day}
           meal={pickerSlot.meal}
           recipes={recipes}
-          onPick={(r) => { onScheduleRecipe(pickerSlot.day, pickerSlot.meal, r); setPickerSlot(null); }}
+          onPick={(r) => { handleScheduleRecipe(pickerSlot.day, pickerSlot.meal, r); setPickerSlot(null); }}
           onCreateNew={() => { setCreateFromSlot(true); setRecipeModal({}); }}
           onClose={() => setPickerSlot(null)}
         />
@@ -364,7 +414,7 @@ export function FoodWeekPage({ recipes, mealPlan, shopping = [], onSaveRecipe, o
             const saved = await onSaveRecipe(r);
             if (createFromSlot && pickerSlot && (saved || r.id)) {
               const toSchedule = saved || recipes.find((x) => x.id === r.id) || r;
-              onScheduleRecipe(pickerSlot.day, pickerSlot.meal, toSchedule);
+              handleScheduleRecipe(pickerSlot.day, pickerSlot.meal, toSchedule);
             }
             setCreateFromSlot(false);
             setRecipeModal(null);

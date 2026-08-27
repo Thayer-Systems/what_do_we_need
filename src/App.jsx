@@ -9,7 +9,8 @@ import Today from "./pages/Today.jsx";
 import FamilyList from "./pages/FamilyList.jsx";
 import FamilyMember from "./pages/FamilyMember.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
-import { FoodWeekPage, RecipeLibraryPage, TrendsPage } from "./pages/Food.jsx";
+import { FoodWeekPage, RecipeLibraryPage, TrendsPage, RECIPE_TAGS, EQUIPMENT } from "./pages/Food.jsx";
+import { getWeekStart } from "./lib/weekPlan.js";
 import Grocery from "./pages/Grocery.jsx";
 import Tasks from "./pages/Tasks.jsx";
 import KidsGoals, { KidsGoalsRulesPage, KidCoinTrendsPage, KidsChoresPage } from "./pages/KidsGoals.jsx";
@@ -31,12 +32,6 @@ import { choreAppliesToday } from "./lib/tasks.js";
 import { coinAnnouncementFor, randomParentAffirmation } from "./lib/announcements.js";
 
 const DAY_MS = 86400000;
-
-function getWeekStart() {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().split("T")[0];
-}
 
 // Turns recurring family activities into read-only calendar entries
 // for the surrounding ~4 months, without writing a DB row per occurrence.
@@ -662,6 +657,21 @@ function AppInner() {
         const member = members.find((m) => m.name.toLowerCase() === (action.member || "").toLowerCase());
         const stat = member && stats.find((s) => s.member_id === member.id && s.label.toLowerCase() === (action.label || "").toLowerCase());
         if (stat && Number.isFinite(Number(action.value))) await onUpdateStat(stat.id, { value: Number(action.value) });
+      } else if (action.type === "recipe") {
+        const ingredients = Array.isArray(action.ingredients) ? action.ingredients.filter(Boolean) : [];
+        if (action.name && ingredients.length) {
+          await onSaveRecipe({
+            name: action.name,
+            ingredients,
+            tags: (action.tags || []).filter((t) => RECIPE_TAGS.includes(t)),
+            equipment: (action.equipment || []).filter((e) => EQUIPMENT.includes(e)),
+            est_time: action.est_time || null,
+            notes: action.notes || null,
+            folder: null,
+            day_of_week: null,
+            week_tag: null,
+          });
+        }
       }
       // "call" actions: not supported yet, no-op — the model's reply already says so.
     }
