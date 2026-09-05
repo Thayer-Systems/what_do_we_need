@@ -106,7 +106,7 @@ export function LineChart({ data, color = BASE.pink, height = 110, labelEvery = 
 export function ProgressBar({ pct, color = BASE.pink, height = 14 }) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (
-    <div style={{ height, borderRadius: height / 2, background: BASE.muted, border: `2px solid ${BASE.ink}`, overflow: "hidden" }}>
+    <div style={{ height, borderRadius: height / 2, background: BASE.muted, border: `1px solid ${BASE.border}`, overflow: "hidden" }}>
       <div style={{ width: `${clamped}%`, height: "100%", background: color, transition: "width 0.25s" }} />
     </div>
   );
@@ -114,7 +114,7 @@ export function ProgressBar({ pct, color = BASE.pink, height = 14 }) {
 
 export function StatCard({ label, value, sub, color = BASE.surface }) {
   return (
-    <div style={{ background: color, border: `2.5px solid ${BASE.ink}`, borderRadius: 16, padding: "14px 16px", boxShadow: hardShadow(BASE.ink, 3, 3) }}>
+    <div style={{ background: color, border: `1px solid ${BASE.border}`, borderRadius: 16, padding: "14px 16px", boxShadow: hardShadow(BASE.ink, 3, 3) }}>
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, opacity: 0.75 }}>{label}</div>
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 26, marginTop: 2 }}>{value}</div>
       {sub && <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 600, opacity: 0.75 }}>{sub}</div>}

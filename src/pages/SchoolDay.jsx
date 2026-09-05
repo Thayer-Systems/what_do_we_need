@@ -13,7 +13,7 @@ function TodayScheduleBlock({ events }) {
   const today = new Date();
   const todays = (events || []).filter((e) => sameDay(new Date(e.start_at), today)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
   return (
-    <div style={{ background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16 }}>
+    <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16 }}>
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, marginBottom: 10 }}>Today's Schedule</div>
       {todays.length === 0 ? (
         <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>Nothing on the calendar today.</div>
@@ -33,11 +33,11 @@ function TodayScheduleBlock({ events }) {
 
 function KidsCoinsBlock({ kids, coinLedger }) {
   return (
-    <div style={{ background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16 }}>
+    <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16 }}>
       <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, marginBottom: 10 }}>Kids' Coins</div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {kids.map((k) => (
-          <div key={k.id} style={{ background: k.color, border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "8px 14px", color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+          <div key={k.id} style={{ background: k.color, border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "8px 14px", color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
             <IconBadge icon={k.icon} bg="#fff" size={24} radius={7} />
             <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>{coinBalance(coinLedger || [], k.id)}</span>
           </div>
@@ -59,7 +59,7 @@ function KidRoutineBox({ kid, items, checked, onToggle }) {
   const mine = items.filter((i) => i.member_id === kid.id && i.active);
   const doneCount = mine.filter((i) => checked.has(i.id)).length;
   return (
-    <div style={{ background: kid.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, color: "#fff", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ background: kid.color, border: `1px solid ${BASE.border}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, color: "#fff", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <IconBadge icon={kid.icon} bg="#fff" size={44} radius={12} />
         <div>
@@ -81,12 +81,12 @@ function KidRoutineBox({ kid, items, checked, onToggle }) {
                 onClick={() => onToggle(item.id)}
                 style={{
                   display: "flex", alignItems: "center", gap: 10, background: "#fff", color: BASE.ink,
-                  border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", opacity: done ? 0.55 : 1,
+                  border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", opacity: done ? 0.55 : 1,
                 }}
               >
                 <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{item.icon || "⭐"}</span>
                 <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 15, textDecoration: done ? "line-through" : "none" }}>{item.title}</span>
-                <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${BASE.border}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {done && <Icon name="check" size={14} color="#fff" />}
                 </div>
               </div>
@@ -121,7 +121,7 @@ export default function SchoolDay({ members, morningRoutine, schedule, events, c
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 28 }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
         </div>
         {showWeather && (
-          <div style={{ background: BASE.teal, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ background: BASE.teal, border: `1px solid ${BASE.border}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
             <Icon name={weather?.icon || "sun"} size={28} />
             <div>
               <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{weather ? `${weather.temperatureF}°F` : "—"}</div>

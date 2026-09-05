@@ -8,7 +8,7 @@ import { useRouter } from "../lib/router.jsx";
 function HourRow({ hour }) {
   const d = new Date(hour.time);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", borderBottom: `1px solid ${BASE.muted}` }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", borderBottom: `1px solid ${BASE.border}` }}>
       <span style={{ width: 56, fontFamily: F.ui, fontSize: 12, fontWeight: 700, color: BASE.t2 }}>
         {d.toLocaleTimeString([], { hour: "numeric" })}
       </span>
@@ -50,7 +50,7 @@ function DayCard({ day, isToday, expanded, onToggle, hours }) {
         <Icon name="chevronDown" size={16} style={{ transform: expanded ? "rotate(180deg)" : "none", flexShrink: 0 }} />
       </div>
       {expanded && (
-        <div style={{ padding: "0 16px 16px", borderTop: `2px solid ${BASE.ink}` }}>
+        <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${BASE.border}` }}>
           {dayHours.length === 0 ? (
             <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3, padding: "12px 4px" }}>Hourly data isn't available for this day.</div>
           ) : (

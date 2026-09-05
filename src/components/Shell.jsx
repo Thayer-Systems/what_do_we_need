@@ -62,7 +62,7 @@ function CalendarFilterControl({ members }) {
         onClick={toggle}
         style={{
           display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 12,
-          border: `2px solid ${BASE.ink}`, background: activeCount ? BASE.yellow : "#fff", cursor: "pointer",
+          border: `1px solid ${BASE.border}`, background: activeCount ? BASE.yellow : "#fff", cursor: "pointer",
           fontFamily: F.ui, fontWeight: 800, fontSize: 12,
         }}
       >
@@ -73,7 +73,7 @@ function CalendarFilterControl({ members }) {
           <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
           <div
             style={{
-              position: "fixed", top: pos.top, right: pos.right, background: "#fff", border: `2.5px solid ${BASE.ink}`,
+              position: "fixed", top: pos.top, right: pos.right, background: "#fff", border: `1px solid ${BASE.border}`,
               borderRadius: 14, boxShadow: hardShadow(BASE.ink, 3, 3), zIndex: 50, padding: 12, width: 280, maxWidth: "calc(100vw - 16px)",
             }}
           >
@@ -133,7 +133,7 @@ function CalendarNavControl() {
         onClick={toggle}
         style={{
           display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 12,
-          border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer",
+          border: `1px solid ${BASE.border}`, background: "#fff", cursor: "pointer",
           fontFamily: F.ui, fontWeight: 800, fontSize: 12, marginLeft: 6,
         }}
       >
@@ -144,22 +144,22 @@ function CalendarNavControl() {
           <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
           <div
             style={{
-              position: "fixed", top: pos.top, right: pos.right, background: "#fff", border: `2.5px solid ${BASE.ink}`,
+              position: "fixed", top: pos.top, right: pos.right, background: "#fff", border: `1px solid ${BASE.border}`,
               borderRadius: 14, boxShadow: hardShadow(BASE.ink, 3, 3), zIndex: 50, padding: 12, width: 240, maxWidth: "calc(100vw - 16px)",
             }}
           >
             <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>View</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
               {CAL_VIEWS.map(([v, lbl]) => (
-                <button key={v} onClick={() => setView(v)} style={{ padding: "7px 12px", borderRadius: 999, border: `2px solid ${BASE.ink}`, background: view === v ? BASE.teal : "#fff", cursor: "pointer", fontFamily: F.ui, fontWeight: 800, fontSize: 12 }}>{lbl}</button>
+                <button key={v} onClick={() => setView(v)} style={{ padding: "7px 12px", borderRadius: 999, border: `1px solid ${BASE.border}`, background: view === v ? BASE.teal : "#fff", cursor: "pointer", fontFamily: F.ui, fontWeight: 800, fontSize: 12 }}>{lbl}</button>
               ))}
             </div>
             <div style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", marginBottom: 6 }}>Move</div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => shift(-1)} style={{ padding: "7px 10px", borderRadius: 999, border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer" }}><Icon name="chevronLeft" size={15} /></button>
-              <button onClick={() => setCursor(new Date())} style={{ flex: 1, padding: "7px 10px", borderRadius: 999, border: `2px solid ${BASE.ink}`, background: BASE.yellow, cursor: "pointer", fontFamily: F.ui, fontWeight: 800, fontSize: 12 }}>Today</button>
-              <button onClick={() => shift(1)} style={{ padding: "7px 10px", borderRadius: 999, border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer" }}><Icon name="chevronRight" size={15} /></button>
-              <button onClick={() => { requestAddEvent(); setOpen(false); }} style={{ padding: "7px 10px", borderRadius: 999, border: `2px solid ${BASE.ink}`, background: BASE.pink, cursor: "pointer" }}><Icon name="plus" size={15} /></button>
+              <button onClick={() => shift(-1)} style={{ padding: "7px 10px", borderRadius: 999, border: `1px solid ${BASE.border}`, background: "#fff", cursor: "pointer" }}><Icon name="chevronLeft" size={15} /></button>
+              <button onClick={() => setCursor(new Date())} style={{ flex: 1, padding: "7px 10px", borderRadius: 999, border: `1px solid ${BASE.border}`, background: BASE.yellow, cursor: "pointer", fontFamily: F.ui, fontWeight: 800, fontSize: 12 }}>Today</button>
+              <button onClick={() => shift(1)} style={{ padding: "7px 10px", borderRadius: 999, border: `1px solid ${BASE.border}`, background: "#fff", cursor: "pointer" }}><Icon name="chevronRight" size={15} /></button>
+              <button onClick={() => { requestAddEvent(); setOpen(false); }} style={{ padding: "7px 10px", borderRadius: 999, border: `1px solid ${BASE.border}`, background: BASE.pink, cursor: "pointer" }}><Icon name="plus" size={15} /></button>
             </div>
           </div>
         </>
@@ -193,7 +193,7 @@ function TasksNavControl({ active }) {
         onClick={toggle}
         style={{
           display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 12,
-          border: active ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
+          border: active ? `1px solid ${BASE.border}` : "2.5px solid transparent",
           background: active ? BASE.green : "transparent",
           boxShadow: active ? hardShadow(BASE.ink, 2.5, 2.5) : "none",
           cursor: "pointer", fontFamily: F.ui, fontWeight: active ? 800 : 600, fontSize: 13,
@@ -209,7 +209,7 @@ function TasksNavControl({ active }) {
           <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
           <div
             style={{
-              position: "fixed", top: pos.top, left: pos.left, background: "#fff", border: `2.5px solid ${BASE.ink}`,
+              position: "fixed", top: pos.top, left: pos.left, background: "#fff", border: `1px solid ${BASE.border}`,
               borderRadius: 14, boxShadow: hardShadow(BASE.ink, 3, 3), zIndex: 50, padding: 8, minWidth: 190,
             }}
           >
@@ -245,7 +245,7 @@ function MascotCorner() {
       style={{
         position: "fixed", right: 14, bottom: 14, zIndex: 60,
         width: 76, display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-        background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 14,
+        background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 14,
         boxShadow: hardShadow(BASE.ink, 3, 3), padding: "8px 6px 6px", cursor: "pointer",
       }}
       aria-label="Ask Mr. Sprinkles"
@@ -271,7 +271,7 @@ export default function Shell({ children, members = [] }) {
           gap: 4,
           padding: "calc(env(safe-area-inset-top, 0px) + 8px) 10px 8px",
           background: BASE.surface,
-          borderBottom: `2.5px solid ${BASE.ink}`,
+          borderBottom: `1px solid ${BASE.border}`,
           position: "sticky",
           top: 0,
           zIndex: 30,
@@ -291,7 +291,7 @@ export default function Shell({ children, members = [] }) {
               gap: 8,
               padding: "8px 12px",
               borderRadius: 12,
-              border: active(p) ? `2.5px solid ${BASE.ink}` : "2.5px solid transparent",
+              border: active(p) ? `1px solid ${BASE.border}` : "2.5px solid transparent",
               background: active(p) ? color : "transparent",
               boxShadow: active(p) ? hardShadow(BASE.ink, 2.5, 2.5) : "none",
               cursor: "pointer",
@@ -314,7 +314,7 @@ export default function Shell({ children, members = [] }) {
         {onCalendar && <CalendarNavControl />}
         <button
           onClick={() => window.dispatchEvent(new Event("sprinkles-open-assistant"))}
-          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 12, border: `2px solid ${BASE.ink}`, background: "#c5f26b", cursor: "pointer", fontFamily: F.ui, fontWeight: 800, fontSize: 12, flexShrink: 0, marginLeft: 6 }}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 12, border: "none", background: BASE.pink, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 12, flexShrink: 0, marginLeft: 6, color: BASE.ink }}
         >
           <Icon name="sparkle" size={14} /> Ask Mr. Sprinkles
         </button>

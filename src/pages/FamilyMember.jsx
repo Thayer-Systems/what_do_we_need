@@ -8,10 +8,10 @@ import { useRouter } from "../lib/router.jsx";
 import { ProjectModal } from "./Tasks.jsx";
 
 const btn = (bg = BASE.pink) => ({
-  background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px",
+  background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "8px 16px",
   fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3),
 });
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 8, display: "block" };
 
 function Section({ title, children, onAdd }) {
@@ -28,9 +28,9 @@ function Section({ title, children, onAdd }) {
 
 function Row({ children, onDelete }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 10px", background: BASE.muted, borderRadius: 10, border: `1.5px solid ${BASE.ink}` }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 10px", background: BASE.muted, borderRadius: 10, border: `1px solid ${BASE.border}` }}>
       <div style={{ fontFamily: F.ui, fontSize: 13, flex: 1 }}>{children}</div>
-      <button onClick={onDelete} style={{ border: `1.5px solid ${BASE.ink}`, background: "#fff", borderRadius: 8, width: 24, height: 24, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <button onClick={onDelete} style={{ border: `1px solid ${BASE.border}`, background: "#fff", borderRadius: 8, width: 24, height: 24, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Icon name="close" size={12} />
       </button>
     </div>
@@ -101,7 +101,7 @@ function PrefField({ label: lbl, values, onChange }) {
 function StatRow({ stat, color, onEdit, onTogglePause, onDelete }) {
   const pct = stat.target ? Math.round((stat.value / stat.target) * 100) : 0;
   return (
-    <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12, opacity: stat.paused ? 0.55 : 1 }}>
+    <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: 12, opacity: stat.paused ? 0.55 : 1 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>{stat.label}{stat.paused ? " (paused)" : ""}</span>
         <span style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 12 }}>{stat.value}{stat.unit} / {stat.target}{stat.unit}</span>
@@ -168,7 +168,7 @@ export default function FamilyMember({
           </div>
           <button
             onClick={() => onUpdateMember(member.id, { role: member.role === "parent" ? "kid" : "parent" })}
-            style={{ background: "#fff", color: BASE.ink, border: `2px solid ${BASE.ink}`, borderRadius: 999, padding: "6px 12px", fontWeight: 800, fontSize: 11, cursor: "pointer", fontFamily: F.ui, textTransform: "uppercase" }}
+            style={{ background: "#fff", color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "6px 12px", fontWeight: 800, fontSize: 11, cursor: "pointer", fontFamily: F.ui, textTransform: "uppercase" }}
           >
             {member.role === "parent" ? "Parent" : "Kid"}
           </button>
@@ -228,7 +228,7 @@ export default function FamilyMember({
           <Section title="Private Projects">
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {mPrivateProjects.map((p) => (
-                <div key={p.id} onClick={() => setProjectModal(p)} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12, cursor: "pointer" }}>
+                <div key={p.id} onClick={() => setProjectModal(p)} style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: 12, cursor: "pointer" }}>
                   <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{p.title}</div>
                   <ProgressBar pct={p.progress} color={member.color} />
                 </div>

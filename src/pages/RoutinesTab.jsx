@@ -29,7 +29,7 @@ function KidChecklist({ kid, items, checked, onToggle }) {
   const doneCount = items.filter((i) => checked.has(i.id)).length;
   const allDone = items.length > 0 && doneCount === items.length;
   return (
-    <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12 }}>
+    <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <IconBadge icon={kid.icon} bg={kid.color} size={32} radius={10} iconColor="#fff" />
         <div style={{ flex: 1 }}>
@@ -47,7 +47,7 @@ function KidChecklist({ kid, items, checked, onToggle }) {
               <div key={item.id} onClick={() => onToggle(item.id)} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 8, padding: "8px 10px", cursor: "pointer", opacity: done ? 0.55 : 1 }}>
                 <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{item.icon || DEFAULT_ITEM_ICON}</span>
                 <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 14, textDecoration: done ? "line-through" : "none" }}>{item.title}</span>
-                <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${BASE.border}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {done && <Icon name="check" size={13} color="#fff" />}
                 </div>
               </div>
@@ -65,7 +65,7 @@ function RoutineBoxModal({ period, routine, kids, items, completions, date, onTo
       style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16, boxSizing: "border-box" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div style={{ background: BASE.bg, borderRadius: 22, border: `2.5px solid ${BASE.ink}`, width: "100%", maxWidth: 640, maxHeight: "88vh", overflowY: "auto", padding: "20px", boxShadow: hardShadow(BASE.ink, 5, 5) }}>
+      <div style={{ background: BASE.bg, borderRadius: 22, border: `1px solid ${BASE.border}`, width: "100%", maxWidth: 640, maxHeight: "88vh", overflowY: "auto", padding: "20px", boxShadow: hardShadow(BASE.ink, 5, 5) }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <IconBadge icon={period.icon} bg={period.bg} size={36} radius={10} />
@@ -112,7 +112,7 @@ function PeriodBox({ period, routine, kids, items, completions, date, onOpen, on
           {summary && summary.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
               {summary.map(({ kid, allDone }) => (
-                <div key={kid.id} style={{ display: "flex", alignItems: "center", gap: 4, background: allDone ? BASE.green : BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 999, padding: "3px 8px" }}>
+                <div key={kid.id} style={{ display: "flex", alignItems: "center", gap: 4, background: allDone ? BASE.green : BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "3px 8px" }}>
                   <IconBadge icon={kid.icon} bg={kid.color} size={18} radius={6} iconColor="#fff" style={{ boxShadow: "none", border: "none" }} />
                   <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: allDone ? "#fff" : BASE.ink }}>{allDone ? "✓" : ""}</span>
                 </div>
@@ -146,7 +146,7 @@ export default function RoutinesTab({ members, routines, routineItems, routineCo
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>Routines</div>
           <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t2 }}>{today.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
         </div>
-        <button onClick={goToSetup} aria-label="Set up routines" style={{ width: 38, height: 38, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hardShadow(BASE.ink, 2.5, 2.5) }}>
+        <button onClick={goToSetup} aria-label="Set up routines" style={{ width: 38, height: 38, borderRadius: 10, border: `1px solid ${BASE.border}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hardShadow(BASE.ink, 2.5, 2.5) }}>
           <Icon name="settings" size={17} />
         </button>
       </div>
