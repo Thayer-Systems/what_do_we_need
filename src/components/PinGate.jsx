@@ -5,8 +5,8 @@ import { Icon } from "./Icons.jsx";
 import { isToolsUnlocked, tryUnlockTools, lockTools } from "../lib/pin.js";
 import { useRouter } from "../lib/router.jsx";
 
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "12px 14px", fontSize: 22, letterSpacing: "0.3em", textAlign: "center", fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
-const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "12px 14px", fontSize: 22, letterSpacing: "0.3em", textAlign: "center", fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const btn = (bg) => ({ background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
 // Wraps Tools/Settings pages behind a 4-digit PIN. Unlock is per browser
 // session (see lib/pin.js) — comes back locked on a fresh load.

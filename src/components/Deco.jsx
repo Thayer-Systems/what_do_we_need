@@ -2,10 +2,9 @@ import { BASE, hardShadow } from "../lib/theme.js";
 import { Icon, MEMBER_ICONS, MEMBER_ICON_IMAGES } from "./Icons.jsx";
 
 // A "designed" icon treatment — a custom line icon (or, for member
-// badges with matching art, an illustrated PNG) dropped into a
-// bordered, shadowed badge instead of floating bare. Boxed like a
-// sticker so it carries the neobrutalism language (thick outline +
-// hard offset shadow) instead of reading as a random glyph.
+// badges with matching art, an illustrated PNG) dropped into a soft
+// rounded color tile instead of floating bare, like the small flat
+// icon chips in a clean dashboard UI.
 export function IconBadge({ icon, emoji, bg = BASE.yellow, iconColor = BASE.ink, size = 40, rotate = 0, radius, style }) {
   const imgSrc = icon && (MEMBER_ICON_IMAGES[icon] || MEMBER_ICON_IMAGES[MEMBER_ICONS[icon]]);
   return (
@@ -13,15 +12,13 @@ export function IconBadge({ icon, emoji, bg = BASE.yellow, iconColor = BASE.ink,
       style={{
         width: size,
         height: size,
-        borderRadius: radius ?? size * 0.28,
+        borderRadius: radius ?? size * 0.32,
         background: bg,
-        border: `2.5px solid ${BASE.ink}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: size * 0.52,
+        fontSize: size * 0.5,
         lineHeight: 1,
-        boxShadow: hardShadow(BASE.ink, 3, 3),
         transform: rotate ? `rotate(${rotate}deg)` : undefined,
         flexShrink: 0,
         overflow: "hidden",
@@ -31,7 +28,7 @@ export function IconBadge({ icon, emoji, bg = BASE.yellow, iconColor = BASE.ink,
       {imgSrc ? (
         <img src={imgSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       ) : icon ? (
-        <Icon name={icon} size={size * 0.56} color={iconColor} strokeWidth={2.4} fallback="donut" />
+        <Icon name={icon} size={size * 0.54} color={iconColor} strokeWidth={2} fallback="donut" />
       ) : (
         emoji
       )}
@@ -40,14 +37,14 @@ export function IconBadge({ icon, emoji, bg = BASE.yellow, iconColor = BASE.ink,
 }
 
 // Four-point sparkle/star, the recurring accent shape in the reference art.
-export function StarAccent({ color = BASE.pink, size = 40, style, outline = BASE.ink }) {
+export function StarAccent({ color = BASE.pink, size = 40, style, outline }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" style={style}>
       <path
         d="M20 0 L24 15 L40 20 L24 25 L20 40 L16 25 L0 20 L16 15 Z"
         fill={color}
-        stroke={outline}
-        strokeWidth="2"
+        stroke={outline || "none"}
+        strokeWidth={outline ? 2 : 0}
         strokeLinejoin="round"
       />
     </svg>
@@ -69,7 +66,7 @@ function SprinkleDot({ color, x, y, rotate, size = 14 }) {
     <div
       style={{
         position: "absolute", left: x, top: y, width: size, height: size * 0.42,
-        borderRadius: size, background: color, border: `1.5px solid ${BASE.ink}`,
+        borderRadius: size, background: color, opacity: 0.7,
         transform: `rotate(${rotate}deg)`,
       }}
     />
@@ -104,12 +101,11 @@ export function ProgressRing({ pct, color = BASE.pink, size = 72, thickness = 10
         height: size,
         borderRadius: "50%",
         background: `conic-gradient(${color} ${clamped * 3.6}deg, ${BASE.muted} 0deg)`,
-        border: `2.5px solid ${BASE.ink}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
-        boxShadow: hardShadow(BASE.ink, 3, 3),
+        boxShadow: hardShadow(),
       }}
     >
       <div
@@ -118,7 +114,6 @@ export function ProgressRing({ pct, color = BASE.pink, size = 72, thickness = 10
           height: size - thickness * 2,
           borderRadius: "50%",
           background: "#fff",
-          border: `2px solid ${BASE.ink}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

@@ -6,7 +6,7 @@ import { Icon } from "./Icons.jsx";
 
 const inp = {
   background: "#fff",
-  border: `2px solid ${BASE.ink}`,
+  border: `1px solid ${BASE.border}`,
   borderRadius: 12,
   padding: "10px 14px",
   fontSize: 14,
@@ -73,7 +73,7 @@ export default function AssistantPopover({ onSend }) {
               maxHeight: "70vh",
               margin: "0 16px 96px",
               background: "#fff",
-              border: `2.5px solid ${BASE.ink}`,
+              border: `1px solid ${BASE.border}`,
               borderRadius: 20,
               boxShadow: hardShadow(BASE.ink, 5, 5),
               display: "flex",
@@ -81,7 +81,7 @@ export default function AssistantPopover({ onSend }) {
               overflow: "hidden",
             }}
           >
-            <div style={{ background: BASE.yellow, borderBottom: `2.5px solid ${BASE.ink}`, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ background: BASE.yellow, borderBottom: `1px solid ${BASE.border}`, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <img src={MASCOT.main} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
                 <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Ask Mr. Sprinkles</span>
@@ -103,7 +103,7 @@ export default function AssistantPopover({ onSend }) {
                   style={{
                     alignSelf: m.role === "user" ? "flex-end" : "flex-start",
                     background: m.role === "user" ? BASE.teal : BASE.muted,
-                    border: `1.5px solid ${BASE.ink}`,
+                    border: `1px solid ${BASE.border}`,
                     borderRadius: 12,
                     padding: "8px 12px",
                     maxWidth: "85%",
@@ -118,7 +118,7 @@ export default function AssistantPopover({ onSend }) {
               {busy && <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Thinking…</div>}
             </div>
 
-            <div style={{ display: "flex", gap: 8, padding: 12, borderTop: `1.5px solid ${BASE.muted}`, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", gap: 8, padding: 12, borderTop: `1px solid ${BASE.border}`, alignItems: "flex-end" }}>
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -137,7 +137,7 @@ export default function AssistantPopover({ onSend }) {
               <button
                 onClick={submit}
                 disabled={busy}
-                style={{ width: 42, height: 42, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: BASE.pink, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                style={{ width: 42, height: 42, borderRadius: 10, border: `1px solid ${BASE.border}`, background: BASE.pink, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
               >
                 <Icon name="send" size={18} />
               </button>

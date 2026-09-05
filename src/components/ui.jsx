@@ -8,7 +8,7 @@ export function PageHeader({ title, right, back, sprinkles }) {
       style={{
         padding: "calc(env(safe-area-inset-top, 0px) + 20px) 20px 16px",
         background: BASE.surface,
-        borderBottom: `2.5px solid ${BASE.ink}`,
+        borderBottom: `1px solid ${BASE.border}`,
         position: "sticky",
         top: 0,
         zIndex: 10,
@@ -25,7 +25,7 @@ export function PageHeader({ title, right, back, sprinkles }) {
           <button
             onClick={back}
             aria-label="Back"
-            style={{ width: 34, height: 34, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: hardShadow(BASE.ink, 2, 2) }}
+            style={{ width: 34, height: 34, borderRadius: 10, border: `1px solid ${BASE.border}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: hardShadow(BASE.ink, 2, 2) }}
           >
             <Icon name="chevronLeft" size={18} />
           </button>
@@ -55,7 +55,7 @@ function pillFrom(bg) {
   return {
     background: bg,
     color: BASE.ink,
-    border: `2.5px solid ${BASE.ink}`,
+    border: `1px solid ${BASE.border}`,
     borderRadius: 999,
     padding: "10px 22px",
     fontWeight: 800,
@@ -76,7 +76,7 @@ export function Modal({ onClose, children, maxWidth = 460 }) {
         style={{
           background: BASE.surface,
           borderRadius: 22,
-          border: `2.5px solid ${BASE.ink}`,
+          border: `1px solid ${BASE.border}`,
           width: "100%",
           maxWidth,
           maxHeight: "88vh",
@@ -98,7 +98,7 @@ export function Chip({ active, onClick, children, color = BASE.yellow }) {
       style={{
         padding: "6px 14px",
         borderRadius: 999,
-        border: `2px solid ${BASE.ink}`,
+        border: `1px solid ${BASE.border}`,
         background: active ? color : "transparent",
         color: BASE.ink,
         fontSize: 12,
