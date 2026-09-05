@@ -220,7 +220,7 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
         <div style={{ position: "relative" }}>
           <button onClick={() => setAddMenuOpen((o) => !o)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
           {addMenuOpen && (
-            <div style={{ position: "absolute", right: 0, top: 44, background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), overflow: "hidden", zIndex: 30, minWidth: 160 }}>
+            <div style={{ position: "absolute", right: 0, top: 44, background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), overflow: "hidden", zIndex: 40, minWidth: 160 }}>
               <button onClick={() => { setChoreModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Task</button>
               <button onClick={() => { setProjectModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", borderTop: `1px solid ${BASE.border}`, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Project</button>
             </div>
