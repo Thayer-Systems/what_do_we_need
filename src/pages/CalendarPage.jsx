@@ -5,9 +5,9 @@ import { BASE, F, CATEGORY_COLORS, eventColor, hardShadow } from "../lib/theme.j
 import { downloadICS } from "../lib/ics.js";
 import { useCalendarFilters } from "../lib/calendarFilters.jsx";
 
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
-const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "9px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
+const btn = (bg) => ({ background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "9px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
 const CATEGORIES = ["event", "appointment", "activity", "meal", "chore", "work", "other"];
 const RECURRENCE = ["none", "daily", "weekly", "monthly", "yearly"];
@@ -186,7 +186,7 @@ function forecastFor(forecast, date) {
 function WeatherBadge({ day }) {
   if (!day) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 999, padding: "2px 8px", flexShrink: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4, background: BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "2px 8px", flexShrink: 0 }}>
       <Icon name={day.icon} size={14} />
       <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800 }}>{day.highF}°</span>
     </div>
@@ -203,10 +203,10 @@ function Agenda({ days, events, members, onOpen, forecast }) {
         const isToday = sameDay(d, today);
         const dayForecast = forecastFor(forecast, d);
         return (
-          <div key={d.toISOString()} style={{ display: "flex", borderBottom: `1.5px solid ${BASE.muted}`, minHeight: 64 }}>
-            <div style={{ width: 56, flexShrink: 0, padding: "12px 6px", textAlign: "center", borderRight: `1.5px solid ${BASE.muted}` }}>
+          <div key={d.toISOString()} style={{ display: "flex", borderBottom: `1px solid ${BASE.border}`, minHeight: 64 }}>
+            <div style={{ width: 56, flexShrink: 0, padding: "12px 6px", textAlign: "center", borderRight: `1px solid ${BASE.border}` }}>
               <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2, textTransform: "uppercase" }}>{d.toLocaleDateString([], { weekday: "short" })}</div>
-              <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "2px auto 0", background: isToday ? BASE.yellow : "transparent", border: isToday ? `2px solid ${BASE.ink}` : "none" }}>
+              <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "2px auto 0", background: isToday ? BASE.yellow : "transparent", border: isToday ? `1px solid ${BASE.border}` : "none" }}>
                 {d.getDate()}
               </div>
             </div>
@@ -218,7 +218,7 @@ function Agenda({ days, events, members, onOpen, forecast }) {
                   <div
                     key={e.id}
                     onClick={() => onOpen(e)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#fff", border: `1.5px solid ${BASE.ink}`, borderLeft: `6px solid ${eventColor(e, members)}`, borderRadius: 8, padding: "6px 10px" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#fff", border: `1px solid ${BASE.border}`, borderLeft: `6px solid ${eventColor(e, members)}`, borderRadius: 8, padding: "6px 10px" }}
                   >
                     <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.t2, minWidth: 56 }}>
                       {e.all_day ? "All day" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
@@ -256,18 +256,18 @@ function MonthView({ cursor, events, members, onDayClick, onOpenEvent }) {
           // Cells outside the current month are left blank rather than
           // showing the adjacent month's dates/events.
           if (!inMonth) {
-            return <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 110, background: BASE.muted, opacity: 0.4 }} />;
+            return <div key={d.toISOString()} style={{ border: `1px solid ${BASE.border}`, borderRadius: 10, minHeight: 110, background: BASE.muted, opacity: 0.4 }} />;
           }
           const dayEvents = events.filter((e) => sameDay(new Date(e.start_at), d)).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
           return (
-            <div key={d.toISOString()} style={{ border: `2px solid ${BASE.ink}`, borderRadius: 10, minHeight: 110, padding: 6, background: sameDay(d, today) ? BASE.yellow : "#fff", display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+            <div key={d.toISOString()} style={{ border: `1px solid ${BASE.border}`, borderRadius: 10, minHeight: 110, padding: 6, background: sameDay(d, today) ? BASE.yellow : "#fff", display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
               <div onClick={() => onDayClick(d)} style={{ fontSize: 14, fontWeight: 800, fontFamily: F.ui, cursor: "pointer" }}>{d.getDate()}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minHeight: 0 }}>
                 {dayEvents.slice(0, 3).map((e) => (
                   <div
                     key={e.id}
                     onClick={(ev) => { ev.stopPropagation(); onOpenEvent ? onOpenEvent(e) : onDayClick(d); }}
-                    style={{ background: eventColor(e, members), border: `1px solid ${BASE.ink}`, borderRadius: 5, padding: "2px 5px", cursor: "pointer", overflow: "hidden" }}
+                    style={{ background: eventColor(e, members), border: `1px solid ${BASE.border}`, borderRadius: 5, padding: "2px 5px", cursor: "pointer", overflow: "hidden" }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 800, fontFamily: F.ui, color: "#fff", textShadow: "0 1px 1px rgba(0,0,0,0.35)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {e.all_day ? "" : new Date(e.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} {e.title}
@@ -334,13 +334,13 @@ export default function CalendarPage({ members, events, settings, onAdd, onUpdat
     else d.setDate(d.getDate() + dir);
     setCursor(d);
   };
-  const navArrowStyle = { width: 34, height: 34, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+  const navArrowStyle = { width: 34, height: 34, borderRadius: 10, border: `1px solid ${BASE.border}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
 
   return (
     <div>
       <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 0", display: "flex", alignItems: "center", gap: 10 }}>
         <button onClick={() => shiftCursor(-1)} aria-label="Previous" style={navArrowStyle}><Icon name="chevronLeft" size={16} /></button>
-        <div style={{ display: "inline-block", background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 10, boxShadow: hardShadow(BASE.ink, 3, 3), padding: "6px 12px" }}>
+        <div style={{ display: "inline-block", background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, boxShadow: hardShadow(BASE.ink, 3, 3), padding: "6px 12px" }}>
           <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 18 }}>{headerLabel}</span>
         </div>
         <button onClick={() => shiftCursor(1)} aria-label="Next" style={navArrowStyle}><Icon name="chevronRight" size={16} /></button>

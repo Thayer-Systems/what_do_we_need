@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useState } from "react";
-import { MASCOT, F, BASE } from "../lib/theme.js";
+import { MASCOT, F, BASE, hardShadow } from "../lib/theme.js";
 
 const CelebrationCtx = createContext(() => {});
 export const useCelebrate = () => useContext(CelebrationCtx);
@@ -28,7 +28,7 @@ function SprinkleBurst() {
             height: 4,
             borderRadius: 4,
             background: p.color,
-            border: `1.5px solid ${BASE.ink}`,
+            border: `1px solid ${BASE.border}`,
             "--fly-to": `translate(${p.x}px, ${p.y}px)`,
             "--spin": `${p.spin}deg`,
             animation: `sprinkle-fly 0.9s ease-out ${p.delay}s forwards`,
@@ -58,14 +58,14 @@ function CelebrationOverlay({ message, onDone }) {
           style={{
             marginTop: 10,
             background: "#fff",
-            border: `2.5px solid ${BASE.ink}`,
+            border: `1px solid ${BASE.border}`,
             borderRadius: 999,
             padding: "8px 20px",
             fontFamily: F.display,
             fontWeight: 700,
             fontSize: 18,
             color: BASE.ink,
-            boxShadow: `3px 3px 0 0 ${BASE.ink}`,
+            boxShadow: hardShadow(),
           }}
         >
           👍 {message || "Good Job!"}

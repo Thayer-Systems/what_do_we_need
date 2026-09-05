@@ -3,8 +3,8 @@ import { PageHeader, Card, EmptyState } from "../components/ui.jsx";
 import { Icon } from "../components/Icons.jsx";
 import { BASE, F, MASCOT, hardShadow } from "../lib/theme.js";
 
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: "11px 14px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
-const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: "11px 14px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const btn = (bg) => ({ background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
 const WALMART_STORE_PATH = "store/3571-middletown-oh";
 const walmartSearchUrl = (name) => `https://www.walmart.com/${WALMART_STORE_PATH}/search?query=${encodeURIComponent(name)}`;
@@ -95,11 +95,11 @@ export default function Grocery({ shopping, onAssistantSend, onAdd, onRemove }) 
                     target="_blank"
                     rel="noopener noreferrer"
                     title="Find at Walmart (Middletown, OH)"
-                    style={{ border: `1.5px solid ${BASE.ink}`, background: BASE.yellow, borderRadius: 8, width: 26, height: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}
+                    style={{ border: `1px solid ${BASE.border}`, background: BASE.yellow, borderRadius: 8, width: 26, height: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}
                   >
                     <Icon name="cart" size={14} />
                   </a>
-                  <button onClick={() => onRemove(s.id)} style={{ border: `1.5px solid ${BASE.ink}`, background: "#fff", borderRadius: 8, width: 26, height: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button onClick={() => onRemove(s.id)} style={{ border: `1px solid ${BASE.border}`, background: "#fff", borderRadius: 8, width: 26, height: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon name="check" size={14} />
                   </button>
                 </div>
