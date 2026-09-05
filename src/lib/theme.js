@@ -1,6 +1,8 @@
 // ─── MR. SPRINKLES DESIGN SYSTEM ──────────────────────────────
-// Playful neobrutalism: bold black outlines, hard offset shadows,
-// bright color blocks, chunky rounded corners.
+// Warm command-center: soft white cards on a cream ground, thin
+// hairline borders, gentle drop shadows, muted pastel accents.
+// Mr. Sprinkles (mascot + playful display font) still lives here —
+// only the surrounding chrome traded its bold outlines for calm.
 
 export const F = {
   ui: "'Plus Jakarta Sans', system-ui, sans-serif",
@@ -9,76 +11,69 @@ export const F = {
 
 // App-wide base (used for parents / chrome, not kid-specific screens)
 export const BASE = {
-  bg: "#fdf6ec",
+  bg: "#f5efe3",
   surface: "#ffffff",
-  ink: "#181410",
-  border: "#181410",
-  pink: "#ff6fa5",
-  teal: "#3fc9c1",
-  yellow: "#ffcb3d",
-  lilac: "#b98cf2",
-  orange: "#ff8a3d",
-  green: "#5fbf6b",
-  red: "#ef5350",
-  muted: "#f0ece2",
-  t2: "#5c5348",
-  t3: "#948a7c",
-  navy: "#4a6fa5",
+  ink: "#2f2a22",
+  border: "#e7ddc9",
+  pink: "#eeb4a4",
+  teal: "#93c7c1",
+  yellow: "#f0cd82",
+  lilac: "#c4b3e2",
+  orange: "#eeab77",
+  green: "#a3c9a0",
+  red: "#dd8f85",
+  muted: "#f1ece0",
+  t2: "#6b6255",
+  t3: "#a49a89",
+  navy: "#8ca0bd",
 };
 
-// Hard offset "neobrutalism" shadow — no blur, just an offset block.
-export const hardShadow = (color = BASE.ink, x = 4, y = 4) => `${x}px ${y}px 0 0 ${color}`;
+// Soft ambient shadow — signature of the new look, replacing the old
+// hard offset "neobrutalism" block shadow. Kept as `hardShadow` (and its
+// (color, x, y) signature) so every existing call site works unchanged;
+// the color/offset args are accepted but no longer change the result,
+// since a soft, uniform shadow reads calmer than a colored offset one.
+export const hardShadow = () => "0 1px 2px rgba(47,42,34,0.05), 0 8px 20px rgba(47,42,34,0.07)";
+export const softShadow = hardShadow;
 
-// Squared-off corners everywhere except the calendar grid, which keeps a
-// slightly softer radius so the month grid doesn't read as a spreadsheet.
+// Generously rounded, thin-bordered, softly shadowed card — the base
+// surface treatment for the whole app now.
 export const cardStyle = (bg = BASE.surface, opts = {}) => ({
   background: bg,
-  border: `2.5px solid ${BASE.ink}`,
-  borderRadius: opts.radius ?? 12,
-  boxShadow: hardShadow(BASE.ink, opts.sx ?? 4, opts.sy ?? 4),
+  border: `1px solid ${BASE.border}`,
+  borderRadius: opts.radius ?? 20,
+  boxShadow: hardShadow(),
 });
 
-// Repeating sprinkle-dot pattern used as the page background so white/cream
-// surfaces don't read as bare — tiled behind every screen.
+// The old sprinkle-dot tiled background read as busy against soft white
+// cards, so pages now sit on a flat warm ground instead. Kept as a
+// no-op export so every existing `...SPRINKLE_BG_STYLE` spread stays valid.
 function svgDataUri(svg) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
-const SPRINKLE_DOTS = [
-  [16, 22, 24], [64, 10, -20], [104, 46, 60], [30, 78, -45],
-  [86, 96, 15], [128, 74, 75], [8, 118, 35], [110, 130, -10],
-];
-export function sprinklesBackground({ colors = [BASE.pink, BASE.teal, BASE.yellow, BASE.lilac, BASE.orange, BASE.green], opacity = 0.55 } = {}) {
-  const shapes = SPRINKLE_DOTS.map(([x, y, r], i) => {
-    const c = colors[i % colors.length];
-    const cx = x + 7, cy = y + 2.5;
-    return `<rect x="${x}" y="${y}" width="14" height="5" rx="2.5" fill="${c}" stroke="${BASE.ink}" stroke-width="1" opacity="${opacity}" transform="rotate(${r} ${cx} ${cy})"/>`;
-  }).join("");
-  return svgDataUri(`<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140">${shapes}</svg>`);
+export function sprinklesBackground() {
+  return svgDataUri(`<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>`);
 }
-export const SPRINKLE_BG_STYLE = {
-  backgroundImage: sprinklesBackground(),
-  backgroundSize: "140px 140px",
-  backgroundRepeat: "repeat",
-};
+export const SPRINKLE_BG_STYLE = {};
 
-export const pillBtn = (bg = BASE.pink, fg = "#181410") => ({
+export const pillBtn = (bg = BASE.pink, fg = BASE.ink) => ({
   background: bg,
   color: fg,
-  border: `2.5px solid ${BASE.ink}`,
+  border: "none",
   borderRadius: 999,
-  padding: "10px 20px",
-  fontWeight: 800,
+  padding: "11px 22px",
+  fontWeight: 700,
   fontSize: 14,
   cursor: "pointer",
   fontFamily: F.ui,
-  boxShadow: hardShadow(BASE.ink, 3, 3),
+  boxShadow: hardShadow(),
   transition: "transform 0.08s, box-shadow 0.08s",
 });
 
 export const inputStyle = {
   background: "#fff",
-  border: `2.5px solid ${BASE.ink}`,
-  borderRadius: 12,
+  border: `1px solid ${BASE.border}`,
+  borderRadius: 14,
   padding: "11px 14px",
   fontSize: 15,
   fontFamily: F.ui,
@@ -94,7 +89,7 @@ export const inputStyle = {
 export const THEMES = {
   default: {
     label: "Classic Sprinkles",
-    bg: "#fdf6ec",
+    bg: "#f5efe3",
     primary: BASE.pink,
     secondary: BASE.teal,
     accent: BASE.yellow,
@@ -102,26 +97,26 @@ export const THEMES = {
   },
   unicorns_mermaids_princesses: {
     label: "Unicorns, Mermaids & Princesses",
-    bg: "#fdf1fb",
-    primary: "#e774d1",
-    secondary: "#7fd9e8",
-    accent: "#ffd977",
+    bg: "#f9f0f7",
+    primary: "#dd9ecb",
+    secondary: "#9dd3dd",
+    accent: "#f0d896",
     emoji: ["🦄", "🧜‍♀️", "👑", "✨", "🐚"],
   },
   animals_pokemon_drawing: {
     label: "Animals, Pokémon & Drawing",
-    bg: "#f2fbf0",
-    primary: "#5fbf6b",
-    secondary: "#ffcb3d",
-    accent: "#ff8a3d",
+    bg: "#f1f6ee",
+    primary: "#a3c9a0",
+    secondary: "#f0cd82",
+    accent: "#eeab77",
     emoji: ["🐾", "🎨", "⚡", "🐢", "🖍️"],
   },
   pokemon_ninjas_tech: {
     label: "Pokémon, Ninjas & Tech",
-    bg: "#eef4fb",
-    primary: "#3a7bd5",
-    secondary: "#2b2b3d",
-    accent: "#ffcb3d",
+    bg: "#eef2f6",
+    primary: "#8ca0bd",
+    secondary: "#4a4a5a",
+    accent: "#f0cd82",
     emoji: ["🥷", "🤖", "⚡", "🎮", "🛠️"],
   },
 };

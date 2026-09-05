@@ -12,9 +12,9 @@ export const RECIPE_TAGS = ["Quick", "Dinner", "Lunch", "Breakfast", "Crockpot",
 export const EQUIPMENT = Object.keys(EQUIPMENT_ICONS);
 const EST_TIMES = ["5 min", "10 min", "15 min", "30 min", "45 min", "1 hr", "2 hr", "3 hr", "4 hr", "5 hr", "6 hr"];
 const MEAL_COLOR = { Breakfast: BASE.yellow, Lunch: BASE.teal, Dinner: BASE.lilac };
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
-const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
+const btn = (bg) => ({ background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "8px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
 
 function mondayOfWeek(offsetWeeks = 0) {
   const today = new Date();
@@ -42,7 +42,7 @@ function RecipeViewModal({ recipe, onClose, onEdit }) {
       {(recipe.equipment || []).length > 0 && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           {recipe.equipment.map((e) => (
-            <div key={e} style={{ display: "flex", alignItems: "center", gap: 6, background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 999, padding: "5px 12px" }}>
+            <div key={e} style={{ display: "flex", alignItems: "center", gap: 6, background: BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "5px 12px" }}>
               <Icon name={EQUIPMENT_ICONS[e] || "oven"} size={15} />
               <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 700 }}>{e}</span>
             </div>
@@ -51,7 +51,7 @@ function RecipeViewModal({ recipe, onClose, onEdit }) {
       )}
       {(recipe.tags || []).length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-          {recipe.tags.map((t) => <span key={t} style={{ fontSize: 11, fontWeight: 700, color: BASE.brandText || BASE.ink, background: BASE.teal, border: `1.5px solid ${BASE.ink}`, padding: "2px 10px", borderRadius: 999, fontFamily: F.ui }}>{t}</span>)}
+          {recipe.tags.map((t) => <span key={t} style={{ fontSize: 11, fontWeight: 700, color: BASE.brandText || BASE.ink, background: BASE.teal, border: `1px solid ${BASE.border}`, padding: "2px 10px", borderRadius: 999, fontFamily: F.ui }}>{t}</span>)}
         </div>
       )}
       <div style={label}>Ingredients</div>
@@ -167,7 +167,7 @@ function SlotPickerModal({ day, meal, recipes, onPick, onCreateNew, onClose }) {
           <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>No recipes match — create a new one above.</div>
         ) : (
           filtered.map((r) => (
-            <div key={r.id} onClick={() => onPick(r)} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "8px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={r.id} onClick={() => onPick(r)} style={{ background: BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "8px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>{r.name}</span>
               <Icon name="chevronRight" size={14} />
             </div>
@@ -255,7 +255,7 @@ function WeekMealsBox({ mealLabel, weekLabel, weekDays, mealPlan, recipes, onVie
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>{weekLabel}'s {MEAL_PLURAL[mealLabel] || `${mealLabel}s`}</span>
-        <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: MEAL_COLOR[mealLabel], border: `1.5px solid ${BASE.ink}` }} />
+        <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: MEAL_COLOR[mealLabel], border: `1px solid ${BASE.border}` }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {weekDays.map(({ short, date }) => {
@@ -543,7 +543,7 @@ export function TrendsPage({ recipes, mealPlan, shopping }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {ingredientCounts.map(([name, count]) => (
-                <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: BASE.muted, borderRadius: 8, padding: "6px 10px", border: `1.5px solid ${BASE.ink}` }}>
+                <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: BASE.muted, borderRadius: 8, padding: "6px 10px", border: `1px solid ${BASE.border}` }}>
                   <span style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{name}</span>
                   <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.t2 }}>×{count}</span>
                 </div>
@@ -560,7 +560,7 @@ export function TrendsPage({ recipes, mealPlan, shopping }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {mealCounts.map(([name, count]) => (
-                <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: BASE.muted, borderRadius: 8, padding: "6px 10px", border: `1.5px solid ${BASE.ink}` }}>
+                <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: BASE.muted, borderRadius: 8, padding: "6px 10px", border: `1px solid ${BASE.border}` }}>
                   <span style={{ fontFamily: F.ui, fontSize: 13, fontWeight: 700 }}>{name}</span>
                   <span style={{ fontFamily: F.ui, fontSize: 12, fontWeight: 800, color: BASE.t2 }}>×{count}</span>
                 </div>

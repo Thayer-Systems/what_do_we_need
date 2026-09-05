@@ -9,7 +9,7 @@ import { useIsTVMode, getForcedTVMode, setForcedTVMode, clearForcedTVMode } from
 
 function Field({ label, value }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${BASE.muted}`, fontFamily: F.ui, fontSize: 13, gap: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${BASE.border}`, fontFamily: F.ui, fontSize: 13, gap: 12 }}>
       <span style={{ color: BASE.t2, fontWeight: 700 }}>{label}</span>
       <span style={{ fontWeight: 600, textAlign: "right" }}>{value}</span>
     </div>
@@ -78,7 +78,7 @@ export function IntegrationsPage({ settings }) {
         </Card>
         {!settings?.google_calendar_connected && status?.googleCalendarConfigured && (
           <a href="/api/integrations/google/authorize" style={{ display: "block", marginTop: 14 }}>
-            <button style={{ width: "100%", background: BASE.teal, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "12px", fontWeight: 800, fontFamily: F.ui, cursor: "pointer" }}>
+            <button style={{ width: "100%", background: BASE.teal, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "12px", fontWeight: 800, fontFamily: F.ui, cursor: "pointer" }}>
               Connect Google Calendar
             </button>
           </a>
@@ -104,7 +104,7 @@ export function FaqPage() {
       <PageHeader title="FAQ" sprinkles="settings" back={() => navigate("/settings")} />
       <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 8 }}>
         {FAQS.map((f, i) => (
-          <div key={i} style={{ border: `1.5px solid ${BASE.ink}`, borderRadius: 12, overflow: "hidden" }}>
+          <div key={i} style={{ border: `1px solid ${BASE.border}`, borderRadius: 12, overflow: "hidden" }}>
             <button onClick={() => setOpen(open === i ? null : i)} style={{ width: "100%", textAlign: "left", padding: "12px 14px", background: open === i ? BASE.yellow : "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
               {f.q}
             </button>
@@ -116,9 +116,9 @@ export function FaqPage() {
   );
 }
 
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const fieldLabel = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
-const saveBtn = { background: BASE.green, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui };
+const saveBtn = { background: BASE.green, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "10px 18px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui };
 
 export function PreferencesPage({ settings, onUpdateSettings, members = [] }) {
   const { navigate } = useRouter();
@@ -200,7 +200,7 @@ export function PreferencesPage({ settings, onUpdateSettings, members = [] }) {
                       onClick={() => { setDeviceMemberIdState(m.id); setDeviceMemberId(m.id); }}
                       style={{
                         background: deviceMemberId === m.id ? m.color : "#fff", color: deviceMemberId === m.id ? "#fff" : BASE.ink,
-                        border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui,
+                        border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui,
                         display: "flex", alignItems: "center", gap: 6,
                       }}
                     >

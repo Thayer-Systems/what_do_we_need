@@ -23,7 +23,7 @@ function sameDay(a, b) {
 }
 
 const widgetCard = (bg) => ({
-  background: bg, border: `2.5px solid ${BASE.ink}`, borderRadius: 12,
+  background: bg, border: `1px solid ${BASE.border}`, borderRadius: 12,
   boxShadow: hardShadow(BASE.ink, 4, 4), padding: 14, position: "relative", overflow: "hidden",
   display: "flex", flexDirection: "column",
 });
@@ -54,7 +54,7 @@ function WeatherCard({ weather, week, navigate }) {
         {restOfWeek.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 5, flexShrink: 0 }}>
             {restOfWeek.slice(0, 4).map((d) => (
-              <div key={d.date} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "3px 9px" }}>
+              <div key={d.date} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 8, padding: "3px 9px" }}>
                 <span style={{ fontFamily: F.ui, fontSize: 10, fontWeight: 800, color: BASE.t2, textTransform: "uppercase", width: 28 }}>{new Date(d.date).toLocaleDateString([], { weekday: "short" })}</span>
                 <Icon name={d.icon} size={16} />
                 <span style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, width: 26, textAlign: "right" }}>{d.highF}°</span>
@@ -81,7 +81,7 @@ function TodaysEventsCard({ events, now, navigate }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {todays.map((e) => (
             <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, background: BASE.muted, borderRadius: 10, padding: "8px 12px" }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: CATEGORY_COLORS[e.category] || BASE.pink, border: `1.5px solid ${BASE.ink}`, flexShrink: 0 }} />
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: CATEGORY_COLORS[e.category] || BASE.pink, border: `1px solid ${BASE.border}`, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0, fontFamily: F.ui, fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {e.title}{e.location ? ` · ${e.location}` : ""}
               </div>
@@ -107,7 +107,7 @@ function MealsCard({ mealPlan, navigate }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, justifyContent: "center" }}>
         {[["Lunch", slot("Lunch")], ["Dinner", slot("Dinner")]].map(([lbl, s]) => (
-          <div key={lbl} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div key={lbl} style={{ background: BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 800, color: BASE.t2, fontFamily: F.ui, textTransform: "uppercase", flexShrink: 0 }}>{lbl}</span>
             <span style={{ fontSize: 20, fontWeight: 700, fontFamily: F.display, flex: 1 }}>{s ? s.recipe_name : "Not planned"}</span>
           </div>
@@ -137,7 +137,7 @@ function TasksProjectsCard({ members, chores, completions, projects, onToggleCho
     <div style={{ ...widgetCard(BASE.pink), cursor: "pointer" }} onClick={() => navigate("/tasks")}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Tasks &amp; Projects</span>
-        <button onClick={openAddMenu} aria-label="Add a task or project" style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 8, cursor: "pointer", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+        <button onClick={openAddMenu} aria-label="Add a task or project" style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 8, cursor: "pointer", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
           <Icon name="plus" size={15} />
         </button>
       </div>
@@ -151,7 +151,7 @@ function TasksProjectsCard({ members, chores, completions, projects, onToggleCho
               {remainingChores.map((c) => {
                 const member = members.find((m) => m.id === c.member_id);
                 return (
-                  <div key={c.id} onClick={(e) => { e.stopPropagation(); onToggleChore(c); }} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
+                  <div key={c.id} onClick={(e) => { e.stopPropagation(); onToggleChore(c); }} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
                     <IconBadge icon={member?.icon || "donut"} bg={member?.color || BASE.yellow} size={22} radius={7} iconColor="#fff" />
                     <span style={{ flex: 1, fontFamily: F.ui, fontWeight: 700, fontSize: 12 }}>{c.title}</span>
                     <Icon name="close" size={14} style={{ opacity: 0.25 }} />
@@ -168,7 +168,7 @@ function TasksProjectsCard({ members, chores, completions, projects, onToggleCho
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {openProjects.map((p) => (
-                <div key={p.id} style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "6px 10px" }}>
+                <div key={p.id} style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "6px 10px" }}>
                   <div style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, marginBottom: 5 }}>{p.title}</div>
                   <ProgressBar pct={p.progress} color={BASE.pink} height={8} />
                 </div>
@@ -200,7 +200,7 @@ function KidCoinsCard({ kids, coinLedger, coinRewards, navigate }) {
             <div
               key={k.id}
               onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
-              style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "12px 8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", height: "100%" }}
+              style={{ background: BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "12px 8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", height: "100%" }}
             >
               <IconBadge icon={k.icon} bg={k.color} size={46} radius={999} iconColor="#fff" />
               <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{balance}</span>
@@ -229,7 +229,7 @@ function ParentsGoalsCard({ parents, stats, navigate }) {
             <div
               key={p.id}
               onClick={() => navigate("/goals/parents")}
-              style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "12px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", height: "100%" }}
+              style={{ background: BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "12px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", height: "100%" }}
             >
               <IconBadge icon={p.icon} bg={p.color} size={40} radius={999} iconColor="#fff" />
               <span style={{ fontFamily: F.ui, fontWeight: 700, fontSize: 12, color: BASE.t2 }}>{p.name}</span>

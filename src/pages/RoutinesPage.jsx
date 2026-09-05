@@ -5,8 +5,8 @@ import { Icon } from "../components/Icons.jsx";
 import { BASE, F, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { useRouter } from "../lib/router.jsx";
 
-const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const btn = (bg) => ({ background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
 
 const PERIODS = [
@@ -101,7 +101,7 @@ function RoutineItemModal({ members, routineId, nextSortOrder, onSave, onClose }
           <span style={label}>Picture</span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {ROUTINE_ITEM_ICONS.map((e) => (
-              <button key={e} type="button" onClick={() => setIcon(e)} style={{ width: 40, height: 40, fontSize: 20, borderRadius: 10, border: `2px solid ${BASE.ink}`, background: icon === e ? BASE.yellow : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button key={e} type="button" onClick={() => setIcon(e)} style={{ width: 40, height: 40, fontSize: 20, borderRadius: 10, border: `1px solid ${BASE.border}`, background: icon === e ? BASE.yellow : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {e}
               </button>
             ))}

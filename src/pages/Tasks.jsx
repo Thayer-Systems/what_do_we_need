@@ -6,8 +6,8 @@ import { ProgressBar } from "../components/Charts.jsx";
 import { BASE, F, DAY_NAMES, hardShadow } from "../lib/theme.js";
 import { choreAppliesToday } from "../lib/tasks.js";
 
-const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const btn = (bg) => ({ background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 const label = { fontSize: 11, fontWeight: 800, color: BASE.t2, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: F.ui, marginBottom: 6, display: "block" };
 const STATUS_COLOR = { not_started: BASE.muted, in_progress: BASE.yellow, done: BASE.green };
 const STATUS_LABEL = { not_started: "Not started", in_progress: "In progress", done: "Done" };
@@ -181,7 +181,7 @@ function MemberCountBoxes({ members, items, onPick }) {
           <div
             key={m.id}
             onClick={() => onPick(m.id)}
-            style={{ background: m.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), color: "#fff", cursor: "pointer", aspectRatio: "1 / 1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: 10 }}
+            style={{ background: m.color, border: `1px solid ${BASE.border}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), color: "#fff", cursor: "pointer", aspectRatio: "1 / 1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: 10 }}
           >
             <IconBadge icon={m.icon} bg="#fff" size={30} radius={9} />
             <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 22 }}>{count}</span>
@@ -220,9 +220,9 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
         <div style={{ position: "relative" }}>
           <button onClick={() => setAddMenuOpen((o) => !o)} style={btn(BASE.pink)}><Icon name="plus" size={15} /></button>
           {addMenuOpen && (
-            <div style={{ position: "absolute", right: 0, top: 44, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), overflow: "hidden", zIndex: 30, minWidth: 160 }}>
+            <div style={{ position: "absolute", right: 0, top: 44, background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 3, 3), overflow: "hidden", zIndex: 30, minWidth: 160 }}>
               <button onClick={() => { setChoreModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Task</button>
-              <button onClick={() => { setProjectModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", borderTop: `1.5px solid ${BASE.muted}`, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Project</button>
+              <button onClick={() => { setProjectModal({}); setAddMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "#fff", border: "none", borderTop: `1px solid ${BASE.border}`, cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>+ Project</button>
             </div>
           )}
         </div>
@@ -255,7 +255,7 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleChore && onToggleChore(c); }}
                       title={done ? "Completed" : "Mark complete"}
-                      style={{ width: 26, height: 26, borderRadius: 8, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}
+                      style={{ width: 26, height: 26, borderRadius: 8, border: `1px solid ${BASE.border}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}
                     >
                       {done && <Icon name="check" size={15} color="#fff" />}
                     </button>
@@ -271,7 +271,7 @@ export default function Tasks({ members, chores, completions, projects, onAddCho
                     <button
                       onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete "${c.title}"?`)) onDeleteChore(c.id); }}
                       title="Delete task"
-                      style={{ width: 26, height: 26, borderRadius: 8, border: `2px solid ${BASE.ink}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}
+                      style={{ width: 26, height: 26, borderRadius: 8, border: `1px solid ${BASE.border}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}
                     >
                       <Icon name="close" size={14} />
                     </button>

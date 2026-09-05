@@ -9,8 +9,8 @@ import { coinBalance, daysUntilCashIn } from "../lib/coins.js";
 import { choreAppliesToday } from "../lib/tasks.js";
 import { ChoreModal } from "./Tasks.jsx";
 
-const btn = (bg) => ({ background: bg, color: BASE.ink, border: `2.5px solid ${BASE.ink}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
-const inp = { background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
+const btn = (bg) => ({ background: bg, color: BASE.ink, border: `1px solid ${BASE.border}`, borderRadius: 999, padding: "8px 16px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: F.ui, boxShadow: hardShadow(BASE.ink, 3, 3) });
+const inp = { background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, fontFamily: F.ui, width: "100%", boxSizing: "border-box" };
 
 function KidPicker({ kids, value, onChange }) {
   return (
@@ -161,7 +161,7 @@ function TierRewardsModal({ tier, rewards, kids, coinLedger, onSubmit, onClose }
       <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t2, marginBottom: 14 }}>Pick a reward to redeem</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((r) => (
-          <div key={r.id} onClick={() => setPicked(r)} style={{ background: BASE.muted, border: `1.5px solid ${BASE.ink}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
+          <div key={r.id} onClick={() => setPicked(r)} style={{ background: BASE.muted, border: `1px solid ${BASE.border}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", fontFamily: F.ui, fontWeight: 700, fontSize: 13 }}>
             {r.label}
           </div>
         ))}
@@ -202,7 +202,7 @@ function RedeemModal({ reward, kids, coinLedger, onSubmit, onClose }) {
 
 function LoadErrorBanner() {
   return (
-    <div style={{ background: "#fff", border: `2px solid ${BASE.red}`, borderRadius: 10, padding: "10px 12px" }}>
+    <div style={{ background: "#fff", border: `1.5px solid ${BASE.red}`, borderRadius: 10, padding: "10px 12px" }}>
       <div style={{ fontFamily: F.ui, fontWeight: 800, fontSize: 12, color: BASE.red, marginBottom: 4 }}>Couldn't load coin data</div>
       <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t2 }}>
         The coin tables didn't load — this usually means the Supabase migration hasn't finished, or the schema cache needs a nudge. In the Supabase SQL editor, run the latest <code>coin_tables_grants</code> migration (or just <code>NOTIFY pgrst, 'reload schema';</code> if it's already applied), then reload this page.
@@ -221,7 +221,7 @@ function SpinningCoin({ inline }) {
         ...(inline ? {} : { position: "absolute", top: 10, right: 10 }),
         width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
         background: "radial-gradient(circle at 35% 35%, #fff6c8, #ffd23f 55%, #c8951f 100%)",
-        border: `2px solid ${BASE.ink}`, boxShadow: hardShadow(BASE.ink, 2, 2),
+        border: `1px solid ${BASE.border}`, boxShadow: hardShadow(BASE.ink, 2, 2),
         animation: "sprinkles-coin-spin 3s linear infinite",
       }}
     />
@@ -230,7 +230,7 @@ function SpinningCoin({ inline }) {
 
 function RuleRow({ rule, onOpen }) {
   return (
-    <div onClick={() => onOpen(rule)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1.5px solid ${BASE.ink}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
+    <div onClick={() => onOpen(rule)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
       <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 13, color: rule.delta > 0 ? BASE.green : BASE.red, minWidth: 22 }}>{rule.delta > 0 ? "+" : ""}{rule.delta}</span>
       <span style={{ fontFamily: F.ui, fontWeight: 600, fontSize: 12, flex: 1 }}>{rule.label}</span>
     </div>
@@ -318,7 +318,7 @@ export function KidCoinTrendsPage({ member, coinLedger, coinRewards = [], onAddC
     <div>
       <PageHeader title={`${member.name}'s Coins`} sprinkles="settings" back={() => navigate("/goals/kids")} />
       <div style={{ padding: "18px 16px 40px", display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ background: member.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 16px", color: "#fff", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ background: member.color, border: `1px solid ${BASE.border}`, borderRadius: 12, boxShadow: hardShadow(BASE.ink, 4, 4), padding: "14px 16px", color: "#fff", display: "flex", alignItems: "center", gap: 12 }}>
           <IconBadge icon={member.icon} bg="#fff" size={40} radius={12} />
           <div>
             <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 700, opacity: 0.85 }}>Current balance</div>
@@ -327,13 +327,13 @@ export function KidCoinTrendsPage({ member, coinLedger, coinRewards = [], onAddC
         </div>
 
         {tiers.length > 0 && (
-          <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 14 }}>
+          <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: 14 }}>
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Progress toward rewards</div>
             <RewardTierBar balance={balance} tiers={tiers} onTierClick={setTierModal} />
           </div>
         )}
 
-        <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 14 }}>
+        <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: 14 }}>
           <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Eligible for</div>
           {eligible.length === 0 ? (
             <div style={{ fontFamily: F.ui, fontSize: 12, color: BASE.t3 }}>Not enough coins yet for a reward.</div>
@@ -347,7 +347,7 @@ export function KidCoinTrendsPage({ member, coinLedger, coinRewards = [], onAddC
         {points.length < 2 ? (
           <div style={{ fontFamily: F.ui, fontSize: 13, color: BASE.t3 }}>Not enough history yet to chart a trend.</div>
         ) : (
-          <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 14 }}>
+          <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: 14 }}>
             <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Balance over time</div>
             <BarChart data={points} color={member.color} showTrend />
           </div>
@@ -387,14 +387,14 @@ function KidChoreList({ kid, chores, completions, onToggleChore, onAdd, onEdit }
   const doneCount = applicable.filter((c) => doneToday.has(c.id)).length;
 
   return (
-    <div style={{ background: "#fff", border: `2px solid ${BASE.ink}`, borderRadius: 12, padding: 12 }}>
+    <div style={{ background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <IconBadge icon={kid.icon} bg={kid.color} size={28} radius={9} iconColor="#fff" />
         <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, flex: 1 }}>{kid.name}'s Tasks</div>
         {applicable.length > 0 && (
           <div style={{ fontFamily: F.ui, fontSize: 11, fontWeight: 800, color: BASE.t2 }}>{doneCount}/{applicable.length}{doneCount === applicable.length ? " · +3 coins!" : ""}</div>
         )}
-        <button onClick={() => onAdd(kid)} style={{ width: 26, height: 26, borderRadius: 8, border: `2px solid ${BASE.ink}`, background: BASE.pink, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}>
+        <button onClick={() => onAdd(kid)} style={{ width: 26, height: 26, borderRadius: 8, border: `1px solid ${BASE.border}`, background: BASE.pink, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, padding: 0 }}>
           <Icon name="plus" size={13} />
         </button>
       </div>
@@ -411,7 +411,7 @@ function KidChoreList({ kid, chores, completions, onToggleChore, onAdd, onEdit }
               <button
                 onClick={() => !done && onToggleChore(c)}
                 title={done ? "Completed" : "Mark complete"}
-                style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${BASE.ink}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: done ? "default" : "pointer", padding: 0 }}
+                style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${BASE.border}`, background: done ? BASE.green : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: done ? "default" : "pointer", padding: 0 }}
               >
                 {done && <Icon name="check" size={13} color="#fff" />}
               </button>
@@ -470,9 +470,9 @@ export default function KidsGoals({ members, coinLedger, coinRules, coinRewards,
               <div
                 key={k.id}
                 onClick={() => navigate(`/goals/kids/trends/${k.id}`)}
-                style={{ background: k.color, border: `2.5px solid ${BASE.ink}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}
+                style={{ background: k.color, border: `1px solid ${BASE.border}`, borderRadius: 14, boxShadow: hardShadow(BASE.ink, 4, 4), padding: 16, color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}
               >
-                <div style={{ width: 72, height: 72, flexShrink: 0, background: "#fff", border: `2.5px solid ${BASE.ink}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                <div style={{ width: 72, height: 72, flexShrink: 0, background: "#fff", border: `1px solid ${BASE.border}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                   <IconBadge icon={k.icon} bg="#fff" size={54} radius={0} style={{ boxShadow: "none", border: "none" }} />
                 </div>
                 <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 17 }}>{k.name}</div>

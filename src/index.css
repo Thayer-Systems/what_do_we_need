@@ -4,7 +4,7 @@
 html, body, #root { height: 100%; }
 body {
   margin: 0;
-  background: #fdf6ec;
+  background: #f5efe3;
   overscroll-behavior-y: contain;
 }
 button { font-family: inherit; }
