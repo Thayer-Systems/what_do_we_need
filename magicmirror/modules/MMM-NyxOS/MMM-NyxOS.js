@@ -163,7 +163,7 @@ Module.register("MMM-NyxOS", {
       const row = document.createElement("div");
       row.className = "nyxos-row";
       const val = unavailable ? "Not tracked" : value || "Not planned";
-      row.innerHTML = `<span class="nyxos-row-label">${label}</span><span class="nyxos-row-title">${val}</span>`;
+      row.innerHTML = `<span class="nyxos-row-label">${label}</span><span class="nyxos-row-value">${val}</span>`;
       list.appendChild(row);
     });
     wrap.appendChild(list);
@@ -218,6 +218,8 @@ Module.register("MMM-NyxOS", {
   },
 
   // ── kids checklist (bottom_left) ────────────────────────────
+  // One column per kid so a long combined list doesn't grow taller than
+  // the region and spill into the module above (e.g. the clock).
   renderChecklist: function () {
     const wrap = document.createElement("div");
     wrap.appendChild(this.title("Checklist"));
@@ -226,15 +228,33 @@ Module.register("MMM-NyxOS", {
       wrap.appendChild(this.emptyLine("Nothing scheduled today"));
       return wrap;
     }
-    const list = document.createElement("div");
-    list.className = "nyxos-list";
+
+    const byKid = {};
     items.forEach((i) => {
-      const row = document.createElement("div");
-      row.className = `nyxos-check-row ${i.done ? "done" : ""}`;
-      row.innerHTML = `<span class="nyxos-check-mark">${i.done ? "✓" : "○"}</span><span class="nyxos-row-title">${i.item}</span>`;
-      list.appendChild(row);
+      (byKid[i.kid] = byKid[i.kid] || []).push(i);
     });
-    wrap.appendChild(list);
+
+    const columns = document.createElement("div");
+    columns.className = "nyxos-columns";
+    Object.entries(byKid).forEach(([kid, kidItems]) => {
+      const col = document.createElement("div");
+      col.className = "nyxos-column";
+      const header = document.createElement("div");
+      header.className = "nyxos-column-header";
+      header.textContent = kid;
+      col.appendChild(header);
+      const list = document.createElement("div");
+      list.className = "nyxos-list nyxos-list-compact";
+      kidItems.forEach((i) => {
+        const row = document.createElement("div");
+        row.className = `nyxos-check-row ${i.done ? "done" : ""}`;
+        row.innerHTML = `<span class="nyxos-check-mark">${i.done ? "✓" : "○"}</span><span class="nyxos-row-title">${i.item}</span>`;
+        list.appendChild(row);
+      });
+      col.appendChild(list);
+      columns.appendChild(col);
+    });
+    wrap.appendChild(columns);
     return wrap;
   },
 
