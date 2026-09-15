@@ -7,6 +7,15 @@
 .nyxos {
   font-family: "Roboto Condensed", sans-serif;
   color: #eee;
+  /* Some MagicMirror regions (e.g. middle.center) span the full screen
+   * width by default in MM's own core CSS. inline-block + max-width keeps
+   * this module's content sized to itself (shrink-to-fit) instead of
+   * stretching full-bleed — every row/column inside still fills 100% of
+   * *this* box, so label/value and column widths stay internally
+   * consistent without spilling past the module's own content width. */
+  display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .nyxos-title {
@@ -117,7 +126,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 20px;
   width: 100%;
   box-sizing: border-box;

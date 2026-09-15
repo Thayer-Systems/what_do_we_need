@@ -56,3 +56,11 @@ often than once a minute.
   one picked.
 - **Checklist covers whichever routines are scheduled for today** (morning
   and/or evening, per `sprinkles_routines.days`), not a single fixed list.
+  The region always renders one column per kid in `sprinkles_family_members`
+  (role `kid`), even if a kid has no items today — a kid whose routine isn't
+  scheduled for today's weekday shows an empty "Nothing today" column
+  instead of disappearing. If a kid's column is unexpectedly empty, check
+  `docker compose logs magicmirror` for a `[MMM-NyxOS] checklist: no items
+  today` warning — it names which kid(s) and, when it can find their
+  routine, that routine's `days` value, to distinguish "not scheduled today"
+  from an actual fetch problem.
