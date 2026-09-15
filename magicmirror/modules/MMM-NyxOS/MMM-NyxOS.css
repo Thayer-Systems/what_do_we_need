@@ -1,0 +1,136 @@
+/* Large, high-contrast, dark-theme styling meant to be readable from
+ * 6-8 feet away on a TV. MagicMirror's default body background is already
+ * black; these rules just make sure MMM-NyxOS content holds up at that
+ * distance regardless of the region it's rendered into.
+ */
+
+.nyxos {
+  font-family: "Roboto Condensed", sans-serif;
+  color: #eee;
+}
+
+.nyxos-title {
+  font-size: 22px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #f2c94c;
+  margin-bottom: 10px;
+}
+
+.nyxos-loading,
+.nyxos-error,
+.nyxos-coming-soon,
+.nyxos-empty,
+.nyxos-departure-empty {
+  font-size: 20px;
+  color: #888;
+  font-style: italic;
+}
+
+.nyxos-error {
+  color: #e06c75;
+}
+
+.nyxos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nyxos-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.nyxos-row-label {
+  font-size: 16px;
+  text-transform: uppercase;
+  color: #999;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.nyxos-row-title {
+  font-weight: 600;
+  color: #fff;
+}
+
+.nyxos-row-meta {
+  font-size: 16px;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.nyxos-day-header {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f2c94c;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+/* ── departure (top_bar) ── */
+.nyxos-departure {
+  font-size: 30px;
+  font-weight: 700;
+  color: #ffd166;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── coins (middle_right) ── */
+.nyxos-coins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.nyxos-coin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.nyxos-coin-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.nyxos-coin-total {
+  font-size: 42px;
+  font-weight: 800;
+  color: #6fcf97;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ── checklist / chores (bottom_left / bottom_center) ── */
+.nyxos-check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+}
+
+.nyxos-check-row.done {
+  color: #666;
+  text-decoration: line-through;
+}
+
+.nyxos-check-mark {
+  font-size: 26px;
+  width: 28px;
+  flex-shrink: 0;
+  color: #6fcf97;
+}
+
+.nyxos-check-row.done .nyxos-check-mark {
+  color: #555;
+}
