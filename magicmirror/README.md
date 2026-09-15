@@ -99,7 +99,7 @@ LAN or Tailscale, **never exposed to the public internet**:
 
 See `modules/MMM-NyxOS/README.md` for the full list. Summary:
 
-- No Breakfast slot (Mr Sprinkles' schema doesn't have one).
+- No Breakfast row — Mr Sprinkles' schema has no Breakfast slot and doesn't plan breakfast, so meals shows Lunch and Dinner only.
 - `calendar_events` and `rules` are PocketBase collections NyxOS has spec'd
   but not yet confirmed built — those regions show "coming soon" until they
   exist, without crashing the rest of the dashboard.

@@ -156,14 +156,12 @@ Module.register("MMM-NyxOS", {
     const list = document.createElement("div");
     list.className = "nyxos-list";
     [
-      ["Breakfast", m.breakfastAvailable === false ? null : m.breakfast, m.breakfastAvailable === false],
-      ["Lunch", m.lunch, false],
-      ["Dinner", m.dinner, false],
-    ].forEach(([label, value, unavailable]) => {
+      ["Lunch", m.lunch],
+      ["Dinner", m.dinner],
+    ].forEach(([label, value]) => {
       const row = document.createElement("div");
       row.className = "nyxos-row";
-      const val = unavailable ? "Not tracked" : value || "Not planned";
-      row.innerHTML = `<span class="nyxos-row-label">${label}</span><span class="nyxos-row-value">${val}</span>`;
+      row.innerHTML = `<span class="nyxos-row-label">${label}</span><span class="nyxos-row-value">${value || "Not planned"}</span>`;
       list.appendChild(row);
     });
     wrap.appendChild(list);

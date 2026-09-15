@@ -42,8 +42,9 @@ often than once a minute.
 ## Known limitations
 
 - **No Breakfast.** Mr Sprinkles' `meal_plan` table only has Lunch and Dinner
-  slots — the meals region shows Breakfast as "Not tracked" rather than
-  inventing a field that doesn't exist in Supabase.
+  slots, and breakfast isn't planned there — the meals region only shows
+  those two rows rather than inventing a field that doesn't exist in
+  Supabase.
 - **`calendar_events` and `rules` are unconfirmed-built PocketBase
   collections.** If either 404s (collection doesn't exist yet) or errors,
   that region renders "coming soon" and logs a warning instead of crashing
