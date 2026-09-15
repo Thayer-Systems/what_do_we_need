@@ -352,7 +352,7 @@ module.exports = NodeHelper.create({
           (c) => c.routine_id === routine.id && c.member_id === item.member_id && c.date === today
         );
         const done = !!(completion && (completion.checked_item_ids || []).includes(item.id));
-        out.push({ item: `${member ? member.name + ": " : ""}${item.title}`, done });
+        out.push({ kid: member ? member.name : "Unknown", item: item.title, done });
       });
     });
     return out;
