@@ -1,0 +1,29 @@
+services:
+  magicmirror:
+    image: ghcr.io/magicmirrororg/magicmirror:latest
+    container_name: nyxos-magicmirror
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - PB_URL=${PB_URL}
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - ./config:/opt/magic_mirror/config
+      - ./modules/MMM-NyxOS:/opt/magic_mirror/modules/MMM-NyxOS
+    # NyxOS's PocketBase lives in a different docker-compose project on the
+    # same mini PC. Uncomment below (and set the network to `external: true`)
+    # only if that project's docker-compose exposes its network as external
+    # and PocketBase is reachable on it by service name (e.g. `pocketbase`).
+    # Otherwise leave this commented out and point PB_URL at the mini PC's
+    # LAN/Tailscale IP + published PocketBase port instead.
+    # networks:
+    #   - nyxos-net
+
+# networks:
+#   nyxos-net:
+#     external: true
