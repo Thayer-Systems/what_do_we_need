@@ -216,14 +216,19 @@ Module.register("MMM-NyxOS", {
   },
 
   // ── kids checklist (bottom_left) ────────────────────────────
-  // One column per kid so a long combined list doesn't grow taller than
-  // the region and spill into the module above (e.g. the clock).
+  // Always one column per known kid (from payload.kids), not just kids who
+  // happen to have an item today — otherwise a kid whose routine isn't
+  // scheduled today (or a fetch hiccup) silently drops their whole column
+  // instead of showing an empty one. Capped to 5 items/kid so the region
+  // can't grow past its area.
   renderChecklist: function () {
     const wrap = document.createElement("div");
     wrap.appendChild(this.title("Checklist"));
     const items = this.payload.checklist || [];
-    if (!items.length) {
-      wrap.appendChild(this.emptyLine("Nothing scheduled today"));
+    const kids = this.payload.kids && this.payload.kids.length ? this.payload.kids : [...new Set(items.map((i) => i.kid))];
+
+    if (!kids.length) {
+      wrap.appendChild(this.emptyLine("No kids set up yet"));
       return wrap;
     }
 
@@ -234,7 +239,8 @@ Module.register("MMM-NyxOS", {
 
     const columns = document.createElement("div");
     columns.className = "nyxos-columns";
-    Object.entries(byKid).forEach(([kid, kidItems]) => {
+    kids.forEach((kid) => {
+      const kidItems = (byKid[kid] || []).slice(0, 5);
       const col = document.createElement("div");
       col.className = "nyxos-column";
       const header = document.createElement("div");
@@ -243,12 +249,16 @@ Module.register("MMM-NyxOS", {
       col.appendChild(header);
       const list = document.createElement("div");
       list.className = "nyxos-list nyxos-list-compact";
-      kidItems.forEach((i) => {
-        const row = document.createElement("div");
-        row.className = `nyxos-check-row ${i.done ? "done" : ""}`;
-        row.innerHTML = `<span class="nyxos-check-mark">${i.done ? "✓" : "○"}</span><span class="nyxos-row-title">${i.item}</span>`;
-        list.appendChild(row);
-      });
+      if (!kidItems.length) {
+        list.appendChild(this.emptyLine("Nothing today"));
+      } else {
+        kidItems.forEach((i) => {
+          const row = document.createElement("div");
+          row.className = `nyxos-check-row ${i.done ? "done" : ""}`;
+          row.innerHTML = `<span class="nyxos-check-mark">${i.done ? "✓" : "○"}</span><span class="nyxos-row-title">${i.item}</span>`;
+          list.appendChild(row);
+        });
+      }
       col.appendChild(list);
       columns.appendChild(col);
     });

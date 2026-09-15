@@ -257,6 +257,12 @@ module.exports = NodeHelper.create({
     ]);
 
     return {
+      // All active kids, in sprinkles_family_members' own sort order — the
+      // checklist region renders one column per kid from this list (not
+      // from whichever kids happen to have an item today), so a kid with
+      // nothing scheduled still gets a visible, empty column instead of
+      // disappearing.
+      kids: members.filter((m) => m.role === "kid").map((m) => m.name),
       events: this.buildEvents(pbCalendarRaw),
       meals: this.buildMeals(mealPlan),
       coins: this.buildCoins(members, coinLedger),
@@ -356,6 +362,23 @@ module.exports = NodeHelper.create({
         out.push({ kid: member ? member.name : "Unknown", item: item.title, done });
       });
     });
+
+    // A kid with zero checklist items today is expected if that kid's
+    // routine's `days` field genuinely doesn't include today — not a
+    // fetch bug. Log it so that distinction is visible in
+    // `docker compose logs magicmirror` instead of just "a kid vanished".
+    const kidsWithItems = new Set(out.map((i) => i.kid));
+    const kidsWithNoItemsToday = members.filter((m) => m.role === "kid" && !kidsWithItems.has(m.name));
+    if (kidsWithNoItemsToday.length) {
+      const kidRoutineDays = routines
+        .filter((r) => routineItems.some((i) => kidsWithNoItemsToday.some((m) => m.id === i.member_id) && i.routine_id === r.id))
+        .map((r) => `routine ${r.id} days=[${(r.days || []).join(",")}]`);
+      console.warn(
+        `[MMM-NyxOS] checklist: no items today (dow=${nowDow}) for: ${kidsWithNoItemsToday.map((m) => m.name).join(", ")}.`,
+        `Fetched ${routines.length} active routines, ${routineItems.length} active routine items total.`,
+        kidRoutineDays.length ? `Their routines: ${kidRoutineDays.join("; ")}` : "No routine_items rows reference these kids' member_id at all."
+      );
+    }
     return out;
   },
 
