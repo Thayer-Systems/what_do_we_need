@@ -54,9 +54,9 @@ let config = {
     // assembled payload.
     { module: "MMM-NyxOS", position: "top_bar", config: { region: "departure" } },
     { module: "MMM-NyxOS", position: "top_left", config: { region: "events" } },
-    { module: "MMM-NyxOS", position: "middle_left", config: { region: "meals" } },
-    { module: "MMM-NyxOS", position: "middle_center", config: { region: "tasks" } },
-    { module: "MMM-NyxOS", position: "middle_right", config: { region: "coins" } },
+    { module: "MMM-NyxOS", position: "upper_third", config: { region: "tasks" } },
+    { module: "MMM-NyxOS", position: "middle_center", config: { region: "meals" } },
+    { module: "MMM-NyxOS", position: "lower_third", config: { region: "coins" } },
     { module: "MMM-NyxOS", position: "bottom_left", config: { region: "checklist" } },
     { module: "MMM-NyxOS", position: "bottom_center", config: { region: "chores" } },
   ],

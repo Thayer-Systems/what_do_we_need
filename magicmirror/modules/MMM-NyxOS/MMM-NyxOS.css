@@ -103,6 +103,27 @@
   text-transform: uppercase;
 }
 
+/* ── meals (middle_center) ──
+ * MM's "third band" regions (upper_third/middle_center/lower_third) are
+ * centered, full-width flow regions in MM's own core CSS with no
+ * guaranteed vertical spacing between them — tall content in one can push
+ * down into the next. Give this region its own fixed width (so label/value
+ * rows and the title always share one width) and a height cap with
+ * overflow hidden, so it can never grow into lower_third's space. */
+.nyxos-meals {
+  display: block;
+  width: 400px;
+  max-width: 100%;
+  margin: 0 auto;
+  max-height: 150px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.nyxos-meals .nyxos-title {
+  text-align: center;
+}
+
 /* ── departure (top_bar) ── */
 .nyxos-departure {
   font-size: 30px;
@@ -112,11 +133,28 @@
   padding: 4px 0;
 }
 
-/* ── coins (middle_right / lower_third) ── */
+/* ── coins (lower_third) ──
+ * Same fixed-width-and-height-cap treatment as .nyxos-meals above, and for
+ * the same reason: lower_third is a centered flow region that can collide
+ * with middle_center above it if content grows tall. */
+.nyxos-coins {
+  display: block;
+  width: 320px;
+  max-width: 100%;
+  margin: 0 auto;
+  max-height: 320px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.nyxos-coins .nyxos-title {
+  text-align: center;
+}
+
 .nyxos-coins-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   width: 100%;
   box-sizing: border-box;
 }
