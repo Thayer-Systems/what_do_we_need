@@ -284,9 +284,10 @@ module.exports = NodeHelper.create({
       const slot = mealPlan.find((s) => s.meal === meal);
       return slot ? slot.recipe_name : null;
     };
+    // No Breakfast field: Mr Sprinkles' meal_plan schema has no Breakfast
+    // slot and breakfast isn't planned, so it's left out entirely rather
+    // than rendered as an always-empty row.
     return {
-      breakfast: null, // Mr Sprinkles' meal_plan schema has no Breakfast slot
-      breakfastAvailable: false,
       lunch: find("Lunch"),
       dinner: find("Dinner"),
     };
